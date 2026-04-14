@@ -1,0 +1,15 @@
+.vs/
+.vscode/
+.idea/
+.serena/
+bin/
+obj/
+artifacts/
+coverage/
+TestResults/
+*.user
+*.suo
+*.nupkg
+*.log
+.DS_Store
+Thumbs.db

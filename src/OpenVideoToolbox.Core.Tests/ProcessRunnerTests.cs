@@ -1,0 +1,52 @@
+using OpenVideoToolbox.Core.Execution;
+using Xunit;
+
+namespace OpenVideoToolbox.Core.Tests;
+
+public sealed class ProcessRunnerTests
+{
+    [Fact]
+    public async Task ExecuteAsync_CapturesOutput_AndReturnsSuccess()
+    {
+        var runner = new DefaultProcessRunner();
+        var request = new ProcessExecutionRequest
+        {
+            CommandPlan = new CommandPlan
+            {
+                ToolName = "dotnet",
+                ExecutablePath = "dotnet",
+                Arguments = ["--version"],
+                CommandLine = "dotnet --version"
+            }
+        };
+
+        var result = await runner.ExecuteAsync(request);
+
+        Assert.Equal(ExecutionStatus.Succeeded, result.Status);
+        Assert.True(result.ExitCode == 0);
+        Assert.NotEmpty(result.OutputLines);
+        Assert.Contains(result.OutputLines, line => !line.IsError);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ReturnsTimedOut_WhenTimeoutIsExceeded()
+    {
+        var runner = new DefaultProcessRunner();
+        var request = new ProcessExecutionRequest
+        {
+            CommandPlan = new CommandPlan
+            {
+                ToolName = "powershell",
+                ExecutablePath = "powershell",
+                Arguments = ["-NoProfile", "-Command", "Start-Sleep -Seconds 2; Write-Output done"],
+                CommandLine = "powershell -NoProfile -Command \"Start-Sleep -Seconds 2; Write-Output done\""
+            },
+            Timeout = TimeSpan.FromMilliseconds(200)
+        };
+
+        var result = await runner.ExecuteAsync(request);
+
+        Assert.Equal(ExecutionStatus.TimedOut, result.Status);
+        Assert.NotNull(result.ErrorMessage);
+    }
+}
