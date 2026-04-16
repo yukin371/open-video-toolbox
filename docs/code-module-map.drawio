@@ -1,0 +1,94 @@
+<mxfile host="app.diagrams.net" agent="OpenAI Codex" version="24.7.17">
+  <diagram id="code-module-map" name="Code Module Map">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Open Video Toolbox Code Module Map&#xa;current folders, owned responsibilities, and next landing zones" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="20" width="1040" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="repo" value="Repository Root&#xa;OpenVideoToolbox.sln&#xa;docs / src / AGENTS.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="80" width="360" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli" value="src/OpenVideoToolbox.Cli&#xa;&#xa;Current role&#xa;- parse args&#xa;- validate contracts&#xa;- emit JSON&#xa;- call Core services&#xa;&#xa;Implemented commands&#xa;- presets&#xa;- probe&#xa;- plan&#xa;- run&#xa;- cut&#xa;- concat&#xa;&#xa;Next additions&#xa;- extract-audio&#xa;- render" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="70" y="210" width="300" height="260" as="geometry" />
+        </mxCell>
+
+        <mxCell id="core" value="src/OpenVideoToolbox.Core&#xa;&#xa;Only shared business owner&#xa;CLI and UI must both reuse this layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=15;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="470" y="190" width="690" height="300" as="geometry" />
+        </mxCell>
+
+        <mxCell id="media" value="Media/&#xa;&#xa;Owns&#xa;- ffprobe wrapper&#xa;- normalized metadata&#xa;- tracks / stream info" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="510" y="245" width="150" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="jobs" value="Jobs/&#xa;&#xa;Owns&#xa;- JobDefinition&#xa;- source/output job model" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="685" y="245" width="140" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="presets" value="Presets/&#xa;&#xa;Owns&#xa;- PresetDefinition&#xa;- BuiltInPresetCatalog" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="845" y="245" width="145" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="editing" value="Editing/&#xa;&#xa;Owns&#xa;- edit.json schema v1&#xa;- EditPlan&#xa;- clips / audio tracks / subtitles / output&#xa;&#xa;Future&#xa;- render input contract" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1010" y="230" width="130" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="execution" value="Execution/&#xa;&#xa;Owns&#xa;- ffmpeg builders&#xa;- process runner&#xa;- stdout/stderr logs&#xa;- produced paths&#xa;&#xa;Current&#xa;- transcode&#xa;- cut&#xa;- concat&#xa;&#xa;Next&#xa;- extract-audio&#xa;- render executor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="385" width="320" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="serialization" value="Serialization/&#xa;&#xa;Owns shared JSON options&#xa;camelCase + string enums" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="960" y="390" width="160" height="85" as="geometry" />
+        </mxCell>
+
+        <mxCell id="desktop" value="src/OpenVideoToolbox.Desktop&#xa;&#xa;Current state&#xa;- placeholder only&#xa;&#xa;Future allowed role&#xa;- inspect media.json&#xa;- inspect / edit edit.json&#xa;- show logs / outputs&#xa;&#xa;Must not own&#xa;- ffmpeg command construction&#xa;- ffprobe invocation&#xa;- separate business logic" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="210" width="270" height="260" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tests" value="src/OpenVideoToolbox.Core.Tests&#xa;&#xa;Owns regression coverage for&#xa;- command builders&#xa;- runners&#xa;- serialization&#xa;- ffprobe parsing&#xa;&#xa;Expected next tests&#xa;- extract-audio builder/runner&#xa;- render plan consumption" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="150" y="530" width="320" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="docs" value="docs/&#xa;&#xa;Operational guidance&#xa;- architecture.drawio&#xa;- wave1-cli-flow.drawio&#xa;- code-module-map.drawio&#xa;- CLI_MVP.md&#xa;- roadmap.md&#xa;- implementation plans / ADRs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="620" y="550" width="300" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="futureLanding" value="Recommended next landing zones&#xa;&#xa;extract-audio -> Core.Execution + Cli + Tests&#xa;render -> Core.Execution + Core.Editing + Cli + Tests&#xa;subtitle / beat-track / mix-audio -> after Wave 1 stabilizes" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="980" y="560" width="350" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="forbidden" value="Forbidden architecture drift&#xa;&#xa;Do not put ffmpeg/ffprobe logic in Desktop&#xa;Do not define a second edit.json shape in CLI&#xa;Do not duplicate command builders per command in multiple modules&#xa;Do not add in-repo AI provider layer" style="shape=note;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1360" y="550" width="170" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeRepoCli" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="repo" target="cli">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRepoCore" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="repo" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRepoDesktop" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="repo" target="desktop">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRepoTests" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="repo" target="tests">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRepoDocs" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="repo" target="docs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeCliCore" value="calls" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="cli" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeDesktopCore" value="future reuse only" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="desktop" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeTestsCore" value="tests" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="tests" target="core">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeDocsRepo" value="guides" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="docs" target="repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

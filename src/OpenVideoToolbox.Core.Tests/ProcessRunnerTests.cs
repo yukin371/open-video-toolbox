@@ -25,7 +25,7 @@ public sealed class ProcessRunnerTests
         Assert.Equal(ExecutionStatus.Succeeded, result.Status);
         Assert.True(result.ExitCode == 0);
         Assert.NotEmpty(result.OutputLines);
-        Assert.Contains(result.OutputLines, line => !line.IsError);
+        Assert.Contains(result.OutputLines, line => line.Channel == ProcessOutputChannel.StandardOutput);
     }
 
     [Fact]
@@ -48,5 +48,27 @@ public sealed class ProcessRunnerTests
 
         Assert.Equal(ExecutionStatus.TimedOut, result.Status);
         Assert.NotNull(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DoesNotMarkNormalStderrLinesAsErrors()
+    {
+        var runner = new DefaultProcessRunner();
+        var request = new ProcessExecutionRequest
+        {
+            CommandPlan = new CommandPlan
+            {
+                ToolName = "powershell",
+                ExecutablePath = "powershell",
+                Arguments = ["-NoProfile", "-Command", "[Console]::Error.WriteLine('progress=42')"],
+                CommandLine = "powershell -NoProfile -Command \"[Console]::Error.WriteLine('progress=42')\""
+            }
+        };
+
+        var result = await runner.ExecuteAsync(request);
+
+        Assert.Equal(ExecutionStatus.Succeeded, result.Status);
+        Assert.Contains(result.OutputLines, line => line.Channel == ProcessOutputChannel.StandardError);
+        Assert.DoesNotContain(result.OutputLines, line => line.Channel == ProcessOutputChannel.StandardError && line.IsError);
     }
 }

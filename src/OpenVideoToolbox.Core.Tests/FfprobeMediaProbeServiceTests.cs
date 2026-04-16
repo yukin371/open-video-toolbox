@@ -22,6 +22,7 @@ public sealed class FfprobeMediaProbeServiceTests
                 new ProcessOutputLine
                 {
                     TimestampUtc = DateTimeOffset.UtcNow,
+                    Channel = ProcessOutputChannel.StandardOutput,
                     IsError = false,
                     Text =
                         """
@@ -56,6 +57,7 @@ public sealed class FfprobeMediaProbeServiceTests
                 new ProcessOutputLine
                 {
                     TimestampUtc = DateTimeOffset.UtcNow,
+                    Channel = ProcessOutputChannel.StandardError,
                     IsError = true,
                     Text = "ffprobe not found"
                 }
@@ -69,4 +71,3 @@ public sealed class FfprobeMediaProbeServiceTests
         Assert.Contains("ffprobe failed", exception.Message);
     }
 }
-

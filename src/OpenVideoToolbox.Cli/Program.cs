@@ -1,9 +1,15 @@
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using OpenVideoToolbox.Cli;
+using OpenVideoToolbox.Core.Beats;
+using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
 using OpenVideoToolbox.Core.Jobs;
 using OpenVideoToolbox.Core.Media;
 using OpenVideoToolbox.Core.Presets;
 using OpenVideoToolbox.Core.Serialization;
+using OpenVideoToolbox.Core.Subtitles;
 
 return await MainAsync(args);
 
@@ -20,9 +26,20 @@ static async Task<int> MainAsync(string[] args)
 
     return command switch
     {
+        "init-plan" => await RunInitPlanAsync(remaining),
+        "scaffold-template" => await RunScaffoldTemplateAsync(remaining),
+        "extract-audio" => await RunExtractAudioAsync(remaining),
+        "beat-track" => await RunBeatTrackAsync(remaining),
+        "concat" => await RunConcatAsync(remaining),
+        "cut" => await RunCutAsync(remaining),
+        "mix-audio" => await RunMixAudioAsync(remaining),
+        "render" => await RunRenderAsync(remaining),
+        "subtitle" => await RunSubtitleAsync(remaining),
+        "validate-plan" => await RunValidatePlanAsync(remaining),
         "probe" => await RunProbeAsync(remaining),
         "plan" => await RunPlanAsync(remaining),
         "run" => await RunTranscodeAsync(remaining),
+        "templates" => RunTemplates(remaining),
         "presets" => RunPresets(),
         "help" or "--help" or "-h" => ShowHelp(),
         _ => Fail($"Unknown command '{args[0]}'.")
@@ -45,6 +62,722 @@ static async Task<int> RunProbeAsync(string[] args)
         var result = await probeService.ProbeAsync(inputPath!, ffprobePath);
         WriteJson(result);
         return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunValidatePlanAsync(string[] args)
+{
+    if (!TryParseOptions(args, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+    {
+        return Fail(error!);
+    }
+
+    var jsonOutPath = GetOption(options, "--json-out");
+    var fullPlanPath = Path.GetFullPath(planPath!);
+    var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
+
+    try
+    {
+        var validation = await ValidatePlanFileAsync(fullPlanPath, checkFiles == true);
+        var report = new
+        {
+            planPath = fullPlanPath,
+            resolvedBaseDirectory = planDirectory,
+            checkFiles = checkFiles == true,
+            isValid = validation.IsValid,
+            issues = validation.Issues
+        };
+
+        WriteOutput(report, jsonOutPath);
+        return validation.IsValid ? 0 : 1;
+    }
+    catch (Exception ex)
+    {
+        var report = new
+        {
+            planPath = fullPlanPath,
+            resolvedBaseDirectory = planDirectory,
+            checkFiles = checkFiles == true,
+            isValid = false,
+            issues = new[]
+            {
+                new EditPlanValidationIssue
+                {
+                    Severity = EditPlanValidationSeverity.Error,
+                    Path = "$",
+                    Code = "plan.parse.failed",
+                    Message = ex.Message
+                }
+            }
+        };
+
+        WriteOutput(report, jsonOutPath);
+        return 1;
+    }
+}
+
+static async Task<int> RunCutAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredTimeSpanOption(options, "--from", out var start, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredTimeSpanOption(options, "--to", out var end, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (end <= start)
+    {
+        return Fail("Option '--to' must be greater than '--from'.");
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var request = new MediaCutRequest
+    {
+        InputPath = inputPath!,
+        OutputPath = outputPath!,
+        Start = start,
+        End = end,
+        OverwriteExisting = GetOption(options, "--overwrite") == "true"
+    };
+
+    var processRunner = new DefaultProcessRunner();
+    var runner = new MediaCutRunner(new FfmpegCutCommandBuilder(), processRunner);
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
+
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+        WriteJson(new
+        {
+            cut = request,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunConcatAsync(string[] args)
+{
+    if (!TryParseOptions(args, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--input-list", out var inputListPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var request = new MediaConcatRequest
+    {
+        InputListPath = inputListPath!,
+        OutputPath = outputPath!,
+        OverwriteExisting = GetOption(options, "--overwrite") == "true"
+    };
+
+    var processRunner = new DefaultProcessRunner();
+    var runner = new MediaConcatRunner(new FfmpegConcatCommandBuilder(), processRunner);
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
+
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+        WriteJson(new
+        {
+            concat = request,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunExtractAudioAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredIntOption(options, "--track", out var trackIndex, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (trackIndex < 0)
+    {
+        return Fail("Option '--track' must be zero or greater.");
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var request = new AudioExtractRequest
+    {
+        InputPath = inputPath!,
+        OutputPath = outputPath!,
+        TrackIndex = trackIndex,
+        OverwriteExisting = GetOption(options, "--overwrite") == "true"
+    };
+
+    var processRunner = new DefaultProcessRunner();
+    var runner = new AudioExtractRunner(new FfmpegAudioExtractCommandBuilder(), processRunner);
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
+
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+        WriteJson(new
+        {
+            extractAudio = request,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunRenderAsync(string[] args)
+{
+    if (!TryParseOptions(args, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetBoolOption(options, "--preview", out var previewOnly, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+
+    try
+    {
+        var plan = await LoadEditPlanAsync(planPath!, GetOption(options, "--output"));
+        var request = new EditPlanRenderRequest
+        {
+            Plan = plan,
+            OverwriteExisting = GetOption(options, "--overwrite") == "true"
+        };
+
+        var builder = new FfmpegEditPlanRenderCommandBuilder();
+        var previewBuilder = new EditPlanExecutionPreviewBuilder(builder, new FfmpegEditPlanAudioMixCommandBuilder());
+        var preview = previewBuilder.BuildRenderPreview(request, ffmpegPath);
+        if (previewOnly == true)
+        {
+            WriteJson(new
+            {
+                render = request.Plan,
+                preview = true,
+                executionPreview = preview
+            });
+
+            return 0;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(plan.Output.Path))!);
+
+        var processRunner = new DefaultProcessRunner();
+        var runner = new EditPlanRenderRunner(builder, processRunner);
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+
+        WriteJson(new
+        {
+            render = request.Plan,
+            preview = false,
+            executionPreview = preview,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunSubtitleAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--transcript", out var transcriptPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--format", out var rawFormat, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryParseSubtitleFormat(rawFormat!, out var format, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--max-line-length", out var maxLineLength, out error))
+    {
+        return Fail(error!);
+    }
+
+    try
+    {
+        var transcript = await LoadTranscriptAsync(transcriptPath!);
+        var request = new SubtitleRenderRequest
+        {
+            Transcript = transcript,
+            Format = format,
+            OutputPath = Path.GetFullPath(outputPath!),
+            MaxLineLength = maxLineLength ?? 24
+        };
+
+        var renderer = new SubtitleRenderer();
+        var result = renderer.Render(request);
+        Directory.CreateDirectory(Path.GetDirectoryName(result.OutputPath)!);
+        await File.WriteAllTextAsync(result.OutputPath, result.Content, Encoding.UTF8);
+
+        WriteJson(new
+        {
+            source = new
+            {
+                inputPath,
+                transcriptPath = Path.GetFullPath(transcriptPath!)
+            },
+            subtitle = new
+            {
+                result.OutputPath,
+                result.Format,
+                result.SegmentCount,
+                result.MaxLineLength,
+                transcript.Language
+            }
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunMixAudioAsync(string[] args)
+{
+    if (!TryParseOptions(args, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetBoolOption(options, "--preview", out var previewOnly, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+
+    try
+    {
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
+        var plan = await LoadEditPlanAsync(fullPlanPath, outputOverridePath: null);
+        var resolvedOutputPath = EditPlanPathResolver.ResolvePath(planDirectory, outputPath!);
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var request = new EditPlanAudioMixRequest
+        {
+            Plan = plan,
+            OutputPath = resolvedOutputPath,
+            OverwriteExisting = GetOption(options, "--overwrite") == "true"
+        };
+
+        var builder = new FfmpegEditPlanAudioMixCommandBuilder();
+        var previewBuilder = new EditPlanExecutionPreviewBuilder(new FfmpegEditPlanRenderCommandBuilder(), builder);
+        var preview = previewBuilder.BuildAudioMixPreview(request, ffmpegPath);
+        if (previewOnly == true)
+        {
+            WriteJson(new
+            {
+                mixAudio = new
+                {
+                    planPath = fullPlanPath,
+                    request.OutputPath
+                },
+                preview = true,
+                executionPreview = preview
+            });
+
+            return 0;
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var processRunner = new DefaultProcessRunner();
+        var runner = new EditPlanAudioMixRunner(builder, processRunner);
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+
+        WriteJson(new
+        {
+            mixAudio = new
+            {
+                planPath = fullPlanPath,
+                request.OutputPath
+            },
+            preview = false,
+            executionPreview = preview,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunBeatTrackAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--sample-rate", out var sampleRateHz, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (sampleRateHz is <= 0)
+    {
+        return Fail("Option '--sample-rate' must be greater than zero.");
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var resolvedOutputPath = Path.GetFullPath(outputPath!);
+    var tempWavePath = Path.Combine(Path.GetTempPath(), $"ovt-beat-track-{Guid.NewGuid():N}.wav");
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var processRunner = new DefaultProcessRunner();
+        var extractRequest = new AudioWaveformExtractRequest
+        {
+            InputPath = inputPath!,
+            OutputPath = tempWavePath,
+            SampleRateHz = sampleRateHz ?? 16000,
+            OverwriteExisting = true
+        };
+        var extractRunner = new AudioWaveformExtractRunner(new FfmpegAudioWaveformExtractCommandBuilder(), processRunner);
+        var extraction = await extractRunner.RunAsync(extractRequest, ffmpegPath, timeout);
+        if (extraction.Status != ExecutionStatus.Succeeded)
+        {
+            WriteJson(new
+            {
+                beatTrack = new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath
+                },
+                extraction
+            });
+            return 2;
+        }
+
+        var waveform = new WavePcmReader().ReadMono16Bit(tempWavePath);
+        var beatTrack = new BeatTrackAnalyzer().Analyze(waveform, inputPath!);
+        await File.WriteAllTextAsync(resolvedOutputPath, JsonSerializer.Serialize(beatTrack, OpenVideoToolboxJson.Default));
+
+        WriteJson(new
+        {
+            beatTrack = new
+            {
+                inputPath,
+                outputPath = resolvedOutputPath,
+                beatCount = beatTrack.Beats.Count,
+                beatTrack.EstimatedBpm
+            },
+            extraction
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+    finally
+    {
+        try
+        {
+            if (File.Exists(tempWavePath))
+            {
+                File.Delete(tempWavePath);
+            }
+        }
+        catch
+        {
+            // Best-effort cleanup only.
+        }
+    }
+}
+
+static async Task<int> RunInitPlanAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--template", out var templateId, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var planOutputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    var fullPlanOutputPath = Path.GetFullPath(planOutputPath!);
+
+    try
+    {
+        var build = await BuildEditPlanFromTemplateAsync(inputPath!, templateId!, fullPlanOutputPath, options);
+
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPlanOutputPath)!);
+        await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
+
+        WriteJson(new
+        {
+            template = build.Template,
+            planPath = fullPlanOutputPath,
+            probed = build.Probe is not null,
+            editPlan = build.Plan
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunScaffoldTemplateAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--template", out var templateId, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--dir", out var outputDirectory, out error))
+    {
+        return Fail(error!);
+    }
+
+    var fullOutputDirectory = Path.GetFullPath(outputDirectory!);
+    var fullPlanOutputPath = Path.Combine(fullOutputDirectory, "edit.json");
+    if (!TryGetBoolOption(options, "--validate", out var validateAfterWrite, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+    {
+        return Fail(error!);
+    }
+
+    try
+    {
+        var build = await BuildEditPlanFromTemplateAsync(inputPath!, templateId!, fullPlanOutputPath, options);
+        var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId!);
+        var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
+        var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
+        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
+        var seedCommands = BuildTemplateSeedCommands(template);
+        var exampleWriteResult = WriteTemplateExamples(
+            template,
+            fullOutputDirectory,
+            artifactsExample,
+            templateParamsExample,
+            previewPlans,
+            commands,
+            seedCommands);
+
+        await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
+
+        var canonicalFiles = new List<string>(exampleWriteResult.WrittenFiles)
+        {
+            fullPlanOutputPath
+        };
+
+        if (build.ArtifactBindings.Count > 0)
+        {
+            var artifactsPath = Path.Combine(fullOutputDirectory, "artifacts.json");
+            await File.WriteAllTextAsync(artifactsPath, JsonSerializer.Serialize(build.ArtifactBindings, OpenVideoToolboxJson.Default));
+            canonicalFiles.Add(artifactsPath);
+        }
+
+        if (build.ParameterOverrides.Count > 0)
+        {
+            var templateParamsPath = Path.Combine(fullOutputDirectory, "template-params.json");
+            await File.WriteAllTextAsync(templateParamsPath, JsonSerializer.Serialize(build.ParameterOverrides, OpenVideoToolboxJson.Default));
+            canonicalFiles.Add(templateParamsPath);
+        }
+
+        EditPlanValidationResult? validation = null;
+        if (validateAfterWrite == true)
+        {
+            validation = await ValidatePlanFileAsync(fullPlanOutputPath, checkFiles == true);
+        }
+
+        WriteJson(new
+        {
+            template = build.Template,
+            scaffold = new
+            {
+                outputDirectory = fullOutputDirectory,
+                planPath = fullPlanOutputPath,
+                writtenFiles = canonicalFiles.Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
+            },
+            probed = build.Probe is not null,
+            validated = validateAfterWrite == true,
+            validation = validation is null
+                ? null
+                : new
+                {
+                    checkFiles = checkFiles == true,
+                    isValid = validation.IsValid,
+                    issues = validation.Issues
+                },
+            editPlan = build.Plan
+        });
+
+        return validation?.IsValid == false ? 1 : 0;
     }
     catch (Exception ex)
     {
@@ -122,6 +855,296 @@ static int RunPresets()
 {
     WriteJson(BuiltInPresetCatalog.GetAll());
     return 0;
+}
+
+static int RunTemplates(string[] args)
+{
+    string? templateId = null;
+    IReadOnlyDictionary<string, string> options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    if (args.Length > 0 && !args[0].StartsWith("--", StringComparison.Ordinal))
+    {
+        templateId = args[0];
+        if (!TryParseOptions(args.Skip(1).ToArray(), out var parsedOptions, out var error))
+        {
+            return Fail(error!);
+        }
+
+        options = parsedOptions;
+    }
+    else
+    {
+        if (!TryParseOptions(args, out var parsedOptions, out var error))
+        {
+            return Fail(error!);
+        }
+
+        options = parsedOptions;
+        templateId = GetOption(options, "--template");
+    }
+
+    try
+    {
+        if (!TryParseSeedModeOption(GetOption(options, "--seed-mode"), out var seedMode, out var error))
+        {
+            return Fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--has-artifacts", out var hasArtifacts, out error))
+        {
+            return Fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--has-subtitles", out var hasSubtitles, out error))
+        {
+            return Fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--summary", out var summaryOnly, out error))
+        {
+            return Fail(error!);
+        }
+
+        var query = new EditPlanTemplateCatalogQuery
+        {
+            Category = GetOption(options, "--category"),
+            SeedMode = seedMode,
+            OutputContainer = GetOption(options, "--output-container"),
+            ArtifactKind = GetOption(options, "--artifact-kind"),
+            HasArtifacts = hasArtifacts,
+            HasSubtitles = hasSubtitles
+        };
+        var jsonOutPath = GetOption(options, "--json-out");
+
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            object templates = summaryOnly == true
+                ? BuiltInEditPlanTemplateCatalog.GetSummaries(query)
+                : BuiltInEditPlanTemplateCatalog.GetAll(query);
+
+            return WriteResult(new
+            {
+                filters = query,
+                summary = summaryOnly == true,
+                templates
+            }, jsonOutPath);
+        }
+
+        var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId!);
+        var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
+        var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
+        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var writeExamplesDirectory = GetOption(options, "--write-examples");
+        TemplateExampleWriteResult? writeResult = null;
+        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
+        var seedCommands = BuildTemplateSeedCommands(template);
+
+        if (!string.IsNullOrWhiteSpace(writeExamplesDirectory))
+        {
+            writeResult = WriteTemplateExamples(
+                template,
+                writeExamplesDirectory,
+                artifactsExample,
+                templateParamsExample,
+                previewPlans,
+                commands,
+                seedCommands);
+        }
+
+        return WriteResult(BuildTemplateGuide(
+            template,
+            writeResult,
+            artifactsExample,
+            templateParamsExample,
+            previewPlans,
+            commands,
+            seedCommands), jsonOutPath);
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static TemplateExampleWriteResult WriteTemplateExamples(
+    EditPlanTemplateDefinition template,
+    string outputDirectory,
+    IReadOnlyDictionary<string, string> artifactsExample,
+    IReadOnlyDictionary<string, string> templateParamsExample,
+    IReadOnlyList<EditPlanTemplatePreview> previewPlans,
+    IReadOnlyList<string> commands,
+    IReadOnlyList<object> seedCommands)
+{
+    var fullOutputDirectory = Path.GetFullPath(outputDirectory);
+    Directory.CreateDirectory(fullOutputDirectory);
+    var writtenFiles = new List<string>();
+
+    var artifactsPath = Path.Combine(fullOutputDirectory, "artifacts.json");
+    File.WriteAllText(
+        artifactsPath,
+        JsonSerializer.Serialize(artifactsExample, OpenVideoToolboxJson.Default),
+        Encoding.UTF8);
+    writtenFiles.Add(artifactsPath);
+
+    var templateParamsPath = Path.Combine(fullOutputDirectory, "template-params.json");
+    File.WriteAllText(
+        templateParamsPath,
+        JsonSerializer.Serialize(templateParamsExample, OpenVideoToolboxJson.Default),
+        Encoding.UTF8);
+    writtenFiles.Add(templateParamsPath);
+
+    foreach (var preview in previewPlans)
+    {
+        var fileName = $"preview-{preview.Mode.ToString().ToLowerInvariant()}.edit.json";
+        var previewPath = Path.Combine(fullOutputDirectory, fileName);
+        File.WriteAllText(
+            previewPath,
+            JsonSerializer.Serialize(preview.EditPlan, OpenVideoToolboxJson.Default),
+            Encoding.UTF8);
+        writtenFiles.Add(previewPath);
+    }
+
+    var templatePath = Path.Combine(fullOutputDirectory, "template.json");
+    File.WriteAllText(
+        templatePath,
+        JsonSerializer.Serialize(template, OpenVideoToolboxJson.Default),
+        Encoding.UTF8);
+    writtenFiles.Add(templatePath);
+
+    var guide = BuildTemplateGuide(
+        template,
+        new TemplateExampleWriteResult
+        {
+            OutputDirectory = fullOutputDirectory,
+            WrittenFiles = writtenFiles
+        },
+        artifactsExample,
+        templateParamsExample,
+        previewPlans,
+        commands,
+        seedCommands);
+    var guidePath = Path.Combine(fullOutputDirectory, "guide.json");
+    File.WriteAllText(
+        guidePath,
+        JsonSerializer.Serialize(guide, OpenVideoToolboxJson.Default),
+        Encoding.UTF8);
+    writtenFiles.Add(guidePath);
+
+    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands);
+
+    var commandsJsonPath = Path.Combine(fullOutputDirectory, "commands.json");
+    File.WriteAllText(
+        commandsJsonPath,
+        JsonSerializer.Serialize(commandBundle, OpenVideoToolboxJson.Default),
+        Encoding.UTF8);
+    writtenFiles.Add(commandsJsonPath);
+
+    var commandsPs1Path = Path.Combine(fullOutputDirectory, "commands.ps1");
+    File.WriteAllText(
+        commandsPs1Path,
+        TemplateCommandArtifactsBuilder.BuildPowerShellCommandScript(commandBundle),
+        Encoding.UTF8);
+    writtenFiles.Add(commandsPs1Path);
+
+    var commandsCmdPath = Path.Combine(fullOutputDirectory, "commands.cmd");
+    File.WriteAllText(
+        commandsCmdPath,
+        TemplateCommandArtifactsBuilder.BuildBatchCommandScript(commandBundle),
+        Encoding.UTF8);
+    writtenFiles.Add(commandsCmdPath);
+
+    var commandsShPath = Path.Combine(fullOutputDirectory, "commands.sh");
+    File.WriteAllText(
+        commandsShPath,
+        TemplateCommandArtifactsBuilder.BuildShellCommandScript(commandBundle),
+        Encoding.UTF8);
+    writtenFiles.Add(commandsShPath);
+
+    return new TemplateExampleWriteResult
+    {
+        OutputDirectory = fullOutputDirectory,
+        WrittenFiles = writtenFiles
+    };
+}
+
+static object BuildTemplateGuide(
+    EditPlanTemplateDefinition template,
+    TemplateExampleWriteResult? writeResult,
+    IReadOnlyDictionary<string, string> artifactsExample,
+    IReadOnlyDictionary<string, string> templateParamsExample,
+    IReadOnlyList<EditPlanTemplatePreview> previewPlans,
+    IReadOnlyList<string> commands,
+    IReadOnlyList<object> seedCommands)
+{
+    return new
+    {
+        template,
+        examples = new
+        {
+            outputDirectory = writeResult?.OutputDirectory,
+            writtenFiles = writeResult?.WrittenFiles,
+            artifactsFileName = "artifacts.json",
+            artifacts = artifactsExample,
+            templateParamsFileName = "template-params.json",
+            templateParams = templateParamsExample,
+            seedModes = template.RecommendedSeedModes,
+            commandFiles = new[]
+            {
+                "commands.json",
+                "commands.ps1",
+                "commands.cmd",
+                "commands.sh"
+            },
+            commands,
+            seedCommands,
+            previewPlans
+        }
+    };
+}
+
+static IReadOnlyList<string> BuildTemplateExampleCommands(EditPlanTemplateDefinition template, bool hasArtifacts, bool hasTemplateParams)
+{
+    var commands = new List<string>
+    {
+        $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}"
+    };
+
+    if (hasArtifacts)
+    {
+        commands.Add(
+            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --artifacts artifacts.json");
+    }
+
+    if (hasTemplateParams)
+    {
+        commands.Add(
+            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --template-params template-params.json");
+    }
+
+    return commands;
+}
+
+static IReadOnlyList<object> BuildTemplateSeedCommands(EditPlanTemplateDefinition template)
+{
+    var commands = new List<object>();
+    foreach (var mode in template.RecommendedSeedModes.Distinct())
+    {
+        commands.Add(new
+        {
+            mode,
+            command = mode switch
+            {
+                EditPlanSeedMode.Manual =>
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}",
+                EditPlanSeedMode.Transcript =>
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript",
+                EditPlanSeedMode.Beats =>
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --beats beats.json --seed-from-beats --beat-group-size 4",
+                _ => throw new InvalidOperationException($"Unsupported template seed mode '{mode}'.")
+            }
+        });
+    }
+
+    return commands;
 }
 
 static int ShowHelp()
@@ -220,6 +1243,23 @@ static string? GetOption(IReadOnlyDictionary<string, string> options, string nam
     return options.TryGetValue(name, out var value) ? value : null;
 }
 
+static bool TryGetRequiredOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out string? value,
+    out string? error)
+{
+    value = GetOption(options, name);
+    if (!string.IsNullOrWhiteSpace(value))
+    {
+        error = null;
+        return true;
+    }
+
+    error = $"Option '{name}' is required.";
+    return false;
+}
+
 static bool TryGetIntOption(
     IReadOnlyDictionary<string, string> options,
     string name,
@@ -244,9 +1284,370 @@ static bool TryGetIntOption(
     return false;
 }
 
+static bool TryGetBoolOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out bool? value,
+    out string? error)
+{
+    value = null;
+    error = null;
+
+    if (!options.TryGetValue(name, out var rawValue))
+    {
+        return true;
+    }
+
+    if (bool.TryParse(rawValue, out var parsed))
+    {
+        value = parsed;
+        return true;
+    }
+
+    error = $"Option '{name}' expects a boolean value.";
+    return false;
+}
+
+static bool TryGetRequiredIntOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out int value,
+    out string? error)
+{
+    value = default;
+    if (!options.TryGetValue(name, out var rawValue))
+    {
+        error = $"Option '{name}' is required.";
+        return false;
+    }
+
+    if (int.TryParse(rawValue, out var parsed))
+    {
+        value = parsed;
+        error = null;
+        return true;
+    }
+
+    error = $"Option '{name}' expects an integer value.";
+    return false;
+}
+
+static bool TryGetRequiredTimeSpanOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out TimeSpan value,
+    out string? error)
+{
+    value = default;
+    if (!options.TryGetValue(name, out var rawValue))
+    {
+        error = $"Option '{name}' is required.";
+        return false;
+    }
+
+    if (TimeSpan.TryParse(rawValue, out var parsed))
+    {
+        value = parsed;
+        error = null;
+        return true;
+    }
+
+    error = $"Option '{name}' expects a time span like 00:00:12.500.";
+    return false;
+}
+
 static void WriteJson<T>(T value)
 {
     Console.WriteLine(JsonSerializer.Serialize(value, OpenVideoToolboxJson.Default));
+}
+
+static void WriteOutput<T>(T value, string? jsonOutPath)
+{
+    if (!string.IsNullOrWhiteSpace(jsonOutPath))
+    {
+        var fullPath = Path.GetFullPath(jsonOutPath);
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        File.WriteAllText(fullPath, JsonSerializer.Serialize(value, OpenVideoToolboxJson.Default), Encoding.UTF8);
+    }
+
+    WriteJson(value);
+}
+
+static int WriteResult<T>(T value, string? jsonOutPath)
+{
+    WriteOutput(value, jsonOutPath);
+    return 0;
+}
+
+static async Task<EditPlan> LoadEditPlanAsync(string planPath, string? outputOverridePath)
+{
+    var fullPlanPath = Path.GetFullPath(planPath);
+    var content = await File.ReadAllTextAsync(fullPlanPath);
+    var plan = JsonSerializer.Deserialize<EditPlan>(content, OpenVideoToolboxJson.Default)
+        ?? throw new InvalidOperationException($"Failed to parse edit plan '{planPath}'.");
+
+    if (plan.SchemaVersion != 1)
+    {
+        throw new InvalidOperationException($"Unsupported edit plan schema version '{plan.SchemaVersion}'.");
+    }
+
+    var resolvedPlan = EditPlanPathResolver.ResolvePaths(plan, Path.GetDirectoryName(fullPlanPath)!);
+    if (string.IsNullOrWhiteSpace(outputOverridePath))
+    {
+        return resolvedPlan;
+    }
+
+    var resolvedOutputPath = EditPlanPathResolver.ResolvePath(Path.GetDirectoryName(fullPlanPath)!, outputOverridePath);
+    var container = Path.GetExtension(resolvedOutputPath);
+    if (container.StartsWith(".", StringComparison.Ordinal))
+    {
+        container = container[1..];
+    }
+
+    return resolvedPlan with
+    {
+        Output = resolvedPlan.Output with
+        {
+            Path = resolvedOutputPath,
+            Container = string.IsNullOrWhiteSpace(container) ? resolvedPlan.Output.Container : container
+        }
+    };
+}
+
+static async Task<TranscriptDocument> LoadTranscriptAsync(string transcriptPath)
+{
+    var fullPath = Path.GetFullPath(transcriptPath);
+    var content = await File.ReadAllTextAsync(fullPath);
+    var transcript = JsonSerializer.Deserialize<TranscriptDocument>(content, OpenVideoToolboxJson.Default)
+        ?? throw new InvalidOperationException($"Failed to parse transcript '{transcriptPath}'.");
+
+    if (transcript.SchemaVersion != 1)
+    {
+        throw new InvalidOperationException($"Unsupported transcript schema version '{transcript.SchemaVersion}'.");
+    }
+
+    return transcript;
+}
+
+static async Task<BeatTrackDocument> LoadBeatTrackAsync(string beatsPath)
+{
+    var fullPath = Path.GetFullPath(beatsPath);
+    var content = await File.ReadAllTextAsync(fullPath);
+    var beatTrack = JsonSerializer.Deserialize<BeatTrackDocument>(content, OpenVideoToolboxJson.Default)
+        ?? throw new InvalidOperationException($"Failed to parse beat track '{beatsPath}'.");
+
+    if (beatTrack.SchemaVersion != 1)
+    {
+        throw new InvalidOperationException($"Unsupported beat track schema version '{beatTrack.SchemaVersion}'.");
+    }
+
+    return beatTrack;
+}
+
+static async Task<EditPlanValidationResult> ValidatePlanFileAsync(string fullPlanPath, bool checkFiles)
+{
+    var content = await File.ReadAllTextAsync(fullPlanPath);
+    var plan = JsonSerializer.Deserialize<EditPlan>(content, OpenVideoToolboxJson.Default)
+        ?? throw new InvalidOperationException($"Failed to parse edit plan '{fullPlanPath}'.");
+
+    if (plan.SchemaVersion != 1)
+    {
+        throw new InvalidOperationException($"Unsupported edit plan schema version '{plan.SchemaVersion}'.");
+    }
+
+    var resolvedPlan = EditPlanPathResolver.ResolvePaths(plan, Path.GetDirectoryName(fullPlanPath)!);
+    return new EditPlanValidator().Validate(resolvedPlan, checkFiles);
+}
+
+static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
+    string inputPath,
+    string templateId,
+    string fullPlanOutputPath,
+    IReadOnlyDictionary<string, string> options)
+{
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out var error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
+    if (!TryGetIntOption(options, "--beat-group-size", out var beatGroupSize, out error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
+    if (GetOption(options, "--seed-from-transcript") == "true" && GetOption(options, "--seed-from-beats") == "true")
+    {
+        throw new InvalidOperationException("Options '--seed-from-transcript' and '--seed-from-beats' cannot be used together.");
+    }
+
+    if (!TryParseSubtitleModeOption(GetOption(options, "--subtitle-mode"), out var subtitleMode, out var disableSubtitles, out error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
+    var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId);
+    var planDirectory = Path.GetDirectoryName(fullPlanOutputPath)!;
+    var renderOutputPath = GetOption(options, "--render-output")
+        ?? Path.Combine(planDirectory, $"{Path.GetFileNameWithoutExtension(inputPath)}.edited.{template.OutputContainer}");
+    renderOutputPath = EditPlanPathResolver.ResolvePath(planDirectory, renderOutputPath);
+
+    MediaProbeResult? probe = null;
+    var shouldProbe = GetOption(options, "--probe") == "true" || !string.IsNullOrWhiteSpace(GetOption(options, "--ffprobe"));
+    if (shouldProbe)
+    {
+        var ffprobePath = GetOption(options, "--ffprobe") ?? "ffprobe";
+        TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+        var processRunner = new DefaultProcessRunner();
+        var probeService = new FfprobeMediaProbeService(processRunner, new FfprobeJsonParser());
+        probe = await probeService.ProbeAsync(inputPath, ffprobePath, timeout);
+    }
+
+    var beatsPath = GetOption(options, "--beats");
+    var beatTrack = string.IsNullOrWhiteSpace(beatsPath) ? null : await LoadBeatTrackAsync(beatsPath);
+
+    var transcriptPath = GetOption(options, "--transcript");
+    var transcript = string.IsNullOrWhiteSpace(transcriptPath) ? null : await LoadTranscriptAsync(transcriptPath);
+
+    IReadOnlyDictionary<string, string> artifactBindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var artifactsPath = GetOption(options, "--artifacts");
+    if (!string.IsNullOrWhiteSpace(artifactsPath))
+    {
+        artifactBindings = await LoadStringMapAsync(
+            artifactsPath,
+            "artifact bindings",
+            "Expected a JSON object like {\"slotId\":\"path\"}.");
+    }
+
+    IReadOnlyDictionary<string, string> parameterOverrides = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    var templateParamsPath = GetOption(options, "--template-params");
+    if (!string.IsNullOrWhiteSpace(templateParamsPath))
+    {
+        parameterOverrides = await LoadStringMapAsync(
+            templateParamsPath,
+            "template parameters",
+            "Expected a JSON object like {\"hookStyle\":\"hard-cut\"}.");
+    }
+
+    var plan = new EditPlanTemplateFactory().Create(
+        templateId,
+        new EditPlanTemplateRequest
+        {
+            InputPath = inputPath,
+            RenderOutputPath = renderOutputPath,
+            SourceDuration = probe?.Format.Duration,
+            ParameterOverrides = parameterOverrides,
+            TranscriptPath = transcriptPath,
+            Transcript = transcript,
+            SeedClipsFromTranscript = GetOption(options, "--seed-from-transcript") == "true",
+            SubtitlePath = GetOption(options, "--subtitle"),
+            SubtitleModeOverride = subtitleMode,
+            DisableSubtitles = disableSubtitles,
+            BeatTrackPath = beatsPath,
+            BeatTrack = beatTrack,
+            SeedClipsFromBeats = GetOption(options, "--seed-from-beats") == "true",
+            BeatGroupSize = beatGroupSize ?? 4,
+            ArtifactBindings = artifactBindings,
+            BgmPath = GetOption(options, "--bgm")
+        });
+
+    return new TemplatePlanBuildResult
+    {
+        Template = template,
+        Plan = plan,
+        Probe = probe,
+        ArtifactBindings = artifactBindings,
+        ParameterOverrides = parameterOverrides
+    };
+}
+
+static async Task<IReadOnlyDictionary<string, string>> LoadStringMapAsync(
+    string jsonPath,
+    string logicalName,
+    string shapeHint)
+{
+    var fullPath = Path.GetFullPath(jsonPath);
+    var content = await File.ReadAllTextAsync(fullPath);
+    var root = JsonNode.Parse(content) as JsonObject
+        ?? throw new InvalidOperationException(
+            $"Failed to parse {logicalName} '{jsonPath}'. {shapeHint}");
+
+    var bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    foreach (var pair in root)
+    {
+        if (string.IsNullOrWhiteSpace(pair.Key))
+        {
+            throw new InvalidOperationException($"{logicalName} '{jsonPath}' contains an empty key.");
+        }
+
+        if (pair.Value is not JsonValue value || !value.TryGetValue<string>(out var path) || string.IsNullOrWhiteSpace(path))
+        {
+            throw new InvalidOperationException(
+                $"Key '{pair.Key}' in {logicalName} '{jsonPath}' must map to a non-empty string value.");
+        }
+
+        bindings[pair.Key] = path;
+    }
+
+    return bindings;
+}
+
+static bool TryParseSubtitleFormat(string rawValue, out SubtitleFormat format, out string? error)
+{
+    if (Enum.TryParse<SubtitleFormat>(rawValue, ignoreCase: true, out format))
+    {
+        error = null;
+        return true;
+    }
+
+    error = "Option '--format' expects one of: srt, ass.";
+    return false;
+}
+
+static bool TryParseSubtitleModeOption(string? rawValue, out SubtitleMode? mode, out bool disableSubtitles, out string? error)
+{
+    mode = null;
+    disableSubtitles = false;
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(rawValue))
+    {
+        return true;
+    }
+
+    if (string.Equals(rawValue, "none", StringComparison.OrdinalIgnoreCase))
+    {
+        disableSubtitles = true;
+        return true;
+    }
+
+    if (Enum.TryParse<SubtitleMode>(rawValue, ignoreCase: true, out var parsed))
+    {
+        mode = parsed;
+        return true;
+    }
+
+    error = "Option '--subtitle-mode' expects one of: sidecar, burnIn, none.";
+    return false;
+}
+
+static bool TryParseSeedModeOption(string? rawValue, out EditPlanSeedMode? mode, out string? error)
+{
+    mode = null;
+    error = null;
+
+    if (string.IsNullOrWhiteSpace(rawValue))
+    {
+        return true;
+    }
+
+    if (Enum.TryParse<EditPlanSeedMode>(rawValue, ignoreCase: true, out var parsed))
+    {
+        mode = parsed;
+        return true;
+    }
+
+    error = "Option '--seed-mode' expects one of: manual, transcript, beats.";
+    return false;
 }
 
 static int Fail(string message)
@@ -262,6 +1663,17 @@ static void PrintUsage()
     Console.WriteLine("Open Video Toolbox CLI");
     Console.WriteLine("Commands:");
     Console.WriteLine("  presets");
+    Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--json-out <path>] [--write-examples <dir>]");
+    Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--timeout-seconds <n>]");
+    Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>]");
+    Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--json-out <path>]");
     Console.WriteLine("  probe <input> [--ffprobe <path>]");
     Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--overwrite]");
     Console.WriteLine("  run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
@@ -271,4 +1683,35 @@ static void PrintUsage()
     {
         Console.WriteLine($"  {preset.Id} - {preset.DisplayName}");
     }
+}
+
+sealed record TemplateExampleWriteResult
+{
+    public required string OutputDirectory { get; init; }
+
+    public required IReadOnlyList<string> WrittenFiles { get; init; }
+}
+
+sealed record TemplateCommandBundle
+{
+    public IReadOnlyDictionary<string, string> Variables { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyList<string> InitPlanCommands { get; init; } = [];
+
+    public IReadOnlyList<object> SeedCommands { get; init; } = [];
+
+    public IReadOnlyList<string> WorkflowCommands { get; init; } = [];
+}
+
+sealed record TemplatePlanBuildResult
+{
+    public required EditPlanTemplateDefinition Template { get; init; }
+
+    public required EditPlan Plan { get; init; }
+
+    public MediaProbeResult? Probe { get; init; }
+
+    public IReadOnlyDictionary<string, string> ArtifactBindings { get; init; } = new Dictionary<string, string>();
+
+    public IReadOnlyDictionary<string, string> ParameterOverrides { get; init; } = new Dictionary<string, string>();
 }

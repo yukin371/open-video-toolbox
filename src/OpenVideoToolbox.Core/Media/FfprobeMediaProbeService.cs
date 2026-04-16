@@ -52,7 +52,11 @@ public sealed class FfprobeMediaProbeService
             throw new InvalidOperationException(BuildProbeFailureMessage(result));
         }
 
-        var json = string.Join(Environment.NewLine, result.OutputLines.Where(line => !line.IsError).Select(line => line.Text));
+        var json = string.Join(
+            Environment.NewLine,
+            result.OutputLines
+                .Where(line => line.Channel == ProcessOutputChannel.StandardOutput)
+                .Select(line => line.Text));
         if (string.IsNullOrWhiteSpace(json))
         {
             throw new InvalidOperationException("ffprobe completed without emitting probe JSON.");
@@ -63,10 +67,13 @@ public sealed class FfprobeMediaProbeService
 
     private static string BuildProbeFailureMessage(ExecutionResult result)
     {
-        var stderr = string.Join(Environment.NewLine, result.OutputLines.Where(line => line.IsError).Select(line => line.Text));
+        var stderr = string.Join(
+            Environment.NewLine,
+            result.OutputLines
+                .Where(line => line.Channel == ProcessOutputChannel.StandardError)
+                .Select(line => line.Text));
         return string.IsNullOrWhiteSpace(stderr)
             ? $"ffprobe failed with status {result.Status}."
             : $"ffprobe failed with status {result.Status}:{Environment.NewLine}{stderr}";
     }
 }
-

@@ -1,0 +1,144 @@
+<mxfile host="app.diagrams.net" agent="OpenAI Codex" version="24.7.17">
+  <diagram id="wave1-cli-flow" name="Wave 1 CLI Flow">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Wave 1 Delivery Flow&#xa;cut / concat / extract-audio / render + edit.json" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="20" width="960" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="laneEntry" value="Entry / Orchestration" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="1520" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="laneCli" value="CLI Command Surface" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="260" width="1520" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="laneCore" value="Core Ownership" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="460" width="1520" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="laneFiles" value="Shared Files / Outputs" style="swimlane;html=1;rounded=1;startSize=28;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="680" width="1520" height="160" as="geometry" />
+        </mxCell>
+
+        <mxCell id="externalAi" value="External AI / Script&#xa;&#xa;Reads JSON outputs&#xa;Produces or edits edit.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="130" width="230" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="human" value="Human Operator&#xa;&#xa;Manual second pass&#xa;edits edit.json directly" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="130" width="190" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="noteEntry" value="Rule&#xa;&#xa;No in-repo AI provider.&#xa;All decisions come from external orchestration or human edits." style="shape=note;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="590" y="120" width="360" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cmdCut" value="cut&#xa;&#xa;input + from/to + output&#xa;single or repeated slices" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="120" y="315" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cmdConcat" value="concat&#xa;&#xa;input-list + output&#xa;join pre-cut segments" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="390" y="315" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cmdExtract" value="extract-audio&#xa;&#xa;input + track + output&#xa;prepare voice/BGM work" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="660" y="315" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="cmdRender" value="render&#xa;&#xa;consume edit.json&#xa;final export" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="305" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="cmdNote" value="Wave 1 sequencing&#xa;1. cut&#xa;2. concat&#xa;3. extract-audio&#xa;4. render" style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="300" width="120" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="coreCli" value="OpenVideoToolbox.Cli&#xa;&#xa;Parse args&#xa;validate contract&#xa;emit structured JSON" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="100" y="520" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="coreEditing" value="Core.Editing&#xa;&#xa;edit.json schema v1&#xa;clips / audioTracks / subtitles / output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="470" y="510" width="280" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="coreExecution" value="Core.Execution&#xa;&#xa;cut / concat builders&#xa;future extract-audio / render builders&#xa;process runner + logs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="910" y="510" width="300" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="coreMedia" value="Core.Media&#xa;&#xa;probe metadata&#xa;track info for downstream decisions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="520" width="220" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fileMedia" value="media.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5f5;strokeColor=#b85450;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="140" y="735" width="150" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="fileClips" value="clip-*.mp4&#xa;cut outputs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5f5;strokeColor=#b85450;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="390" y="735" width="170" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="fileAudio" value="voice.wav / track.wav&#xa;extract-audio outputs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5f5;strokeColor=#b85450;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="670" y="735" width="190" height="55" as="geometry" />
+        </mxCell>
+        <mxCell id="fileEdit" value="edit.json&#xa;AI-generated + human-edited" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5f5;strokeColor=#b85450;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="980" y="725" width="220" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="fileFinal" value="final.mp4&#xa;render output" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff5f5;strokeColor=#b85450;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1310" y="735" width="170" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeAiCli" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="externalAi" target="coreCli">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeHumanEdit" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="human" target="fileEdit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeCutExec" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="cmdCut" target="coreExecution">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeConcatExec" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="cmdConcat" target="coreExecution">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeExtractExec" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="cmdExtract" target="coreExecution">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRenderEditing" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="cmdRender" target="coreEditing">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeRenderExec" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="cmdRender" target="coreExecution">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeCliCmds" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreCli" target="cmdCut">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeCliCmds2" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreCli" target="cmdConcat">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeCliCmds3" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="coreCli" target="cmdExtract">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeCliCmds4" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreCli" target="cmdRender">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="edgeMediaToJson" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="coreMedia" target="fileMedia">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeExecToClips" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreExecution" target="fileClips">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeExecToAudio" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="coreExecution" target="fileAudio">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeEditingToEdit" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreEditing" target="fileEdit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeEditToRender" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="fileEdit" target="cmdRender">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeExecToFinal" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;" edge="1" parent="1" source="coreExecution" target="fileFinal">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edgeAiToEdit" value="" style="endArrow=block;html=1;rounded=0;strokeWidth=2;dashed=1;" edge="1" parent="1" source="externalAi" target="fileEdit">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="noteBoundary" value="Boundary guidance&#xa;&#xa;CLI owns parameter contracts.&#xa;Core.Editing owns edit.json schema.&#xa;Core.Execution owns ffmpeg invocation + logs.&#xa;Future UI should only visualize / edit the same plan." style="shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="500" width="300" height="140" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

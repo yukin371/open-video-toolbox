@@ -37,7 +37,15 @@ public sealed record ProcessOutputLine
 {
     public DateTimeOffset TimestampUtc { get; init; }
 
+    public ProcessOutputChannel Channel { get; init; }
+
     public bool IsError { get; init; }
 
     public required string Text { get; init; }
+}
+
+public enum ProcessOutputChannel
+{
+    StandardOutput,
+    StandardError
 }

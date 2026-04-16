@@ -53,6 +53,7 @@ public sealed class DefaultProcessRunner : IProcessRunner
                 outputLines.Add(new ProcessOutputLine
                 {
                     TimestampUtc = DateTimeOffset.UtcNow,
+                    Channel = ProcessOutputChannel.StandardOutput,
                     IsError = false,
                     Text = args.Data
                 });
@@ -72,7 +73,8 @@ public sealed class DefaultProcessRunner : IProcessRunner
                 outputLines.Add(new ProcessOutputLine
                 {
                     TimestampUtc = DateTimeOffset.UtcNow,
-                    IsError = true,
+                    Channel = ProcessOutputChannel.StandardError,
+                    IsError = LooksLikeError(args.Data),
                     Text = args.Data
                 });
             }
@@ -194,5 +196,21 @@ public sealed class DefaultProcessRunner : IProcessRunner
         {
             // Best-effort termination only.
         }
+    }
+
+    private static bool LooksLikeError(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return text.Contains("error", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("failed", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("invalid", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("unable", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("not found", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("no such", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("permission denied", StringComparison.OrdinalIgnoreCase);
     }
 }

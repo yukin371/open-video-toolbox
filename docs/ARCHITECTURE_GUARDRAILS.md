@@ -29,6 +29,11 @@
 - `ffprobe` 调用与规范化探测结果：`OpenVideoToolbox.Core/Media`
 - 预设模型与内置预设目录：`OpenVideoToolbox.Core/Presets`
 - CLI 参数解析、帮助输出、退出码：`OpenVideoToolbox.Cli/Program.cs`
+- `edit.json` 计划模型：`OpenVideoToolbox.Core/Editing`
+- `edit.json` 路径解析与模板/扩展边界：`OpenVideoToolbox.Core/Editing`
+- `edit.json` 执行语义与最终导出：`OpenVideoToolbox.Core/Execution`
+- `transcript.json` schema 与 sidecar 字幕导出：`OpenVideoToolbox.Core/Subtitles`
+- `beats.json` schema 与节拍分析：`OpenVideoToolbox.Core/Beats`
 - 桌面 UI primitives / 状态管理：`TBD`
   - 确认路径：Desktop MVP 引入实际 UI 框架后落具体 owner
 
@@ -49,6 +54,12 @@
   - 当前仓库未建立 HTTP client，owner 为 `TBD`
 - `shared utilities`
   - 默认不建全局 `Utils`；先放在 owning module，出现第二个稳定消费者后再讨论抽取
+- `subtitles`
+  - transcript schema 与 sidecar 渲染由 `OpenVideoToolbox.Core/Subtitles` 承接
+  - 字幕烧录仍由 `OpenVideoToolbox.Core/Execution` 的 `render` 链承接
+- `beats`
+  - wave 解码由 `OpenVideoToolbox.Core/Execution` 承接
+  - 节拍分析与 `beats.json` schema 由 `OpenVideoToolbox.Core/Beats` 承接
 - `UI primitives`
   - 未来由 `OpenVideoToolbox.Desktop` 统一承接；当前为 `TBD`
 - `error mapping`
@@ -57,6 +68,9 @@
 - `file / path helpers`
   - 与转码输出路径相关的规则由 `OpenVideoToolbox.Core/Execution` 承接
   - 与媒体探测输入路径相关的规则由 `OpenVideoToolbox.Core/Media` 承接
+- `editing plan`
+  - 模型 owner 为 `OpenVideoToolbox.Core/Editing`
+  - 执行 owner 为 `OpenVideoToolbox.Core/Execution`
 - `feature flags`
   - 当前不存在，owner 为 `TBD`
 
@@ -67,6 +81,8 @@
 - `Cli` 不得复制 `Core` 中的命令构建、媒体探测或预设映射逻辑
 - `Core.Media` 不得拥有预设选择、输出路径策略或 UI 展示格式
 - `Core.Execution` 不得拥有 UI 状态、视图模型或交互逻辑
+- 仓库内不得引入内置 AI provider 或供应商 SDK 作为核心能力 owner
+- 不要在多个命令里各自定义不同的 `edit.json` 变体
 - 任意模块不得引入“万能工具类”来跨越既有 owner
 
 ## 新增共享能力前的强制检查

@@ -62,6 +62,7 @@ public sealed class SerializationTests
                 new ProcessOutputLine
                 {
                     TimestampUtc = new DateTimeOffset(2026, 4, 14, 1, 0, 30, TimeSpan.Zero),
+                    Channel = ProcessOutputChannel.StandardOutput,
                     Text = "frame=240",
                     IsError = false
                 }

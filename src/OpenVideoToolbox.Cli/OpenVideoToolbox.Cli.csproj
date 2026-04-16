@@ -5,7 +5,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="OpenVideoToolbox.Cli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\\OpenVideoToolbox.Core\\OpenVideoToolbox.Core.csproj" />
   </ItemGroup>
 </Project>
-
