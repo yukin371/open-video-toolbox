@@ -2329,6 +2329,80 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task SeparateAudio_CanWriteStructuredResultToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-separate-audio-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var jsonOutPath = Path.Combine(outputDirectory, "separate-audio.json");
+        var demucsPath = Path.Combine(outputDirectory, "fake-demucs.cmd");
+        WriteScript(
+            demucsPath,
+            """
+            @echo off
+            setlocal
+            set "out="
+            set "model=htdemucs"
+            set "input="
+            :parse
+            if "%~1"=="" goto done
+            if "%~1"=="-o" (
+              set "out=%~2"
+              shift
+            ) else if "%~1"=="-n" (
+              set "model=%~2"
+              shift
+            ) else (
+              set "input=%~1"
+            )
+            shift
+            goto parse
+            :done
+            if "%out%"=="" exit /b 2
+            if "%input%"=="" exit /b 2
+            set "name=%~n1"
+            if not defined name (
+              for %%I in ("%input%") do set "name=%%~nI"
+            )
+            set "trackdir=%out%\%model%\%name%"
+            mkdir "%trackdir%" >nul 2>nul
+            break> "%trackdir%\vocals.wav"
+            break> "%trackdir%\no_vocals.wav"
+            exit /b 0
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "separate-audio",
+                "input.mp4",
+                "--output-dir",
+                outputDirectory,
+                "--demucs",
+                demucsPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal(Path.GetFullPath(outputDirectory), stdout["separateAudio"]!["outputDirectory"]!.GetValue<string>());
+            Assert.Equal("htdemucs", stdout["separateAudio"]!["model"]!.GetValue<string>());
+            Assert.EndsWith(Path.Combine("htdemucs", "input", "vocals.wav"), stdout["stems"]!["vocals"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith(Path.Combine("htdemucs", "input", "no_vocals.wav"), stdout["stems"]!["accompaniment"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Subtitle_RejectsUnsupportedFormat()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-subtitle-format-{Guid.NewGuid():N}");

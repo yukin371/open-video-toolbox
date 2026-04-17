@@ -41,7 +41,7 @@
 - `audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
-- `separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--timeout-seconds <n>]`
+- `separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
@@ -61,6 +61,7 @@
 - `audio-analyze` 已支持 `--json-out`，用于把响度分析结果的同一份结构化 envelope 直接写到文件。
 - `transcribe` 已支持 `--json-out`，用于把转写结果的同一份结构化 envelope 直接写到文件。
 - `detect-silence` 已支持 `--json-out`，用于把停顿检测结果的同一份结构化 envelope 直接写到文件。
+- `separate-audio` 已支持 `--json-out`，用于把 stem 结果的同一份结构化 envelope 直接写到文件。
 - `subtitle` 已支持 `--json-out`，用于把 sidecar 生成结果的同一份结构化 envelope 直接写到文件。
 - `scaffold-template` 已实现，用于一次性落出模板指南、示例文件与初始 `edit.json` 工作目录；传 `--validate` 时还会同步返回校验结果。
 - `templates <id>` / `--write-examples` 已把 transcript、beats、silence、stems 等 supporting signal guidance 纳入稳定输出，外部 AI 不必再自己猜前置命令和接入方式。

@@ -78,7 +78,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-gain <input> --gain-db -6 --output leveled.wav
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- detect-silence <input> --output silence.json --json-out detect-silence.json
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- separate-audio <input> --output-dir stems
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- separate-audio <input> --output-dir stems --json-out separate-audio.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4 --beats beats.json --seed-from-beats --beat-group-size 2
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- cut <input> --from 00:00:12.000 --to 00:00:27.500 --output clip-01.mp4
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- concat --input-list clips.txt --output merged.mp4
@@ -107,7 +107,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `audio-gain` 通过 `ffmpeg volume` 做显式分贝增益处理，先提供最简单、最可解释的音量控制原语，后续再单独扩归一化模式
 - `transcribe` 通过 `ffmpeg` 预抽取统一 WAV，再调用 `whisper.cpp` 官方 `whisper-cli` 输出 JSON，并映射成仓库标准 `transcript.json`；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
 - `detect-silence` 通过 `ffmpeg silencedetect` 输出 `silence.json`，提供模板和后续编辑辅助可复用的停顿段信号；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
-- `separate-audio` 通过 `Demucs` 输出结构化 stem 结果，先收敛高频的人声 / 伴奏双 stem 场景
+- `separate-audio` 通过 `Demucs` 输出结构化 stem 结果，先收敛高频的人声 / 伴奏双 stem 场景；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
 - `templates <id>` 现在会显式给出 transcript / beats / silence / stems 的 supporting signal guidance，告诉外部 AI 该先生成哪些信号、用哪条命令，以及这些信号应如何接回初始 scaffold 或人工修订流程
 - 对支持字幕的模板，`templates <id>` / `commands.*` 现在还会显式给出 `transcribe -> subtitle -> init-plan/render` 的 artifact preparation 命令，减少外部 AI 自己拼字幕工作流
 - `cut` 通过 `ffmpeg -map 0 -c copy` 做最小单段裁切

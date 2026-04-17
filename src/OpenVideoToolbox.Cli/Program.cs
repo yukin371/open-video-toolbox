@@ -625,6 +625,7 @@ static async Task<int> RunSeparateAudioAsync(string[] args)
     }
 
     var demucsPath = GetOption(options, "--demucs") ?? "demucs";
+    var jsonOutPath = GetOption(options, "--json-out");
     var model = GetOption(options, "--model") ?? "htdemucs";
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
     var resolvedOutputDirectory = Path.GetFullPath(outputDirectory!);
@@ -645,7 +646,7 @@ static async Task<int> RunSeparateAudioAsync(string[] args)
             demucsPath,
             timeout);
 
-        WriteJson(new
+        return WriteResult(new
         {
             separateAudio = new
             {
@@ -654,9 +655,7 @@ static async Task<int> RunSeparateAudioAsync(string[] args)
                 model = document.Model
             },
             stems = document.Stems
-        });
-
-        return 0;
+        }, jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -2319,7 +2318,7 @@ static void PrintUsage()
     Console.WriteLine("  audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");

@@ -137,7 +137,7 @@ ovt init-plan <input> --template shorts-captioned --output edit.json --render-ou
 ovt cut <input> --from 00:00:12.000 --to 00:00:27.500 --output clip-01.mp4
 ovt concat --input-list clips.txt --output merged.mp4
 ovt extract-audio <input> --track 0 --output voice.wav
-ovt separate-audio <input> --output-dir stems/
+ovt separate-audio <input> --output-dir stems/ --json-out separate-audio.json
 ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json --json-out audio-analyze.json
@@ -154,6 +154,7 @@ ovt render --plan edit.json --output final.mp4
 说明：
 - `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
 - `separate-audio` 已实现，用于以确定性 CLI 方式接入外部分离工具并返回结构化 stem 结果。
+- `separate-audio --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 stem 路径继续接给模板、混音或人工修订流程。
 - 其余命令仍是 MVP 草案，不代表当前仓库已经实现。
 - `doctor` 会优先读取 CLI 显式参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`，最后回退到默认可执行名或 `unset` 状态。
 - `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton。
