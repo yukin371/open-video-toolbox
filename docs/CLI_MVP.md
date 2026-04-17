@@ -143,7 +143,7 @@ ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json
 ovt audio-gain <input> --gain-db -6 --output leveled.wav
 ovt transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
-ovt detect-silence <input> --output silence.json
+ovt detect-silence <input> --output silence.json --json-out detect-silence.json
 ovt validate-plan --plan edit.json --check-files
 ovt mix-audio --plan edit.json --output mixed.wav --preview --json-out mix-preview.json
 ovt render --plan edit.json --output final.mp4 --preview --json-out render-preview.json
@@ -263,6 +263,7 @@ ovt transcribe <input> --model <path> --output <transcript.json>
 
 说明：
 - `detect-silence` 当前复用 `ffmpeg silencedetect`，只输出确定性的停顿段，不在这层发明“自动剪辑”规则。
+- `detect-silence --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 `silence.json` 路径和 segment 摘要继续传给模板或人工修订流程。
 - 第一版只提供 `noise-db` 和 `min-duration-ms` 两个显式参数，便于模板或后续编辑辅助复用。
 
 ## `transcript.json` 最小结构草案
