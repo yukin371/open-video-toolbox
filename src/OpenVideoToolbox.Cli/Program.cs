@@ -1083,6 +1083,14 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
+        var signalInstructions = supportingSignals
+            .Select(signal => new TemplateSignalInstruction
+            {
+                Kind = signal.Kind.ToString().ToLowerInvariant(),
+                Command = signal.Command,
+                Consumption = signal.Consumption
+            })
+            .ToArray();
         var artifactCommands = BuildTemplateArtifactCommands(template, supportingSignals);
         var exampleWriteResult = WriteTemplateExamples(
             template,
@@ -1093,6 +1101,7 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
             supportingSignals,
             commands,
             seedCommands,
+            signalInstructions,
             signalCommands,
             artifactCommands);
 
@@ -1322,6 +1331,14 @@ static int RunTemplates(string[] args)
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
+        var signalInstructions = supportingSignals
+            .Select(signal => new TemplateSignalInstruction
+            {
+                Kind = signal.Kind.ToString().ToLowerInvariant(),
+                Command = signal.Command,
+                Consumption = signal.Consumption
+            })
+            .ToArray();
         var artifactCommands = BuildTemplateArtifactCommands(template, supportingSignals);
 
         if (!string.IsNullOrWhiteSpace(writeExamplesDirectory))
@@ -1335,6 +1352,7 @@ static int RunTemplates(string[] args)
                 supportingSignals,
                 commands,
                 seedCommands,
+                signalInstructions,
                 signalCommands,
                 artifactCommands);
         }
@@ -1348,6 +1366,7 @@ static int RunTemplates(string[] args)
             supportingSignals,
             commands,
             seedCommands,
+            signalInstructions,
             signalCommands,
             artifactCommands), jsonOutPath);
     }
@@ -1366,6 +1385,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
     IReadOnlyList<object> seedCommands,
+    IReadOnlyList<TemplateSignalInstruction> signalInstructions,
     IReadOnlyList<string> signalCommands,
     IReadOnlyList<string> artifactCommands)
 {
@@ -1418,6 +1438,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         supportingSignals,
         commands,
         seedCommands,
+        signalInstructions,
         signalCommands,
         artifactCommands);
     var guidePath = Path.Combine(fullOutputDirectory, "guide.json");
@@ -1427,7 +1448,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         Encoding.UTF8);
     writtenFiles.Add(guidePath);
 
-    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalCommands, artifactCommands);
+    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalInstructions, artifactCommands);
 
     var commandsJsonPath = Path.Combine(fullOutputDirectory, "commands.json");
     File.WriteAllText(
@@ -1473,6 +1494,7 @@ static object BuildTemplateGuide(
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
     IReadOnlyList<object> seedCommands,
+    IReadOnlyList<TemplateSignalInstruction> signalInstructions,
     IReadOnlyList<string> signalCommands,
     IReadOnlyList<string> artifactCommands)
 {
@@ -1497,6 +1519,7 @@ static object BuildTemplateGuide(
                 "commands.sh"
             },
             commands,
+            signalInstructions,
             signalCommands,
             artifactCommands,
             seedCommands,

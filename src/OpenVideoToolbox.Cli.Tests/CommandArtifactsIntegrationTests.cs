@@ -58,11 +58,19 @@ public sealed class CommandArtifactsIntegrationTests
                     "ovt transcribe <input> --model <path> --output transcript.json",
                     "ovt detect-silence <input> --output silence.json"
                 ]));
+            var signalInstructions = commands["signalInstructions"]!.AsArray();
+            Assert.Equal(2, signalInstructions.Count);
+            Assert.Contains(
+                signalInstructions,
+                node => node!["kind"]!.GetValue<string>() == "silence"
+                    && node["consumption"]!.GetValue<string>().Contains("edit.json clip boundaries", StringComparison.Ordinal));
             Assert.Empty(commands["artifactCommands"]!.AsArray());
 
             var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
             var commandFiles = guide["examples"]!["commandFiles"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
             Assert.True(commandFiles.SequenceEqual(["commands.json", "commands.ps1", "commands.cmd", "commands.sh"]));
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            Assert.Contains("REM Review silence.json before hand-tuning edit.json clip boundaries", batchScript, StringComparison.Ordinal);
         }
         finally
         {

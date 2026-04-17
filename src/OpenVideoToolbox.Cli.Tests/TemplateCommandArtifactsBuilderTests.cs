@@ -13,11 +13,19 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 "ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4"
             ],
             [],
-            ["ovt transcribe <input> --model <path> --output transcript.json"],
+            [
+                new TemplateSignalInstruction
+                {
+                    Kind = "transcript",
+                    Command = "ovt transcribe <input> --model <path> --output transcript.json",
+                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
+                }
+            ],
             ["ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"]);
 
         Assert.Equal("<input>", bundle.Variables["inputPath"]);
         Assert.Single(bundle.InitPlanCommands);
+        Assert.Single(bundle.SignalInstructions);
         Assert.Single(bundle.SignalCommands);
         Assert.Single(bundle.ArtifactCommands);
         Assert.Contains("ovt validate-plan --plan edit.json", bundle.WorkflowCommands);
@@ -33,12 +41,20 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 "ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4"
             ],
             [],
-            ["ovt transcribe <input> --model <path> --output transcript.json"],
+            [
+                new TemplateSignalInstruction
+                {
+                    Kind = "transcript",
+                    Command = "ovt transcribe <input> --model <path> --output transcript.json",
+                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
+                }
+            ],
             ["ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"]);
 
         var script = TemplateCommandArtifactsBuilder.BuildPowerShellCommandScript(bundle);
 
         Assert.Contains("$InputPath = \"<input>\"", script);
+        Assert.Contains("# Pass --transcript transcript.json to init-plan when dialogue should drive the first cut.", script);
         Assert.Contains("ovt transcribe $InputPath --model <path> --output transcript.json", script);
         Assert.Contains("ovt subtitle $InputPath --transcript transcript.json --format srt --output subtitles.srt", script);
         Assert.Contains("ovt init-plan $InputPath --template shorts-captioned --output edit.json --render-output final.mp4", script);
@@ -53,15 +69,24 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 "ovt init-plan <input> --template commentary-bgm --output edit.json --render-output final.mp4"
             ],
             [],
-            ["ovt detect-silence <input> --output silence.json"],
+            [
+                new TemplateSignalInstruction
+                {
+                    Kind = "silence",
+                    Command = "ovt detect-silence <input> --output silence.json",
+                    Consumption = "Review silence.json before hand-tuning edit.json clip boundaries."
+                }
+            ],
             []);
 
         var batchScript = TemplateCommandArtifactsBuilder.BuildBatchCommandScript(bundle);
         var shellScript = TemplateCommandArtifactsBuilder.BuildShellCommandScript(bundle);
 
+        Assert.Contains("REM Review silence.json before hand-tuning edit.json clip boundaries.", batchScript);
         Assert.Contains("ovt detect-silence \"%INPUT_PATH%\" --output silence.json", batchScript);
         Assert.Contains("ovt init-plan \"%INPUT_PATH%\" --template commentary-bgm --output edit.json --render-output final.mp4", batchScript);
         Assert.DoesNotContain("ovt init-plan <input>", batchScript);
+        Assert.Contains("# Review silence.json before hand-tuning edit.json clip boundaries.", shellScript);
         Assert.Contains("ovt detect-silence \"$INPUT_PATH\" --output silence.json", shellScript);
         Assert.Contains("ovt init-plan \"$INPUT_PATH\" --template commentary-bgm --output edit.json --render-output final.mp4", shellScript);
         Assert.DoesNotContain("ovt init-plan <input>", shellScript);
