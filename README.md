@@ -98,7 +98,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 
 - `presets` 列出内置预设
 - `doctor` 统一检查 `ffmpeg`、`ffprobe`、`whisper-cli`、`demucs` 和 `whisper model` 的依赖状态；stdout 始终输出结构化 JSON，缺失 required 依赖时返回非零退出码，也支持 `--json-out`
-- `templates` 无参时列出内置 `edit.json` 模板；可选用 `--category`、`--seed-mode`、`--output-container`、`--artifact-kind`、`--has-artifacts`、`--has-subtitles` 过滤列表，也可用 `--summary` 返回稳定的机器友好摘要，并额外暴露模板级 transcript 策略推荐与 supporting signals，便于外部 AI 在不读取完整 guide 的前提下先完成首次筛选；用 `--json-out` 可直接写出结果；传模板 id 时返回单模板指南，包含 artifact skeleton、template-params skeleton、推荐 seed 模式、supporting signal 命令、示例命令，以及按推荐 seed 模式生成的最小 `edit.json` 预览；其中 transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令与 preview，并标出模板 owner 推荐的组合；额外传 `--write-examples <dir>` 时会把 `guide.json`、`template.json`、这些 skeleton、preview plan，以及 `commands.json` / `commands.ps1` / `commands.cmd` / `commands.sh` 直接写到目录
+- `templates` 无参时列出内置 `edit.json` 模板；可选用 `--category`、`--seed-mode`、`--output-container`、`--artifact-kind`、`--has-artifacts`、`--has-subtitles` 过滤列表，也可用 `--summary` 返回稳定的机器友好摘要，并额外暴露模板级 transcript 策略推荐与 supporting signals，便于外部 AI 在不读取完整 guide 的前提下先完成首次筛选；用 `--json-out` 可直接写出结果；传模板 id 时返回单模板指南，包含 artifact skeleton、template-params skeleton、推荐 seed 模式、supporting signal 命令、artifact preparation 命令、示例命令，以及按推荐 seed 模式生成的最小 `edit.json` 预览；其中 transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令与 preview，并标出模板 owner 推荐的组合；额外传 `--write-examples <dir>` 时会把 `guide.json`、`template.json`、这些 skeleton、preview plan，以及 `commands.json` / `commands.ps1` / `commands.cmd` / `commands.sh` 直接写到目录
 - 当前内置模板已覆盖 `short-form`、`commentary`、`explainer`、`montage` 四类常见套路，并补齐字幕/BGM 组合模板，便于外部 AI 先按工作流类型缩小模板集合
 - `init-plan` 从模板生成可编辑的 `edit.json` 骨架，并可选复用 `ffprobe` 预填整段 clip；当传入 `--artifacts artifacts.json` 时会把模板 slot 绑定写入顶层 `artifacts`，已声明的 `subtitle` / `bgm` 仍可通过专用参数直传；当传入 `--template-params template-params.json` 时会覆盖模板默认参数；当传入 `--transcript transcript.json` 时会在计划中写入顶层 `transcript` 引用，搭配 `--seed-from-transcript` 时可按 transcript segment 直接生成初始 clips，也可通过 `--transcript-segment-group-size <n>` 把相邻 segment 按固定组数合并成确定性 seed clips，通过 `--min-transcript-segment-duration-ms <n>` 过滤过短 segment，并通过 `--max-transcript-gap-ms <n>` 在 gap 过大时强制断开 seed clip；当传入 `--beats` 时会在计划中写入顶层 `beats` 引用，搭配 `--seed-from-beats` 时可按节拍组直接生成初始 clips
 - `scaffold-template` 把模板指南、skeleton 文件、preview plan、命令脚本文件和初始 `edit.json` 一次写入工作目录，适合外部 AI 直接进入目录后二次修改，而不必自行串多条 `templates` / `init-plan` 命令；传 `--validate` 时会立刻附带一份 plan 校验结果，传 `--check-files` 时会连同文件存在性一起检查
@@ -109,6 +109,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `detect-silence` 通过 `ffmpeg silencedetect` 输出 `silence.json`，提供模板和后续编辑辅助可复用的停顿段信号
 - `separate-audio` 通过 `Demucs` 输出结构化 stem 结果，先收敛高频的人声 / 伴奏双 stem 场景
 - `templates <id>` 现在会显式给出 transcript / beats / silence / stems 的 supporting signal guidance，告诉外部 AI 该先生成哪些信号、用哪条命令，以及这些信号应如何接回初始 scaffold 或人工修订流程
+- 对支持字幕的模板，`templates <id>` / `commands.*` 现在还会显式给出 `transcribe -> subtitle -> init-plan/render` 的 artifact preparation 命令，减少外部 AI 自己拼字幕工作流
 - `cut` 通过 `ffmpeg -map 0 -c copy` 做最小单段裁切
 - `concat` 通过 `ffmpeg concat demuxer` 合并片段列表
 - `extract-audio` 通过 `ffmpeg -map 0:a:<n> -vn -c copy` 提取指定音频轨

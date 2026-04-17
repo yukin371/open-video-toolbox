@@ -1085,6 +1085,7 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
+        var artifactCommands = BuildTemplateArtifactCommands(template, supportingSignals);
         var exampleWriteResult = WriteTemplateExamples(
             template,
             fullOutputDirectory,
@@ -1094,7 +1095,8 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
             supportingSignals,
             commands,
             seedCommands,
-            signalCommands);
+            signalCommands,
+            artifactCommands);
 
         await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
 
@@ -1322,6 +1324,7 @@ static int RunTemplates(string[] args)
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
+        var artifactCommands = BuildTemplateArtifactCommands(template, supportingSignals);
 
         if (!string.IsNullOrWhiteSpace(writeExamplesDirectory))
         {
@@ -1334,7 +1337,8 @@ static int RunTemplates(string[] args)
                 supportingSignals,
                 commands,
                 seedCommands,
-                signalCommands);
+                signalCommands,
+                artifactCommands);
         }
 
         return WriteResult(BuildTemplateGuide(
@@ -1346,7 +1350,8 @@ static int RunTemplates(string[] args)
             supportingSignals,
             commands,
             seedCommands,
-            signalCommands), jsonOutPath);
+            signalCommands,
+            artifactCommands), jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -1363,7 +1368,8 @@ static TemplateExampleWriteResult WriteTemplateExamples(
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
     IReadOnlyList<object> seedCommands,
-    IReadOnlyList<string> signalCommands)
+    IReadOnlyList<string> signalCommands,
+    IReadOnlyList<string> artifactCommands)
 {
     var fullOutputDirectory = Path.GetFullPath(outputDirectory);
     Directory.CreateDirectory(fullOutputDirectory);
@@ -1414,7 +1420,8 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         supportingSignals,
         commands,
         seedCommands,
-        signalCommands);
+        signalCommands,
+        artifactCommands);
     var guidePath = Path.Combine(fullOutputDirectory, "guide.json");
     File.WriteAllText(
         guidePath,
@@ -1422,7 +1429,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         Encoding.UTF8);
     writtenFiles.Add(guidePath);
 
-    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalCommands);
+    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalCommands, artifactCommands);
 
     var commandsJsonPath = Path.Combine(fullOutputDirectory, "commands.json");
     File.WriteAllText(
@@ -1468,7 +1475,8 @@ static object BuildTemplateGuide(
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
     IReadOnlyList<object> seedCommands,
-    IReadOnlyList<string> signalCommands)
+    IReadOnlyList<string> signalCommands,
+    IReadOnlyList<string> artifactCommands)
 {
     return new
     {
@@ -1492,10 +1500,32 @@ static object BuildTemplateGuide(
             },
             commands,
             signalCommands,
+            artifactCommands,
             seedCommands,
             previewPlans
         }
     };
+}
+
+static IReadOnlyList<string> BuildTemplateArtifactCommands(
+    EditPlanTemplateDefinition template,
+    IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals)
+{
+    var hasSubtitleOutput = template.DefaultSubtitleMode is not null
+        || template.ArtifactSlots.Any(slot =>
+            string.Equals(slot.Kind, "subtitle", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(slot.Id, "subtitles", StringComparison.OrdinalIgnoreCase));
+    var hasTranscriptSignal = supportingSignals.Any(signal => signal.Kind == EditPlanSupportingSignalKind.Transcript);
+
+    if (!hasSubtitleOutput || !hasTranscriptSignal)
+    {
+        return [];
+    }
+
+    return
+    [
+        "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"
+    ];
 }
 
 static IReadOnlyList<string> BuildTemplateExampleCommands(EditPlanTemplateDefinition template, bool hasArtifacts, bool hasTemplateParams)

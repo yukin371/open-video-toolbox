@@ -5,7 +5,8 @@ internal static class TemplateCommandArtifactsBuilder
     public static TemplateCommandBundle BuildCommandBundle(
         IReadOnlyList<string> commands,
         IReadOnlyList<object> seedCommands,
-        IReadOnlyList<string> signalCommands)
+        IReadOnlyList<string> signalCommands,
+        IReadOnlyList<string> artifactCommands)
     {
         return new TemplateCommandBundle
         {
@@ -16,6 +17,7 @@ internal static class TemplateCommandArtifactsBuilder
             InitPlanCommands = commands,
             SeedCommands = seedCommands,
             SignalCommands = signalCommands,
+            ArtifactCommands = artifactCommands,
             WorkflowCommands =
             [
                 "ovt validate-plan --plan edit.json",
@@ -33,6 +35,9 @@ internal static class TemplateCommandArtifactsBuilder
         var signalCommands = commandBundle.SignalCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
             .ToArray();
+        var artifactCommands = commandBundle.ArtifactCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
@@ -42,6 +47,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "",
                 "# signal preparation examples",
                 ..signalCommands,
+                "",
+                "# artifact preparation examples",
+                ..artifactCommands,
                 "",
                 "# init-plan examples",
                 ..initPlanCommands,
@@ -60,6 +68,9 @@ internal static class TemplateCommandArtifactsBuilder
         var signalCommands = commandBundle.SignalCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
             .ToArray();
+        var artifactCommands = commandBundle.ArtifactCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
@@ -69,6 +80,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "",
                 "REM signal preparation examples",
                 ..signalCommands,
+                "",
+                "REM artifact preparation examples",
+                ..artifactCommands,
                 "",
                 "REM init-plan example",
                 ..initPlanCommands,
@@ -87,6 +101,9 @@ internal static class TemplateCommandArtifactsBuilder
         var signalCommands = commandBundle.SignalCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
             .ToArray();
+        var artifactCommands = commandBundle.ArtifactCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
@@ -96,6 +113,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "",
                 "# signal preparation examples",
                 ..signalCommands,
+                "",
+                "# artifact preparation examples",
+                ..artifactCommands,
                 "",
                 "# init-plan example",
                 ..initPlanCommands,
@@ -121,6 +141,8 @@ internal sealed record TemplateCommandBundle
     public IReadOnlyList<object> SeedCommands { get; init; } = [];
 
     public IReadOnlyList<string> SignalCommands { get; init; } = [];
+
+    public IReadOnlyList<string> ArtifactCommands { get; init; } = [];
 
     public IReadOnlyList<string> WorkflowCommands { get; init; } = [];
 }

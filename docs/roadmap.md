@@ -215,6 +215,7 @@
 ### P1
 
 - 字幕工作流继续收敛
+- 保持模板输出里的 subtitle workflow glue 稳定，避免外部 AI 自己拼 `transcribe -> subtitle -> render`
 - 评估 `audio-gain` 是否需要保持显式增益模式之外的独立归一化入口
 - 模板插件入口设计
 

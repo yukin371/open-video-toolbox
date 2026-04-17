@@ -159,13 +159,14 @@ ovt render --plan edit.json --output final.mp4
 - `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton。
 - `templates <id>` 还会返回 `recommendedSeedModes` 与对应 `seedCommands`，明确这个模板更适合手工 plan、transcript seed 还是 beat seed；transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令，并带 `recommended` 标记。
 - `templates <id>` 还会返回 `supportingSignals` 与 `signalCommands`，明确这个模板更值得先准备 transcript、beats、silence 还是 stems，以及这些信号后续如何回接到模板工作流。
+- `templates <id>` 还会返回 `artifactCommands`，在支持字幕的模板里显式给出 `transcribe -> subtitle -> init-plan/render` 之间的 glue 命令。
 - `templates <id>` 还会返回 `previewPlans`，直接展示按这些 seed 模式生成后的最小 `edit.json` 形状；transcript preview 还会额外挂出对应策略变体 preview，并带 `isRecommended` 标记。
 - `templates <id> --write-examples <dir>` 会直接写出 `guide.json`、`template.json`、`artifacts.json`、`template-params.json`、`preview-*.edit.json`，以及 `commands.json` / `commands.ps1` / `commands.cmd` / `commands.sh`，适合外部 AI 或脚本直接复用。
 - `templates --category <id>`、`--seed-mode <mode>`、`--output-container <ext>`、`--artifact-kind <kind>`、`--has-artifacts`、`--has-subtitles` 可以先缩小模板集合，再决定是否查询单模板详情。
 - `templates --summary` 会返回稳定的机器友好摘要，并额外包含模板级 transcript 策略推荐，降低外部 AI 首次筛选成本，避免先读取完整模板定义再自行裁剪字段。
 - `templates --json-out <path>` 会把当前返回值原样写到文件，适合把模板列表或筛选结果直接交给后续脚本。
 - `scaffold-template` 会把 `guide.json`、`template.json`、`artifacts.json`、`template-params.json`、`preview-*.edit.json`、命令脚本文件和初始 `edit.json` 一次落到工作目录，适合外部 AI 在目录内继续编辑。
-- `commands.json` / `commands.*` 现在除了 `init-plan` / workflow 命令外，还会附带 supporting signal 命令，降低外部 AI 手工拼接 transcript / silence / stems 准备步骤的成本。
+- `commands.json` / `commands.*` 现在除了 `init-plan` / workflow 命令外，还会附带 supporting signal 命令，以及字幕模板可复用的 artifact preparation 命令，降低外部 AI 手工拼接 transcript / subtitle / silence / stems 准备步骤的成本。
 - `scaffold-template --validate` 会在生成后立即附带一份 plan 校验结果；加 `--check-files` 时，缺失输入或引用文件会让命令以非零退出码返回。
 - `validate-plan --check-files` 会额外检查 `source`、`audioTracks`、`artifacts`、`transcript`、`beats`、`subtitles` 引用文件是否存在；命令无论成功失败都输出 JSON，失败时返回非零退出码。
 - `doctor` 无论成功失败都输出 JSON envelope；其中 `ffmpeg`、`ffprobe` 属于 required 依赖，`whisper-cli`、`demucs`、`whisper-model` 属于 optional 依赖。

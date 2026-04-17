@@ -57,6 +57,7 @@ public sealed class CommandArtifactsIntegrationTests
                     "ovt transcribe <input> --model <path> --output transcript.json",
                     "ovt detect-silence <input> --output silence.json"
                 ]));
+            Assert.Empty(commands["artifactCommands"]!.AsArray());
 
             var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
             var commandFiles = guide["examples"]!["commandFiles"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
@@ -198,6 +199,7 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.Contains(supportingSignals, node => node!["kind"]!.GetValue<string>() == "silence");
         Assert.Contains(supportingSignals, node => node!["command"]!.GetValue<string>().Contains("detect-silence", StringComparison.Ordinal));
         Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("beat-track", StringComparison.Ordinal));
+        Assert.Contains(examples["artifactCommands"]!.AsArray(), node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
 
         var seedCommands = examples["seedCommands"]!.AsArray();
         Assert.Equal(3, seedCommands.Count);
@@ -263,6 +265,7 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.Equal("sync-cut", examples["templateParams"]!["pace"]!.GetValue<string>());
         Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("separate-audio", StringComparison.Ordinal));
         Assert.Contains(examples["supportingSignals"]!.AsArray(), node => node!["kind"]!.GetValue<string>() == "stems");
+        Assert.Empty(examples["artifactCommands"]!.AsArray());
 
         var previewPlans = examples["previewPlans"]!.AsArray();
         Assert.Equal(2, previewPlans.Count);
