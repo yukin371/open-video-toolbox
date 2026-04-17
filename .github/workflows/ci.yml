@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore solution
+        run: dotnet restore OpenVideoToolbox.sln
+
+      - name: Build solution
+        run: dotnet build OpenVideoToolbox.sln --configuration Release --no-restore
+
+      - name: Run tests
+        run: dotnet test OpenVideoToolbox.sln --configuration Release --no-build

@@ -1,6 +1,6 @@
 # Project Profile
 
-最后更新：2026-04-17
+最后更新：2026-04-18
 
 ## 项目类型
 
@@ -136,8 +136,10 @@
 
 ## 当前已知缺口
 
-- CI / workflow 文件：`TBD`
-  - 确认路径：新增 `.github/workflows/*` 或其他 CI 配置后补充
+- CI / workflow 文件：已落地基础 GitHub Actions
+  - 当前已有 `.github/workflows/ci.yml`
+  - 覆盖范围：`push main` 与 `pull_request` 上的 `dotnet restore`、`dotnet build`、`dotnet test`
+  - 当前未纳入：依赖 `ffmpeg` / `whisper.cpp` / `demucs` 的可选 smoke
 - Desktop 实际 UI 框架接入状态：`TBD`
   - 确认路径：当 `OpenVideoToolbox.Desktop` 引入 Avalonia 或其他桌面框架时更新
 - 打包 / 发布流程：`TBD`

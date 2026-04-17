@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-17
+最后更新：2026-04-18
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -37,6 +37,15 @@
 - 当前实施计划：`docs/plans/2026-04-15-cli-mvp-implementation.md`
 - 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
 - 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
+
+## 阶段检查（2026-04-18）
+
+- 当前仓库已经完成 Wave 1 命令面的主要铺设，工作重心正式转入 `Hardening`。
+- 最近一轮小提交主要完成了两类收敛：
+  - `audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`subtitle` 已补齐或延续 `--json-out` 路径，进一步稳定外部 AI / 脚本消费契约。
+  - 模板脚手架与 `commands.json` / `commands.*` 已继续收敛 supporting signal guidance、consumption 提示和外部依赖占位符，其中 transcript signal 显式使用 `<whisper-model-path>`。
+- 仓库级基础 CI 已落地为 GitHub Actions `restore + build + test`，先保护主干提交与 PR 的回归底线。
+- 当前判断不需要继续优先扩新命令；更高价值的是把重依赖 smoke、模板信号接线和模板扩展边界做实。
 
 ## 总体路线
 
@@ -108,8 +117,9 @@
   - 这些能力属于模板平台地基，不应被塞进某个模板专属逻辑里。
   - 这阶段优先级高于继续无节制扩模板数量。
 - 当前状态：
-  - `audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio` 命令面已进入仓库
-  - 当前剩余重点是稳定 JSON 契约、补真实工具 smoke，并把这些基础信号继续收敛进模板工作流
+  - `audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`subtitle` 命令面已进入仓库
+  - 上述音频 / 语音命令的 `--json-out` 契约已基本补齐
+  - 当前剩余重点是稳定 JSON 契约、补真实工具 smoke，并把这些基础信号继续收敛进模板工作流与脚手架目录产物
 
 ### Phase C: 模板平台与插件扩展
 
@@ -140,7 +150,7 @@
 - `Template platform`
   - 继续把模板从“内置样板”收敛为“可扩展场景单元”
 - `Template guidance output`
-  - 保持 `templates <id>` guide、preview、commands 与 supporting signal guidance 的稳定性
+  - 保持 `templates <id>` guide、preview、commands、supporting signal guidance 与 signal consumption 提示的稳定性
 - `Transcript-assisted planning`
   - 继续扩展可解释的 transcript 辅助策略，但必须保持显式参数和 deterministic 行为
 - `Beat-assisted planning`
@@ -149,6 +159,8 @@
   - 为模板插件预留入口，但避免过早引入复杂运行时机制
 - `Repository guardrails`
   - 维持仓库级文档、模块 owner 和验证路径，避免后续 UI 开发把边界打散
+- `Repository automation`
+  - 维持基础 CI 的可用性，并逐步评估哪些验证适合进入 GitHub Actions
 
 ## 已实现基础
 
@@ -205,11 +217,12 @@
 
 ### P0
 
-- 收敛 `audio-analyze` / `audio-gain` / `transcribe` / `detect-silence` / `separate-audio` 的结构化输出契约
+- 保持 `audio-analyze` / `audio-gain` / `transcribe` / `detect-silence` / `separate-audio` / `subtitle` 的结构化输出契约稳定，不再随手漂移字段或 envelope
 - 补齐 `ffmpeg` / `whisper.cpp` / `demucs` 真实工具 smoke 与失败路径验证
 - 用 `doctor` 收敛 `ffmpeg` / `ffprobe` / `whisper-cli` / `demucs` / `whisper model` 的依赖预检
-- 继续把 transcript / silence / stems 等基础信号接入模板 guide、preview 和脚手架工作流
+- 继续把 transcript / silence / stems 等基础信号接入模板 guide、preview、`commands.json` / `commands.*` 和脚手架工作流
 - 保持 supporting signal guidance 由模板 owner 显式声明，避免 CLI 侧临时拼接
+- 为脚手架输出补更多命令快照 / 集成测试，锁住 `commands.json` / `commands.*` 的变量与占位符语义
 - 明确重型外部依赖的安装前提、日志保留和错误输出约束
 
 ### P1
@@ -217,7 +230,7 @@
 - 字幕工作流继续收敛
 - 保持模板输出里的 subtitle workflow glue 稳定，避免外部 AI 自己拼 `transcribe -> subtitle -> render`
 - 评估 `audio-gain` 是否需要保持显式增益模式之外的独立归一化入口
-- 模板插件入口设计
+- 设计“模板插件优先”的扩展入口，先明确发现、清单与加载边界，再决定是否进入运行时实现
 
 ### P2
 
@@ -229,18 +242,22 @@
 
 - 模板插件机制
 - Desktop 实际 UI 框架接入
-- CI / workflow
 - 打包 / 发布流程
 
 ## 待验证项
 
 - 结构化输出约定还需要继续稳定，便于外部 AI 代理消费
 - `whisper.cpp` 与 `demucs` 依赖较重，真实机器上的可用性、目录约定和错误路径还需要继续验证
+- 基础 CI 当前只覆盖 `restore` / `build` / `test`，还未承接重依赖 smoke、发布物校验和缓存优化
 - 模板插件机制需要在不破坏 `Core` owner 的前提下设计
+- 模板脚手架生成的 `commands.json` / `commands.*` 仍需继续用集成测试锁住占位符、变量声明与 consumption 文案
 - Desktop 是否保留为长期目标仍需后续确认
 
 ## 已验证
 
+- `dotnet test OpenVideoToolbox.sln`
+  - `OpenVideoToolbox.Core.Tests`: 123/123
+  - `OpenVideoToolbox.Cli.Tests`: 76/76
 - 当前开发机已通过真实 `ffprobe` / `ffmpeg` smoke：
   - `ffprobe` 媒体探测
   - `render` 导出与 sidecar 字幕复制
@@ -250,6 +267,6 @@
 
 ## 下一步
 
-1. 优先补音量检测、分贝调整、音频转 transcript 这类模板地基能力。
-2. 把已落地的音频 / 语音命令收敛到稳定的契约、真实工具 smoke 和模板接入。
-3. 继续稳住模板 guide / preview / commands 的机器友好契约，并基于现有模板能力设计“模板插件优先”的扩展路径。
+1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
+2. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
+3. 在不引入运行时复杂度的前提下，先产出“模板插件优先”的入口草案，明确发现、清单与扩展边界。
