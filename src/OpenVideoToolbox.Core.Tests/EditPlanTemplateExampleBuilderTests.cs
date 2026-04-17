@@ -49,13 +49,13 @@ public sealed class EditPlanTemplateExampleBuilderTests
     }
 
     [Fact]
-    public void BuildArtifactBindingsExample_ReturnsAudioPlaceholderForBeatMontage()
+    public void BuildArtifactBindingsExample_ReturnsStemArtifactPathForBeatMontage()
     {
         var template = BuiltInEditPlanTemplateCatalog.GetRequired("beat-montage");
 
         var example = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
 
-        Assert.Equal("audio/input.wav", example["bgm"]);
+        Assert.Equal("stems/htdemucs/input/no_vocals.wav", example["bgm"]);
     }
 
     [Fact]

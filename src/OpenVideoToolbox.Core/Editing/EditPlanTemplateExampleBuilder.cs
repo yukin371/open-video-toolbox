@@ -23,10 +23,11 @@ public static class EditPlanTemplateExampleBuilder
             return new Dictionary<string, string>();
         }
 
+        var supportsStems = template.SupportingSignals.Any(signal => signal.Kind == EditPlanSupportingSignalKind.Stems);
         var bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var slot in template.ArtifactSlots)
         {
-            bindings[slot.Id] = BuildArtifactExamplePath(slot);
+            bindings[slot.Id] = BuildArtifactExamplePath(slot, supportsStems);
         }
 
         return bindings;
@@ -349,17 +350,19 @@ public static class EditPlanTemplateExampleBuilder
                 Reason = signal.Reason,
                 OutputPath = "stems/",
                 Command = "ovt separate-audio <input> --output-dir stems",
-                Consumption = "Reuse the produced vocals/accompaniment stems as bgm inputs, source replacements, or cleanup references after the initial scaffold is written."
+                Consumption = "After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav when the accompaniment stem should drive the mix; keep vocals.wav as a cleanup or reference stem."
             },
             _ => throw new InvalidOperationException($"Unsupported supporting signal kind '{signal.Kind}'.")
         };
     }
 
-    private static string BuildArtifactExamplePath(EditPlanArtifactSlot slot)
+    private static string BuildArtifactExamplePath(EditPlanArtifactSlot slot, bool supportsStems)
     {
         return slot.Kind.ToLowerInvariant() switch
         {
             "subtitle" => "subtitles.srt",
+            "audio" when supportsStems && string.Equals(slot.Id, "bgm", StringComparison.OrdinalIgnoreCase)
+                => "stems/htdemucs/input/no_vocals.wav",
             "audio" => "audio/input.wav",
             _ => $"<{slot.Id}-path>"
         };

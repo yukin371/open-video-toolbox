@@ -262,10 +262,14 @@ public sealed class CommandArtifactsIntegrationTests
             .Select(node => node!["kind"]!.GetValue<string>())
             .SequenceEqual(["beats", "stems"]));
 
-        Assert.Equal("audio/input.wav", examples["artifacts"]!["bgm"]!.GetValue<string>());
+        Assert.Equal("stems/htdemucs/input/no_vocals.wav", examples["artifacts"]!["bgm"]!.GetValue<string>());
         Assert.Equal("sync-cut", examples["templateParams"]!["pace"]!.GetValue<string>());
         Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("separate-audio", StringComparison.Ordinal));
         Assert.Contains(examples["supportingSignals"]!.AsArray(), node => node!["kind"]!.GetValue<string>() == "stems");
+        Assert.Contains(
+            examples["supportingSignals"]!.AsArray(),
+            node => node!["kind"]!.GetValue<string>() == "stems"
+                && node["consumption"]!.GetValue<string>().Contains("artifacts.json", StringComparison.Ordinal));
         Assert.Empty(examples["artifactCommands"]!.AsArray());
 
         var previewPlans = examples["previewPlans"]!.AsArray();
@@ -278,7 +282,31 @@ public sealed class CommandArtifactsIntegrationTests
         var beatsPreview = GetPreviewPlan(previewPlans, "beats");
         Assert.NotNull(beatsPreview["beats"]);
         Assert.Single(beatsPreview["clips"]!.AsArray());
-        Assert.Equal("audio/input.wav", beatsPreview["audioTracks"]![0]!["path"]!.GetValue<string>());
+        Assert.Equal("stems/htdemucs/input/no_vocals.wav", beatsPreview["audioTracks"]![0]!["path"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ScaffoldTemplate_ForBeatMontage_WritesStemFirstArtifactsExample()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-scaffold-beat-montage-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("scaffold-template", "input.mp4", "--template", "beat-montage", "--dir", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "artifacts.json")));
+
+            var artifacts = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "artifacts.json")))!.AsObject();
+            Assert.Equal("stems/htdemucs/input/no_vocals.wav", artifacts["bgm"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
     }
 
     [Fact]

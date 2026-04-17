@@ -50,6 +50,7 @@
 - 模板分类和 seed 能力元数据必须稳定，便于 CLI 做可预测过滤
 - 模板列表摘要字段必须稳定，便于外部 AI 和未来 UI 做低成本模板发现
 - 模板 supporting signal guidance 必须由模板定义显式声明，不能在 CLI 层按类别或命令名临时猜测
+- 模板 artifact 示例路径必须从模板 slot 与 supporting signal 组合稳定派生；例如带 `stems` signal 的 `bgm` slot 应直接给出 `Demucs` accompaniment stem 路径，而不是退回泛化占位
 - 模板参数覆盖必须先落到稳定的 `template.parameters`，不能直接分裂成零散 CLI 特判
 - 模板清单与 plan skeleton 规则必须留在本模块，不得散落到 CLI
 - 计划模型只表达编辑意图，不直接表达 UI 状态

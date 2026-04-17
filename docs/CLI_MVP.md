@@ -157,7 +157,7 @@ ovt render --plan edit.json --output final.mp4
 - `separate-audio --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 stem 路径继续接给模板、混音或人工修订流程。
 - 其余命令仍是 MVP 草案，不代表当前仓库已经实现。
 - `doctor` 会优先读取 CLI 显式参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`，最后回退到默认可执行名或 `unset` 状态。
-- `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton。
+- `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton；对带 `stems` supporting signal 的模板，`bgm` 示例会直接预填 `stems/htdemucs/input/no_vocals.wav`。
 - `templates <id>` 还会返回 `recommendedSeedModes` 与对应 `seedCommands`，明确这个模板更适合手工 plan、transcript seed 还是 beat seed；transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令，并带 `recommended` 标记。
 - `templates <id>` 还会返回 `supportingSignals` 与 `signalCommands`，明确这个模板更值得先准备 transcript、beats、silence 还是 stems，以及这些信号后续如何回接到模板工作流。
 - `templates <id>` 还会返回 `artifactCommands`，在支持字幕的模板里显式给出 `transcribe -> subtitle -> init-plan/render` 之间的 glue 命令。
