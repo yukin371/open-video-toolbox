@@ -1858,9 +1858,9 @@ public sealed class CommandArtifactsIntegrationTests
         Directory.CreateDirectory(outputDirectory);
         var outputPath = Path.Combine(outputDirectory, "audio.json");
         var jsonOutPath = Path.Combine(outputDirectory, "audio-analyze.json");
-        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
-        WriteScript(
-            ffmpegPath,
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
             """
             @echo off
             1>&2 echo {
@@ -1871,6 +1871,18 @@ public sealed class CommandArtifactsIntegrationTests
             1>&2 echo   "target_offset" : "0.50"
             1>&2 echo }
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            cat >&2 <<'EOF'
+            {
+              "input_i" : "-16.40",
+              "input_lra" : "3.10",
+              "input_tp" : "-1.20",
+              "input_thresh" : "-27.30",
+              "target_offset" : "0.50"
+            }
+            EOF
             """);
 
         try
@@ -2010,9 +2022,9 @@ public sealed class CommandArtifactsIntegrationTests
         Directory.CreateDirectory(outputDirectory);
         var outputPath = Path.Combine(outputDirectory, "gain.wav");
         var jsonOutPath = Path.Combine(outputDirectory, "audio-gain.json");
-        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
-        WriteScript(
-            ffmpegPath,
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
             """
             @echo off
             setlocal
@@ -2026,6 +2038,17 @@ public sealed class CommandArtifactsIntegrationTests
             if "%out%"=="" exit /b 2
             break> "%out%"
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            out=""
+            for arg in "$@"; do
+              out="$arg"
+            done
+            if [ -z "$out" ]; then
+              exit 2
+            fi
+            : > "$out"
             """);
 
         try
@@ -2160,11 +2183,9 @@ public sealed class CommandArtifactsIntegrationTests
         var outputPath = Path.Combine(outputDirectory, "transcript.json");
         var jsonOutPath = Path.Combine(outputDirectory, "transcribe.json");
         var modelPath = Path.Combine(outputDirectory, "ggml-base.bin");
-        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
-        var whisperCliPath = Path.Combine(outputDirectory, "fake-whisper.cmd");
-        await File.WriteAllTextAsync(modelPath, "model");
-        WriteScript(
-            ffmpegPath,
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
             """
             @echo off
             setlocal
@@ -2178,9 +2199,21 @@ public sealed class CommandArtifactsIntegrationTests
             if "%out%"=="" exit /b 2
             break> "%out%"
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            out=""
+            for arg in "$@"; do
+              out="$arg"
+            done
+            if [ -z "$out" ]; then
+              exit 2
+            fi
+            : > "$out"
             """);
-        WriteScript(
-            whisperCliPath,
+        var whisperCliPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-whisper",
             """
             @echo off
             setlocal EnableDelayedExpansion
@@ -2199,7 +2232,26 @@ public sealed class CommandArtifactsIntegrationTests
               echo {"result":{"language":"en"},"transcription":[{"text":"hello world","offsets":{"from":0,"to":1000}}]}
             )
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            prefix=""
+            while [ "$#" -gt 0 ]; do
+              if [ "$1" = "-of" ]; then
+                prefix="$2"
+                shift 2
+                continue
+              fi
+              shift
+            done
+            if [ -z "$prefix" ]; then
+              exit 2
+            fi
+            cat > "${prefix}.json" <<'EOF'
+            {"result":{"language":"en"},"transcription":[{"text":"hello world","offsets":{"from":0,"to":1000}}]}
+            EOF
             """);
+        await File.WriteAllTextAsync(modelPath, "model");
 
         try
         {
@@ -2333,14 +2385,19 @@ public sealed class CommandArtifactsIntegrationTests
         Directory.CreateDirectory(outputDirectory);
         var outputPath = Path.Combine(outputDirectory, "silence.json");
         var jsonOutPath = Path.Combine(outputDirectory, "detect-silence.json");
-        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
-        WriteScript(
-            ffmpegPath,
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
             """
             @echo off
             1>&2 echo silence_start: 1.25
             1>&2 echo silence_end: 2.75 ^| silence_duration: 1.50
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'silence_start: 1.25\n' >&2
+            printf 'silence_end: 2.75 | silence_duration: 1.50\n' >&2
             """);
 
         try
@@ -2437,9 +2494,9 @@ public sealed class CommandArtifactsIntegrationTests
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-separate-audio-json-{Guid.NewGuid():N}");
         Directory.CreateDirectory(outputDirectory);
         var jsonOutPath = Path.Combine(outputDirectory, "separate-audio.json");
-        var demucsPath = Path.Combine(outputDirectory, "fake-demucs.cmd");
-        WriteScript(
-            demucsPath,
+        var demucsPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-demucs",
             """
             @echo off
             setlocal
@@ -2471,6 +2528,37 @@ public sealed class CommandArtifactsIntegrationTests
             break> "%trackdir%\vocals.wav"
             break> "%trackdir%\no_vocals.wav"
             exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            out=""
+            model="htdemucs"
+            input=""
+            while [ "$#" -gt 0 ]; do
+              case "$1" in
+                -o)
+                  out="$2"
+                  shift 2
+                  ;;
+                -n)
+                  model="$2"
+                  shift 2
+                  ;;
+                *)
+                  input="$1"
+                  shift
+                  ;;
+              esac
+            done
+            if [ -z "$out" ] || [ -z "$input" ]; then
+              exit 2
+            fi
+            name="$(basename "$input")"
+            name="${name%.*}"
+            trackdir="$out/$model/$name"
+            mkdir -p "$trackdir"
+            : > "$trackdir/vocals.wav"
+            : > "$trackdir/no_vocals.wav"
             """);
 
         try
@@ -3079,8 +3167,26 @@ public sealed class CommandArtifactsIntegrationTests
         public required string StdErr { get; init; }
     }
 
-    private static void WriteScript(string path, string content)
+    private static string WriteExecutableScript(string directory, string baseName, string windowsContent, string unixContent)
     {
-        File.WriteAllText(path, content.ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
+        if (OperatingSystem.IsWindows())
+        {
+            var windowsPath = Path.Combine(directory, $"{baseName}.cmd");
+            File.WriteAllText(windowsPath, windowsContent.ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
+            return windowsPath;
+        }
+
+        var unixPath = Path.Combine(directory, baseName);
+        File.WriteAllText(unixPath, unixContent.ReplaceLineEndings("\n"), new UTF8Encoding(false));
+        File.SetUnixFileMode(
+            unixPath,
+            UnixFileMode.UserRead
+            | UnixFileMode.UserWrite
+            | UnixFileMode.UserExecute
+            | UnixFileMode.GroupRead
+            | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead
+            | UnixFileMode.OtherExecute);
+        return unixPath;
     }
 }

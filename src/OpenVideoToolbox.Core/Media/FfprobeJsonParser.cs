@@ -21,10 +21,16 @@ public sealed class FfprobeJsonParser
         return new MediaProbeResult
         {
             SourcePath = sourcePath,
-            FileName = Path.GetFileName(sourcePath),
+            FileName = GetFileName(sourcePath),
             Format = ParseFormat(formatElement),
             Streams = ParseStreams(streams)
         };
+    }
+
+    private static string GetFileName(string sourcePath)
+    {
+        var normalizedPath = sourcePath.Replace('\\', '/');
+        return Path.GetFileName(normalizedPath);
     }
 
     private static MediaFormatInfo ParseFormat(JsonElement format)
@@ -158,4 +164,3 @@ public sealed class FfprobeJsonParser
             : null;
     }
 }
-
