@@ -325,7 +325,7 @@ public static class EditPlanTemplateExampleBuilder
                 Kind = signal.Kind,
                 Reason = signal.Reason,
                 OutputPath = "transcript.json",
-                Command = "ovt transcribe <input> --model <path> --output transcript.json",
+                Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
                 Consumption = "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
             },
             EditPlanSupportingSignalKind.Beats => new EditPlanSupportingSignalExample

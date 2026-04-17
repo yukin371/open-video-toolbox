@@ -8,12 +8,11 @@ internal static class TemplateCommandArtifactsBuilder
         IReadOnlyList<TemplateSignalInstruction> signalInstructions,
         IReadOnlyList<string> artifactCommands)
     {
+        var variables = BuildVariables(signalInstructions);
+
         return new TemplateCommandBundle
         {
-            Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["inputPath"] = "<input>"
-            },
+            Variables = variables,
             InitPlanCommands = commands,
             SeedCommands = seedCommands,
             SignalInstructions = signalInstructions,
@@ -31,21 +30,22 @@ internal static class TemplateCommandArtifactsBuilder
     public static string BuildPowerShellCommandScript(TemplateCommandBundle commandBundle)
     {
         var initPlanCommands = commandBundle.InitPlanCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildPowerShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
-            "$InputPath",
+            BuildPowerShellPlaceholderMap(commandBundle.Variables),
             "# ");
         var artifactCommands = commandBundle.ArtifactCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildPowerShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var variableLines = BuildPowerShellVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
             [
                 "# Open Video Toolbox helper commands",
-                "$InputPath = \"<input>\"",
+                ..variableLines,
                 "",
                 "# signal preparation examples",
                 ..signalLines,
@@ -65,21 +65,22 @@ internal static class TemplateCommandArtifactsBuilder
     public static string BuildBatchCommandScript(TemplateCommandBundle commandBundle)
     {
         var initPlanCommands = commandBundle.InitPlanCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildBatchPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
-            "\"%INPUT_PATH%\"",
+            BuildBatchPlaceholderMap(commandBundle.Variables),
             "REM ");
         var artifactCommands = commandBundle.ArtifactCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildBatchPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var variableLines = BuildBatchVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
             [
                 "@echo off",
-                "set INPUT_PATH=<input>",
+                ..variableLines,
                 "",
                 "REM signal preparation examples",
                 ..signalLines,
@@ -99,21 +100,22 @@ internal static class TemplateCommandArtifactsBuilder
     public static string BuildShellCommandScript(TemplateCommandBundle commandBundle)
     {
         var initPlanCommands = commandBundle.InitPlanCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
-            "\"$INPUT_PATH\"",
+            BuildShellPlaceholderMap(commandBundle.Variables),
             "# ");
         var artifactCommands = commandBundle.ArtifactCommands
-            .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
+            .Select(command => ReplaceCommandPlaceholders(command, BuildShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var variableLines = BuildShellVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
             [
                 "#!/usr/bin/env sh",
-                "INPUT_PATH=\"<input>\"",
+                ..variableLines,
                 "",
                 "# signal preparation examples",
                 ..signalLines,
@@ -130,14 +132,20 @@ internal static class TemplateCommandArtifactsBuilder
             ]);
     }
 
-    private static string ReplaceCommandInputPlaceholder(string command, string replacement)
+    private static string ReplaceCommandPlaceholders(string command, IReadOnlyDictionary<string, string> replacements)
     {
-        return command.Replace("<input>", replacement, StringComparison.Ordinal);
+        var result = command;
+        foreach (var pair in replacements)
+        {
+            result = result.Replace(pair.Key, pair.Value, StringComparison.Ordinal);
+        }
+
+        return result;
     }
 
     private static IReadOnlyList<string> BuildSignalScriptLines(
         IReadOnlyList<TemplateSignalInstruction> signalInstructions,
-        string inputReplacement,
+        IReadOnlyDictionary<string, string> replacements,
         string commentPrefix)
     {
         var lines = new List<string>();
@@ -148,7 +156,112 @@ internal static class TemplateCommandArtifactsBuilder
                 lines.Add($"{commentPrefix}{instruction.Consumption}");
             }
 
-            lines.Add(ReplaceCommandInputPlaceholder(instruction.Command, inputReplacement));
+            lines.Add(ReplaceCommandPlaceholders(instruction.Command, replacements));
+        }
+
+        return lines;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildVariables(IReadOnlyList<TemplateSignalInstruction> signalInstructions)
+    {
+        var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["inputPath"] = "<input>"
+        };
+
+        if (signalInstructions.Any(instruction => instruction.Command.Contains("<whisper-model-path>", StringComparison.Ordinal)))
+        {
+            variables["whisperModelPath"] = "<whisper-model-path>";
+        }
+
+        return variables;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildPowerShellPlaceholderMap(IReadOnlyDictionary<string, string> variables)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["<input>"] = "$InputPath"
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            map["<whisper-model-path>"] = "$WhisperModelPath";
+        }
+
+        return map;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildBatchPlaceholderMap(IReadOnlyDictionary<string, string> variables)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["<input>"] = "\"%INPUT_PATH%\""
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            map["<whisper-model-path>"] = "\"%WHISPER_MODEL_PATH%\"";
+        }
+
+        return map;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildShellPlaceholderMap(IReadOnlyDictionary<string, string> variables)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["<input>"] = "\"$INPUT_PATH\""
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            map["<whisper-model-path>"] = "\"$WHISPER_MODEL_PATH\"";
+        }
+
+        return map;
+    }
+
+    private static IReadOnlyList<string> BuildPowerShellVariableLines(IReadOnlyDictionary<string, string> variables)
+    {
+        var lines = new List<string>
+        {
+            "$InputPath = \"<input>\""
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            lines.Add("$WhisperModelPath = \"<whisper-model-path>\"");
+        }
+
+        return lines;
+    }
+
+    private static IReadOnlyList<string> BuildBatchVariableLines(IReadOnlyDictionary<string, string> variables)
+    {
+        var lines = new List<string>
+        {
+            "set INPUT_PATH=<input>"
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            lines.Add("set WHISPER_MODEL_PATH=<whisper-model-path>");
+        }
+
+        return lines;
+    }
+
+    private static IReadOnlyList<string> BuildShellVariableLines(IReadOnlyDictionary<string, string> variables)
+    {
+        var lines = new List<string>
+        {
+            "INPUT_PATH=\"<input>\""
+        };
+
+        if (variables.ContainsKey("whisperModelPath"))
+        {
+            lines.Add("WHISPER_MODEL_PATH=\"<whisper-model-path>\"");
         }
 
         return lines;

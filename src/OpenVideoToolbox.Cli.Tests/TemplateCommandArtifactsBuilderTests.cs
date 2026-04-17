@@ -17,13 +17,14 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 new TemplateSignalInstruction
                 {
                     Kind = "transcript",
-                    Command = "ovt transcribe <input> --model <path> --output transcript.json",
+                    Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
                     Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
                 }
             ],
             ["ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"]);
 
         Assert.Equal("<input>", bundle.Variables["inputPath"]);
+        Assert.Equal("<whisper-model-path>", bundle.Variables["whisperModelPath"]);
         Assert.Single(bundle.InitPlanCommands);
         Assert.Single(bundle.SignalInstructions);
         Assert.Single(bundle.SignalCommands);
@@ -45,7 +46,7 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 new TemplateSignalInstruction
                 {
                     Kind = "transcript",
-                    Command = "ovt transcribe <input> --model <path> --output transcript.json",
+                    Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
                     Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
                 }
             ],
@@ -54,8 +55,9 @@ public sealed class TemplateCommandArtifactsBuilderTests
         var script = TemplateCommandArtifactsBuilder.BuildPowerShellCommandScript(bundle);
 
         Assert.Contains("$InputPath = \"<input>\"", script);
+        Assert.Contains("$WhisperModelPath = \"<whisper-model-path>\"", script);
         Assert.Contains("# Pass --transcript transcript.json to init-plan when dialogue should drive the first cut.", script);
-        Assert.Contains("ovt transcribe $InputPath --model <path> --output transcript.json", script);
+        Assert.Contains("ovt transcribe $InputPath --model $WhisperModelPath --output transcript.json", script);
         Assert.Contains("ovt subtitle $InputPath --transcript transcript.json --format srt --output subtitles.srt", script);
         Assert.Contains("ovt init-plan $InputPath --template shorts-captioned --output edit.json --render-output final.mp4", script);
         Assert.DoesNotContain("ovt init-plan <input>", script);
