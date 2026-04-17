@@ -1809,6 +1809,65 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task AudioAnalyze_CanWriteStructuredResultToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-analyze-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "audio.json");
+        var jsonOutPath = Path.Combine(outputDirectory, "audio-analyze.json");
+        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
+        WriteScript(
+            ffmpegPath,
+            """
+            @echo off
+            1>&2 echo {
+            1>&2 echo   "input_i" : "-16.40",
+            1>&2 echo   "input_lra" : "3.10",
+            1>&2 echo   "input_tp" : "-1.20",
+            1>&2 echo   "input_thresh" : "-27.30",
+            1>&2 echo   "target_offset" : "0.50"
+            1>&2 echo }
+            exit /b 0
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-analyze",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            var analysisFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal(Path.GetFullPath(outputPath), stdout["audioAnalyze"]!["outputPath"]!.GetValue<string>());
+            Assert.True(JsonNode.DeepEquals(stdout["analysis"], analysisFile));
+            Assert.Equal(-16.4, stdout["analysis"]!["analysis"]!["integratedLoudness"]!.GetValue<double>());
+            Assert.Equal(3.1, stdout["analysis"]!["analysis"]!["loudnessRange"]!.GetValue<double>());
+            Assert.Equal(-1.2, stdout["analysis"]!["analysis"]!["truePeakDb"]!.GetValue<double>());
+            Assert.Equal(-27.3, stdout["analysis"]!["analysis"]!["thresholdDb"]!.GetValue<double>());
+            Assert.Equal(0.5, stdout["analysis"]!["analysis"]!["targetOffset"]!.GetValue<double>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task AudioGain_RequiresGainDbOption()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-db-{Guid.NewGuid():N}");

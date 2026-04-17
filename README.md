@@ -74,7 +74,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- beat-track <input> --output beats.json
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-analyze <input> --output audio.json
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-analyze <input> --output audio.json --json-out audio-analyze.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-gain <input> --gain-db -6 --output leveled.wav
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- detect-silence <input> --output silence.json --json-out detect-silence.json
@@ -103,7 +103,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `init-plan` 从模板生成可编辑的 `edit.json` 骨架，并可选复用 `ffprobe` 预填整段 clip；当传入 `--artifacts artifacts.json` 时会把模板 slot 绑定写入顶层 `artifacts`，已声明的 `subtitle` / `bgm` 仍可通过专用参数直传；当传入 `--template-params template-params.json` 时会覆盖模板默认参数；当传入 `--transcript transcript.json` 时会在计划中写入顶层 `transcript` 引用，搭配 `--seed-from-transcript` 时可按 transcript segment 直接生成初始 clips，也可通过 `--transcript-segment-group-size <n>` 把相邻 segment 按固定组数合并成确定性 seed clips，通过 `--min-transcript-segment-duration-ms <n>` 过滤过短 segment，并通过 `--max-transcript-gap-ms <n>` 在 gap 过大时强制断开 seed clip；当传入 `--beats` 时会在计划中写入顶层 `beats` 引用，搭配 `--seed-from-beats` 时可按节拍组直接生成初始 clips
 - `scaffold-template` 把模板指南、skeleton 文件、preview plan、命令脚本文件和初始 `edit.json` 一次写入工作目录，适合外部 AI 直接进入目录后二次修改，而不必自行串多条 `templates` / `init-plan` 命令；传 `--validate` 时会立刻附带一份 plan 校验结果，传 `--check-files` 时会连同文件存在性一起检查
 - `beat-track` 把输入媒体解成统一波形并输出 `beats.json`，供节奏参考、模板填充和 clip 种子生成使用
-- `audio-analyze` 通过 `ffmpeg loudnorm` 输出 `audio.json`，提供集成响度、响度范围、真峰值和门限等基础响度分析数据，供后续音量标准化、配乐 ducking 和模板决策复用
+- `audio-analyze` 通过 `ffmpeg loudnorm` 输出 `audio.json`，提供集成响度、响度范围、真峰值和门限等基础响度分析数据，供后续音量标准化、配乐 ducking 和模板决策复用；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
 - `audio-gain` 通过 `ffmpeg volume` 做显式分贝增益处理，先提供最简单、最可解释的音量控制原语，后续再单独扩归一化模式
 - `transcribe` 通过 `ffmpeg` 预抽取统一 WAV，再调用 `whisper.cpp` 官方 `whisper-cli` 输出 JSON，并映射成仓库标准 `transcript.json`；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
 - `detect-silence` 通过 `ffmpeg silencedetect` 输出 `silence.json`，提供模板和后续编辑辅助可复用的停顿段信号；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件

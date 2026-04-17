@@ -140,7 +140,7 @@ ovt extract-audio <input> --track 0 --output voice.wav
 ovt separate-audio <input> --output-dir stems/
 ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 ovt beat-track <input> --output beats.json
-ovt audio-analyze <input> --output audio.json
+ovt audio-analyze <input> --output audio.json --json-out audio-analyze.json
 ovt audio-gain <input> --gain-db -6 --output leveled.wav
 ovt transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 ovt detect-silence <input> --output silence.json --json-out detect-silence.json
@@ -222,6 +222,7 @@ ovt render --plan edit.json --output final.mp4
 
 说明：
 - `audio-analyze` 当前复用 `ffmpeg loudnorm=print_format=json` 的测量输出，不在仓库内重复实现响度检测算法。
+- `audio-analyze --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 `audio.json` 路径和关键响度指标继续传给模板或音量调整流程。
 - 第一版先稳定面向模板和后续混音流程可复用的基础响度指标，再决定是否补 `volumedetect`、峰值统计或更多 stem 相关字段。
 
 ## `audio-gain` 命令草案
