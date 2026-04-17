@@ -142,7 +142,7 @@ ovt subtitle <input> --transcript transcript.json --format srt --output subtitle
 ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json
 ovt audio-gain <input> --gain-db -6 --output leveled.wav
-ovt transcribe <input> --model ggml-base.bin --output transcript.json
+ovt transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 ovt detect-silence <input> --output silence.json
 ovt validate-plan --plan edit.json --check-files
 ovt mix-audio --plan edit.json --output mixed.wav --preview --json-out mix-preview.json
@@ -243,6 +243,7 @@ ovt transcribe <input> --model <path> --output <transcript.json>
 说明：
 - `transcribe` 当前优先复用 `whisper.cpp` 官方 `whisper-cli`，不在仓库内嵌语音模型或远程 AI provider。
 - 为了保持输入统一，当前实现会先复用 `ffmpeg` 提取 `16kHz/mono/pcm_s16le wav`，再调用 `whisper-cli` 输出 JSON，并映射为仓库标准 `transcript.json`。
+- `transcribe --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 `transcript.json` 路径、语言和 segment 摘要继续传给字幕或模板流程。
 
 ## `silence.json` 最小结构草案
 

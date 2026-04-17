@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json.Nodes;
 using OpenVideoToolbox.Cli;
 using Xunit;
@@ -1990,6 +1991,95 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task Transcribe_CanWriteStructuredResultToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-transcribe-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "transcript.json");
+        var jsonOutPath = Path.Combine(outputDirectory, "transcribe.json");
+        var modelPath = Path.Combine(outputDirectory, "ggml-base.bin");
+        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
+        var whisperCliPath = Path.Combine(outputDirectory, "fake-whisper.cmd");
+        await File.WriteAllTextAsync(modelPath, "model");
+        WriteScript(
+            ffmpegPath,
+            """
+            @echo off
+            setlocal
+            set "out="
+            :loop
+            if "%~1"=="" goto done
+            set "out=%~1"
+            shift
+            goto loop
+            :done
+            if "%out%"=="" exit /b 2
+            break> "%out%"
+            exit /b 0
+            """);
+        WriteScript(
+            whisperCliPath,
+            """
+            @echo off
+            setlocal EnableDelayedExpansion
+            set "prefix="
+            :parse
+            if "%~1"=="" goto done
+            if "%~1"=="-of" (
+              set "prefix=%~2"
+              shift
+            )
+            shift
+            goto parse
+            :done
+            if "%prefix%"=="" exit /b 2
+            > "%prefix%.json" (
+              echo {"result":{"language":"en"},"transcription":[{"text":"hello world","offsets":{"from":0,"to":1000}}]}
+            )
+            exit /b 0
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "transcribe",
+                "input.mp4",
+                "--model",
+                modelPath,
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath,
+                "--whisper-cli",
+                whisperCliPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            var transcriptFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal(Path.GetFullPath(outputPath), stdout["transcribe"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(modelPath), stdout["transcribe"]!["modelPath"]!.GetValue<string>());
+            Assert.Equal("en", stdout["transcribe"]!["language"]!.GetValue<string>());
+            Assert.Equal(1, stdout["transcribe"]!["segmentCount"]!.GetValue<int>());
+            Assert.NotNull(stdout["transcript"]);
+            Assert.True(JsonNode.DeepEquals(stdout["transcript"], transcriptFile));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task DetectSilence_RequiresOutputOption()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-detect-silence-output-{Guid.NewGuid():N}");
@@ -2698,5 +2788,10 @@ public sealed class CommandArtifactsIntegrationTests
         public required string StdOut { get; init; }
 
         public required string StdErr { get; init; }
+    }
+
+    private static void WriteScript(string path, string content)
+    {
+        File.WriteAllText(path, content.ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
     }
 }
