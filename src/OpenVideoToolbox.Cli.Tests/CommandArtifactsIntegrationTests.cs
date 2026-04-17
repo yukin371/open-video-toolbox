@@ -1961,6 +1961,66 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task AudioGain_CanWriteStructuredResultToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "gain.wav");
+        var jsonOutPath = Path.Combine(outputDirectory, "audio-gain.json");
+        var ffmpegPath = Path.Combine(outputDirectory, "fake-ffmpeg.cmd");
+        WriteScript(
+            ffmpegPath,
+            """
+            @echo off
+            setlocal
+            set "out="
+            :loop
+            if "%~1"=="" goto done
+            set "out=%~1"
+            shift
+            goto loop
+            :done
+            if "%out%"=="" exit /b 2
+            break> "%out%"
+            exit /b 0
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-gain",
+                "input.mp4",
+                "--gain-db",
+                "-6",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal(Path.GetFullPath(outputPath), stdout["audioGain"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(-6, stdout["audioGain"]!["gainDb"]!.GetValue<double>());
+            Assert.Equal("succeeded", stdout["execution"]!["status"]!.GetValue<string>());
+            Assert.Contains(Path.GetFullPath(outputPath), stdout["execution"]!["producedPaths"]!.AsArray().Select(node => node!.GetValue<string>()));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task Transcribe_RequiresModelOption()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-transcribe-model-{Guid.NewGuid():N}");

@@ -141,7 +141,7 @@ ovt separate-audio <input> --output-dir stems/ --json-out separate-audio.json
 ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json --json-out audio-analyze.json
-ovt audio-gain <input> --gain-db -6 --output leveled.wav
+ovt audio-gain <input> --gain-db -6 --output leveled.wav --json-out audio-gain.json
 ovt transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 ovt detect-silence <input> --output silence.json --json-out detect-silence.json
 ovt validate-plan --plan edit.json --check-files
@@ -229,11 +229,12 @@ ovt render --plan edit.json --output final.mp4
 ## `audio-gain` 命令草案
 
 ```text
-ovt audio-gain <input> --gain-db <n> --output <path>
+ovt audio-gain <input> --gain-db <n> --output <path> [--json-out <path>]
 ```
 
 说明：
 - `audio-gain` 当前复用 `ffmpeg volume`，提供显式 `dB` 增益控制。
+- `audio-gain --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把输出路径与执行结果继续传给混音、模板或人工修订流程。
 - 第一版只做“按指定增益值导出音频”，不把 `loudnorm` 归一化和显式 gain 混成同一个模糊命令。
 
 ## `transcribe` 命令草案
