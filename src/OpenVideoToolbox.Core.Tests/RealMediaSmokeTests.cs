@@ -1,6 +1,8 @@
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
 using OpenVideoToolbox.Core.Media;
+using OpenVideoToolbox.Core.AudioSeparation;
+using OpenVideoToolbox.Core.Speech;
 using Xunit;
 
 namespace OpenVideoToolbox.Core.Tests;
@@ -289,6 +291,107 @@ public sealed class RealMediaSmokeTests
             Assert.True(File.Exists(outputPath));
             Assert.Contains(outputPath, result.ProducedPaths);
             Assert.True(new FileInfo(outputPath).Length > 0);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WhisperCppTranscriptionService_ProducesTranscript_WhenConfigured()
+    {
+        if (!RealMediaSmokeTestHelper.IsToolAvailable("ffmpeg"))
+        {
+            return;
+        }
+
+        var modelPath = RealMediaSmokeTestHelper.GetOptionalFilePathFromEnvironment("OVT_WHISPER_MODEL_PATH");
+        if (modelPath is null)
+        {
+            return;
+        }
+
+        var whisperCliPath = RealMediaSmokeTestHelper.GetToolFromEnvironmentOrDefault("OVT_WHISPER_CLI_PATH", "whisper-cli");
+        if (!RealMediaSmokeTestHelper.IsToolAvailable(whisperCliPath))
+        {
+            return;
+        }
+
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"ovt-real-transcribe-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDirectory);
+
+        try
+        {
+            var inputPath = Path.Combine(tempDirectory, "speech-sample.wav");
+            await RealMediaSmokeTestHelper.CreateSampleAudioAsync(inputPath, TimeSpan.FromSeconds(2));
+
+            var service = new WhisperCppTranscriptionService(
+                new AudioWaveformExtractRunner(new FfmpegAudioWaveformExtractCommandBuilder(), new DefaultProcessRunner()),
+                new WhisperCppTranscriptionRunner(new WhisperCppCommandBuilder(), new DefaultProcessRunner()),
+                new WhisperCppJsonParser());
+
+            var transcript = await service.TranscribeAsync(
+                new WhisperCppTranscriptionRequest
+                {
+                    InputPath = inputPath,
+                    ModelPath = modelPath
+                },
+                ffmpegExecutablePath: "ffmpeg",
+                whisperExecutablePath: whisperCliPath,
+                timeout: TimeSpan.FromMinutes(2));
+
+            Assert.NotNull(transcript);
+            Assert.NotNull(transcript.Segments);
+            Assert.All(transcript.Segments, segment => Assert.True(segment.End > segment.Start));
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task DemucsAudioSeparationService_ProducesExpectedStems_WhenConfigured()
+    {
+        if (!RealMediaSmokeTestHelper.IsToolAvailable("ffmpeg"))
+        {
+            return;
+        }
+
+        var demucsExecutablePath = RealMediaSmokeTestHelper.GetToolFromEnvironmentOrDefault("OVT_DEMUCS_PATH", "demucs");
+        if (!RealMediaSmokeTestHelper.IsToolAvailable(demucsExecutablePath))
+        {
+            return;
+        }
+
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"ovt-real-demucs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDirectory);
+
+        try
+        {
+            var inputPath = Path.Combine(tempDirectory, "input.wav");
+            var outputDirectory = Path.Combine(tempDirectory, "stems");
+            await RealMediaSmokeTestHelper.CreateSampleAudioAsync(inputPath, TimeSpan.FromSeconds(2));
+
+            var service = new DemucsAudioSeparationService(
+                new DemucsSeparationRunner(new DemucsCommandBuilder(), new DefaultProcessRunner()));
+
+            var document = await service.SeparateAsync(
+                new DemucsSeparationRequest
+                {
+                    InputPath = inputPath,
+                    OutputDirectory = outputDirectory,
+                    Model = "htdemucs"
+                },
+                executablePath: demucsExecutablePath,
+                timeout: TimeSpan.FromMinutes(5));
+
+            Assert.Equal("htdemucs", document.Model);
+            Assert.True(File.Exists(document.Stems.Vocals));
+            Assert.True(File.Exists(document.Stems.Accompaniment));
+            Assert.True(new FileInfo(document.Stems.Vocals).Length > 0);
+            Assert.True(new FileInfo(document.Stems.Accompaniment).Length > 0);
         }
         finally
         {

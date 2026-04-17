@@ -34,7 +34,7 @@ public sealed class EditPlanExecutionPreviewBuilderTests
                 },
                 Output = new EditOutputPlan
                 {
-                    Path = "final.mp4",
+                    Path = Path.GetFullPath("final.mp4"),
                     Container = "mp4"
                 }
             }
@@ -42,6 +42,10 @@ public sealed class EditPlanExecutionPreviewBuilderTests
 
         var preview = builder.BuildRenderPreview(request);
 
+        Assert.Equal(1, preview.SchemaVersion);
+        Assert.Equal("render", preview.Operation);
+        Assert.True(preview.IsPreview);
+        Assert.True(preview.PathsResolved);
         Assert.Equal("ffmpeg", preview.CommandPlan.ToolName);
         Assert.Equal(2, preview.ProducedPaths.Count);
         Assert.Contains("final.mp4", preview.ProducedPaths[0], StringComparison.OrdinalIgnoreCase);
@@ -88,14 +92,18 @@ public sealed class EditPlanExecutionPreviewBuilderTests
                     Container = "mp4"
                 }
             },
-            OutputPath = "mixed.wav"
+            OutputPath = Path.GetFullPath("mixed.wav")
         };
 
         var preview = builder.BuildAudioMixPreview(request);
 
+        Assert.Equal(1, preview.SchemaVersion);
+        Assert.Equal("mix-audio", preview.Operation);
+        Assert.True(preview.IsPreview);
+        Assert.True(preview.PathsResolved);
         Assert.Equal("ffmpeg", preview.CommandPlan.ToolName);
         Assert.Single(preview.ProducedPaths);
-        Assert.Equal("mixed.wav", preview.ProducedPaths[0]);
+        Assert.Equal(Path.GetFullPath("mixed.wav"), preview.ProducedPaths[0]);
         Assert.Empty(preview.SideEffects);
     }
 }

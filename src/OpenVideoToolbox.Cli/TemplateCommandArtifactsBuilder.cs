@@ -2,7 +2,10 @@ namespace OpenVideoToolbox.Cli;
 
 internal static class TemplateCommandArtifactsBuilder
 {
-    public static TemplateCommandBundle BuildCommandBundle(IReadOnlyList<string> commands, IReadOnlyList<object> seedCommands)
+    public static TemplateCommandBundle BuildCommandBundle(
+        IReadOnlyList<string> commands,
+        IReadOnlyList<object> seedCommands,
+        IReadOnlyList<string> signalCommands)
     {
         return new TemplateCommandBundle
         {
@@ -12,6 +15,7 @@ internal static class TemplateCommandArtifactsBuilder
             },
             InitPlanCommands = commands,
             SeedCommands = seedCommands,
+            SignalCommands = signalCommands,
             WorkflowCommands =
             [
                 "ovt validate-plan --plan edit.json",
@@ -26,12 +30,18 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
             .ToArray();
+        var signalCommands = commandBundle.SignalCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "$InputPath"))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
             [
                 "# Open Video Toolbox helper commands",
                 "$InputPath = \"<input>\"",
+                "",
+                "# signal preparation examples",
+                ..signalCommands,
                 "",
                 "# init-plan examples",
                 ..initPlanCommands,
@@ -47,12 +57,18 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
             .ToArray();
+        var signalCommands = commandBundle.SignalCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "\"%INPUT_PATH%\""))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
             [
                 "@echo off",
                 "set INPUT_PATH=<input>",
+                "",
+                "REM signal preparation examples",
+                ..signalCommands,
                 "",
                 "REM init-plan example",
                 ..initPlanCommands,
@@ -68,12 +84,18 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
             .ToArray();
+        var signalCommands = commandBundle.SignalCommands
+            .Select(command => ReplaceCommandInputPlaceholder(command, "\"$INPUT_PATH\""))
+            .ToArray();
         var workflowCommands = commandBundle.WorkflowCommands.ToArray();
         return string.Join(
             Environment.NewLine,
             [
                 "#!/usr/bin/env sh",
                 "INPUT_PATH=\"<input>\"",
+                "",
+                "# signal preparation examples",
+                ..signalCommands,
                 "",
                 "# init-plan example",
                 ..initPlanCommands,
@@ -97,6 +119,8 @@ internal sealed record TemplateCommandBundle
     public IReadOnlyList<string> InitPlanCommands { get; init; } = [];
 
     public IReadOnlyList<object> SeedCommands { get; init; } = [];
+
+    public IReadOnlyList<string> SignalCommands { get; init; } = [];
 
     public IReadOnlyList<string> WorkflowCommands { get; init; } = [];
 }

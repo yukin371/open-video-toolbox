@@ -20,6 +20,12 @@ public sealed record EditPlanTemplateRequest
 
     public bool SeedClipsFromTranscript { get; init; }
 
+    public int TranscriptSegmentGroupSize { get; init; } = 1;
+
+    public TimeSpan MinTranscriptSegmentDuration { get; init; } = TimeSpan.Zero;
+
+    public TimeSpan? MaxTranscriptGap { get; init; }
+
     public string? SubtitlePath { get; init; }
 
     public SubtitleMode? SubtitleModeOverride { get; init; }

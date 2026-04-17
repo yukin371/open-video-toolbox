@@ -20,7 +20,11 @@ public sealed record EditPlanTemplateDefinition
 
     public IReadOnlyList<EditPlanSeedMode> RecommendedSeedModes { get; init; } = [EditPlanSeedMode.Manual];
 
+    public IReadOnlyList<TranscriptSeedStrategy> RecommendedTranscriptSeedStrategies { get; init; } = [];
+
     public IReadOnlyList<EditPlanArtifactSlot> ArtifactSlots { get; init; } = [];
+
+    public IReadOnlyList<EditPlanSupportingSignalHint> SupportingSignals { get; init; } = [];
 }
 
 public enum EditPlanSeedMode
@@ -28,6 +32,28 @@ public enum EditPlanSeedMode
     Manual,
     Transcript,
     Beats
+}
+
+public enum TranscriptSeedStrategy
+{
+    Grouped,
+    MinDuration,
+    MaxGap
+}
+
+public enum EditPlanSupportingSignalKind
+{
+    Transcript,
+    Beats,
+    Silence,
+    Stems
+}
+
+public sealed record EditPlanSupportingSignalHint
+{
+    public required EditPlanSupportingSignalKind Kind { get; init; }
+
+    public required string Reason { get; init; }
 }
 
 public sealed record EditPlanArtifactSlot

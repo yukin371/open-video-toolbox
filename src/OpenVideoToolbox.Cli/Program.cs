@@ -2,6 +2,8 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using OpenVideoToolbox.Cli;
+using OpenVideoToolbox.Core.Audio;
+using OpenVideoToolbox.Core.AudioSeparation;
 using OpenVideoToolbox.Core.Beats;
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
@@ -9,6 +11,7 @@ using OpenVideoToolbox.Core.Jobs;
 using OpenVideoToolbox.Core.Media;
 using OpenVideoToolbox.Core.Presets;
 using OpenVideoToolbox.Core.Serialization;
+using OpenVideoToolbox.Core.Speech;
 using OpenVideoToolbox.Core.Subtitles;
 
 return await MainAsync(args);
@@ -26,9 +29,15 @@ static async Task<int> MainAsync(string[] args)
 
     return command switch
     {
+        "doctor" => await RunDoctorAsync(remaining),
         "init-plan" => await RunInitPlanAsync(remaining),
         "scaffold-template" => await RunScaffoldTemplateAsync(remaining),
         "extract-audio" => await RunExtractAudioAsync(remaining),
+        "audio-analyze" => await RunAudioAnalyzeAsync(remaining),
+        "audio-gain" => await RunAudioGainAsync(remaining),
+        "transcribe" => await RunTranscribeAsync(remaining),
+        "detect-silence" => await RunDetectSilenceAsync(remaining),
+        "separate-audio" => await RunSeparateAudioAsync(remaining),
         "beat-track" => await RunBeatTrackAsync(remaining),
         "concat" => await RunConcatAsync(remaining),
         "cut" => await RunCutAsync(remaining),
@@ -44,6 +53,41 @@ static async Task<int> MainAsync(string[] args)
         "help" or "--help" or "-h" => ShowHelp(),
         _ => Fail($"Unknown command '{args[0]}'.")
     };
+}
+
+static async Task<int> RunDoctorAsync(string[] args)
+{
+    if (!TryParseOptions(args, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var jsonOutPath = GetOption(options, "--json-out");
+    TimeSpan? timeout = timeoutSeconds is null
+        ? TimeSpan.FromSeconds(5)
+        : TimeSpan.FromSeconds(timeoutSeconds.Value);
+
+    try
+    {
+        var inspector = new ExternalDependencyInspector(new DefaultProcessRunner());
+        var report = await inspector.InspectAsync(BuildDoctorDependencyDefinitions(options, timeout));
+
+        return WriteCommandEnvelope(
+            "doctor",
+            preview: false,
+            report,
+            jsonOutPath,
+            exitCode: report.IsHealthy ? 0 : 1);
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
 }
 
 static async Task<int> RunProbeAsync(string[] args)
@@ -102,8 +146,7 @@ static async Task<int> RunValidatePlanAsync(string[] args)
             issues = validation.Issues
         };
 
-        WriteOutput(report, jsonOutPath);
-        return validation.IsValid ? 0 : 1;
+        return WriteCommandEnvelope("validate-plan", preview: false, report, jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -125,8 +168,7 @@ static async Task<int> RunValidatePlanAsync(string[] args)
             }
         };
 
-        WriteOutput(report, jsonOutPath);
-        return 1;
+        return WriteCommandEnvelope("validate-plan", preview: false, report, jsonOutPath);
     }
 }
 
@@ -307,6 +349,322 @@ static async Task<int> RunExtractAudioAsync(string[] args)
     }
 }
 
+static async Task<int> RunAudioAnalyzeAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var resolvedOutputPath = Path.GetFullPath(outputPath!);
+    var service = new FfmpegAudioAnalysisService(
+        new AudioAnalysisRunner(new FfmpegAudioAnalysisCommandBuilder(), new DefaultProcessRunner()),
+        new AudioAnalysisParser());
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var analysis = await service.AnalyzeAsync(inputPath!, ffmpegPath, timeout);
+        await File.WriteAllTextAsync(
+            resolvedOutputPath,
+            JsonSerializer.Serialize(analysis, OpenVideoToolboxJson.Default),
+            Encoding.UTF8);
+
+        WriteJson(new
+        {
+            audioAnalyze = new
+            {
+                inputPath,
+                outputPath = resolvedOutputPath
+            },
+            analysis
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunAudioGainAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredDoubleOption(options, "--gain-db", out var gainDb, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var request = new AudioGainRequest
+    {
+        InputPath = inputPath!,
+        OutputPath = outputPath!,
+        GainDb = gainDb,
+        OverwriteExisting = GetOption(options, "--overwrite") == "true"
+    };
+
+    var processRunner = new DefaultProcessRunner();
+    var runner = new AudioGainRunner(new FfmpegAudioGainCommandBuilder(), processRunner);
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
+
+        var result = await runner.RunAsync(request, ffmpegPath, timeout);
+        WriteJson(new
+        {
+            audioGain = request,
+            execution = result
+        });
+
+        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunTranscribeAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--model", out var modelPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetBoolOption(options, "--translate", out var translateToEnglish, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    var whisperPath = GetOption(options, "--whisper-cli") ?? "whisper-cli";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var resolvedOutputPath = Path.GetFullPath(outputPath!);
+    var service = new WhisperCppTranscriptionService(
+        new AudioWaveformExtractRunner(new FfmpegAudioWaveformExtractCommandBuilder(), new DefaultProcessRunner()),
+        new WhisperCppTranscriptionRunner(new WhisperCppCommandBuilder(), new DefaultProcessRunner()),
+        new WhisperCppJsonParser());
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var transcript = await service.TranscribeAsync(
+            new WhisperCppTranscriptionRequest
+            {
+                InputPath = inputPath!,
+                ModelPath = modelPath!,
+                Language = GetOption(options, "--language"),
+                TranslateToEnglish = translateToEnglish == true
+            },
+            ffmpegPath,
+            whisperPath,
+            timeout);
+
+        await File.WriteAllTextAsync(
+            resolvedOutputPath,
+            JsonSerializer.Serialize(transcript, OpenVideoToolboxJson.Default),
+            Encoding.UTF8);
+
+        WriteJson(new
+        {
+            transcribe = new
+            {
+                inputPath,
+                modelPath = Path.GetFullPath(modelPath!),
+                outputPath = resolvedOutputPath,
+                language = transcript.Language,
+                segmentCount = transcript.Segments.Count,
+                translate = translateToEnglish == true
+            },
+            transcript
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunDetectSilenceAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetDoubleOption(options, "--noise-db", out var noiseDb, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--min-duration-ms", out var minimumDurationMs, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (minimumDurationMs is < 0)
+    {
+        return Fail("Option '--min-duration-ms' must be zero or greater.");
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var resolvedOutputPath = Path.GetFullPath(outputPath!);
+    var service = new FfmpegSilenceDetectionService(
+        new SilenceDetectionRunner(new FfmpegSilenceDetectionCommandBuilder(), new DefaultProcessRunner()),
+        new SilenceDetectionParser());
+
+    try
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
+
+        var document = await service.DetectAsync(
+            inputPath!,
+            noiseDb ?? -30,
+            minimumDurationMs is null ? null : TimeSpan.FromMilliseconds(minimumDurationMs.Value),
+            ffmpegPath,
+            timeout);
+
+        await File.WriteAllTextAsync(
+            resolvedOutputPath,
+            JsonSerializer.Serialize(document, OpenVideoToolboxJson.Default),
+            Encoding.UTF8);
+
+        WriteJson(new
+        {
+            detectSilence = new
+            {
+                inputPath,
+                outputPath = resolvedOutputPath,
+                segmentCount = document.Segments.Count
+            },
+            silence = document
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
+static async Task<int> RunSeparateAudioAsync(string[] args)
+{
+    if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetRequiredOption(options, "--output-dir", out var outputDirectory, out error))
+    {
+        return Fail(error!);
+    }
+
+    if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+    {
+        return Fail(error!);
+    }
+
+    var demucsPath = GetOption(options, "--demucs") ?? "demucs";
+    var model = GetOption(options, "--model") ?? "htdemucs";
+    TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var resolvedOutputDirectory = Path.GetFullPath(outputDirectory!);
+    var service = new DemucsAudioSeparationService(
+        new DemucsSeparationRunner(new DemucsCommandBuilder(), new DefaultProcessRunner()));
+
+    try
+    {
+        Directory.CreateDirectory(resolvedOutputDirectory);
+
+        var document = await service.SeparateAsync(
+            new DemucsSeparationRequest
+            {
+                InputPath = inputPath!,
+                OutputDirectory = resolvedOutputDirectory,
+                Model = model
+            },
+            demucsPath,
+            timeout);
+
+        WriteJson(new
+        {
+            separateAudio = new
+            {
+                inputPath,
+                outputDirectory = resolvedOutputDirectory,
+                model = document.Model
+            },
+            stems = document.Stems
+        });
+
+        return 0;
+    }
+    catch (Exception ex)
+    {
+        return Fail(ex.Message);
+    }
+}
+
 static async Task<int> RunRenderAsync(string[] args)
 {
     if (!TryParseOptions(args, out var options, out var error))
@@ -329,6 +687,7 @@ static async Task<int> RunRenderAsync(string[] args)
         return Fail(error!);
     }
 
+    var jsonOutPath = GetOption(options, "--json-out");
     var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
 
@@ -346,14 +705,15 @@ static async Task<int> RunRenderAsync(string[] args)
         var preview = previewBuilder.BuildRenderPreview(request, ffmpegPath);
         if (previewOnly == true)
         {
-            WriteJson(new
-            {
-                render = request.Plan,
-                preview = true,
-                executionPreview = preview
-            });
-
-            return 0;
+            return WriteCommandEnvelope(
+                "render",
+                preview: true,
+                new
+                {
+                    render = request.Plan,
+                    executionPreview = preview
+                },
+                jsonOutPath);
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(plan.Output.Path))!);
@@ -362,15 +722,16 @@ static async Task<int> RunRenderAsync(string[] args)
         var runner = new EditPlanRenderRunner(builder, processRunner);
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
 
-        WriteJson(new
-        {
-            render = request.Plan,
-            preview = false,
-            executionPreview = preview,
-            execution = result
-        });
-
-        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+        return WriteCommandEnvelope(
+            "render",
+            preview: false,
+            new
+            {
+                render = request.Plan,
+                executionPreview = preview,
+                execution = result
+            },
+            jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -478,6 +839,7 @@ static async Task<int> RunMixAudioAsync(string[] args)
         return Fail(error!);
     }
 
+    var jsonOutPath = GetOption(options, "--json-out");
     var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
 
@@ -501,18 +863,19 @@ static async Task<int> RunMixAudioAsync(string[] args)
         var preview = previewBuilder.BuildAudioMixPreview(request, ffmpegPath);
         if (previewOnly == true)
         {
-            WriteJson(new
-            {
-                mixAudio = new
+            return WriteCommandEnvelope(
+                "mix-audio",
+                preview: true,
+                new
                 {
-                    planPath = fullPlanPath,
-                    request.OutputPath
+                    mixAudio = new
+                    {
+                        planPath = fullPlanPath,
+                        request.OutputPath
+                    },
+                    executionPreview = preview
                 },
-                preview = true,
-                executionPreview = preview
-            });
-
-            return 0;
+                jsonOutPath);
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
@@ -521,19 +884,20 @@ static async Task<int> RunMixAudioAsync(string[] args)
         var runner = new EditPlanAudioMixRunner(builder, processRunner);
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
 
-        WriteJson(new
-        {
-            mixAudio = new
+        return WriteCommandEnvelope(
+            "mix-audio",
+            preview: false,
+            new
             {
-                planPath = fullPlanPath,
-                request.OutputPath
+                mixAudio = new
+                {
+                    planPath = fullPlanPath,
+                    request.OutputPath
+                },
+                executionPreview = preview,
+                execution = result
             },
-            preview = false,
-            executionPreview = preview,
-            execution = result
-        });
-
-        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+            jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -717,16 +1081,20 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
         var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
         var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var supportingSignals = EditPlanTemplateExampleBuilder.BuildSupportingSignalExamples(template);
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
+        var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
         var exampleWriteResult = WriteTemplateExamples(
             template,
             fullOutputDirectory,
             artifactsExample,
             templateParamsExample,
             previewPlans,
+            supportingSignals,
             commands,
-            seedCommands);
+            seedCommands,
+            signalCommands);
 
         await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
 
@@ -857,6 +1225,21 @@ static int RunPresets()
     return 0;
 }
 
+static object BuildCommandEnvelope(string command, bool preview, object payload)
+{
+    return new
+    {
+        command,
+        preview,
+        payload
+    };
+}
+
+static int WriteCommandEnvelope(string command, bool preview, object payload, string? jsonOutPath = null, int exitCode = 0)
+{
+    return WriteResult(BuildCommandEnvelope(command, preview, payload), jsonOutPath, exitCode);
+}
+
 static int RunTemplates(string[] args)
 {
     string? templateId = null;
@@ -933,10 +1316,12 @@ static int RunTemplates(string[] args)
         var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
         var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
         var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var supportingSignals = EditPlanTemplateExampleBuilder.BuildSupportingSignalExamples(template);
         var writeExamplesDirectory = GetOption(options, "--write-examples");
         TemplateExampleWriteResult? writeResult = null;
         var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
         var seedCommands = BuildTemplateSeedCommands(template);
+        var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
 
         if (!string.IsNullOrWhiteSpace(writeExamplesDirectory))
         {
@@ -946,8 +1331,10 @@ static int RunTemplates(string[] args)
                 artifactsExample,
                 templateParamsExample,
                 previewPlans,
+                supportingSignals,
                 commands,
-                seedCommands);
+                seedCommands,
+                signalCommands);
         }
 
         return WriteResult(BuildTemplateGuide(
@@ -956,8 +1343,10 @@ static int RunTemplates(string[] args)
             artifactsExample,
             templateParamsExample,
             previewPlans,
+            supportingSignals,
             commands,
-            seedCommands), jsonOutPath);
+            seedCommands,
+            signalCommands), jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -971,8 +1360,10 @@ static TemplateExampleWriteResult WriteTemplateExamples(
     IReadOnlyDictionary<string, string> artifactsExample,
     IReadOnlyDictionary<string, string> templateParamsExample,
     IReadOnlyList<EditPlanTemplatePreview> previewPlans,
+    IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
-    IReadOnlyList<object> seedCommands)
+    IReadOnlyList<object> seedCommands,
+    IReadOnlyList<string> signalCommands)
 {
     var fullOutputDirectory = Path.GetFullPath(outputDirectory);
     Directory.CreateDirectory(fullOutputDirectory);
@@ -1020,8 +1411,10 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         artifactsExample,
         templateParamsExample,
         previewPlans,
+        supportingSignals,
         commands,
-        seedCommands);
+        seedCommands,
+        signalCommands);
     var guidePath = Path.Combine(fullOutputDirectory, "guide.json");
     File.WriteAllText(
         guidePath,
@@ -1029,7 +1422,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         Encoding.UTF8);
     writtenFiles.Add(guidePath);
 
-    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands);
+    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalCommands);
 
     var commandsJsonPath = Path.Combine(fullOutputDirectory, "commands.json");
     File.WriteAllText(
@@ -1072,8 +1465,10 @@ static object BuildTemplateGuide(
     IReadOnlyDictionary<string, string> artifactsExample,
     IReadOnlyDictionary<string, string> templateParamsExample,
     IReadOnlyList<EditPlanTemplatePreview> previewPlans,
+    IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
-    IReadOnlyList<object> seedCommands)
+    IReadOnlyList<object> seedCommands,
+    IReadOnlyList<string> signalCommands)
 {
     return new
     {
@@ -1087,6 +1482,7 @@ static object BuildTemplateGuide(
             templateParamsFileName = "template-params.json",
             templateParams = templateParamsExample,
             seedModes = template.RecommendedSeedModes,
+            supportingSignals,
             commandFiles = new[]
             {
                 "commands.json",
@@ -1095,6 +1491,7 @@ static object BuildTemplateGuide(
                 "commands.sh"
             },
             commands,
+            signalCommands,
             seedCommands,
             previewPlans
         }
@@ -1140,11 +1537,54 @@ static IReadOnlyList<object> BuildTemplateSeedCommands(EditPlanTemplateDefinitio
                 EditPlanSeedMode.Beats =>
                     $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --beats beats.json --seed-from-beats --beat-group-size 4",
                 _ => throw new InvalidOperationException($"Unsupported template seed mode '{mode}'.")
-            }
+            },
+            variants = mode == EditPlanSeedMode.Transcript
+                ? BuildTranscriptSeedCommandVariants(template)
+                : null
         });
     }
 
     return commands;
+}
+
+static IReadOnlyList<object> BuildTranscriptSeedCommandVariants(EditPlanTemplateDefinition template)
+{
+    var variants = new[]
+    {
+        new
+        {
+            strategy = TranscriptSeedStrategy.Grouped,
+            key = "grouped",
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 2"
+        },
+        new
+        {
+            strategy = TranscriptSeedStrategy.MinDuration,
+            key = "min-duration",
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500"
+        },
+        new
+        {
+            strategy = TranscriptSeedStrategy.MaxGap,
+            key = "max-gap",
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200"
+        }
+    };
+
+    var rankedStrategies = template.RecommendedTranscriptSeedStrategies
+        .Select((strategy, index) => new { strategy, index })
+        .ToDictionary(item => item.strategy, item => item.index);
+
+    return variants
+        .OrderBy(variant => rankedStrategies.TryGetValue(variant.strategy, out var rank) ? rank : int.MaxValue)
+        .ThenBy(variant => variant.key, StringComparer.Ordinal)
+        .Select(variant => (object)new
+        {
+            variant.key,
+            variant.command,
+            recommended = rankedStrategies.ContainsKey(variant.strategy)
+        })
+        .ToArray();
 }
 
 static int ShowHelp()
@@ -1332,6 +1772,54 @@ static bool TryGetRequiredIntOption(
     return false;
 }
 
+static bool TryGetRequiredDoubleOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out double value,
+    out string? error)
+{
+    value = default;
+    if (!options.TryGetValue(name, out var rawValue))
+    {
+        error = $"Option '{name}' is required.";
+        return false;
+    }
+
+    if (double.TryParse(rawValue, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+    {
+        value = parsed;
+        error = null;
+        return true;
+    }
+
+    error = $"Option '{name}' expects a numeric value.";
+    return false;
+}
+
+static bool TryGetDoubleOption(
+    IReadOnlyDictionary<string, string> options,
+    string name,
+    out double? value,
+    out string? error)
+{
+    value = null;
+    error = null;
+
+    if (!options.TryGetValue(name, out var rawValue))
+    {
+        return true;
+    }
+
+    if (double.TryParse(rawValue, System.Globalization.NumberStyles.Float | System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out var parsed))
+    {
+        value = parsed;
+        return true;
+    }
+
+    error = $"Option '{name}' expects a numeric value.";
+    return false;
+}
+
 static bool TryGetRequiredTimeSpanOption(
     IReadOnlyDictionary<string, string> options,
     string name,
@@ -1373,10 +1861,124 @@ static void WriteOutput<T>(T value, string? jsonOutPath)
     WriteJson(value);
 }
 
-static int WriteResult<T>(T value, string? jsonOutPath)
+static int WriteResult<T>(T value, string? jsonOutPath, int exitCode = 0)
 {
     WriteOutput(value, jsonOutPath);
-    return 0;
+    return exitCode;
+}
+
+static IReadOnlyList<DependencyProbeDefinition> BuildDoctorDependencyDefinitions(
+    IReadOnlyDictionary<string, string> options,
+    TimeSpan? timeout)
+{
+    return
+    [
+        CreateExecutableDependency(
+            id: "ffmpeg",
+            required: true,
+            optionValue: GetOption(options, "--ffmpeg"),
+            environmentVariableName: null,
+            defaultValue: "ffmpeg",
+            probeArguments: ["-version"],
+            timeout),
+        CreateExecutableDependency(
+            id: "ffprobe",
+            required: true,
+            optionValue: GetOption(options, "--ffprobe"),
+            environmentVariableName: null,
+            defaultValue: "ffprobe",
+            probeArguments: ["-version"],
+            timeout),
+        CreateExecutableDependency(
+            id: "whisper-cli",
+            required: false,
+            optionValue: GetOption(options, "--whisper-cli"),
+            environmentVariableName: "OVT_WHISPER_CLI_PATH",
+            defaultValue: "whisper-cli",
+            probeArguments: ["--help"],
+            timeout),
+        CreateExecutableDependency(
+            id: "demucs",
+            required: false,
+            optionValue: GetOption(options, "--demucs"),
+            environmentVariableName: "OVT_DEMUCS_PATH",
+            defaultValue: "demucs",
+            probeArguments: ["--help"],
+            timeout),
+        CreateFileDependency(
+            id: "whisper-model",
+            required: false,
+            optionValue: GetOption(options, "--whisper-model"),
+            environmentVariableName: "OVT_WHISPER_MODEL_PATH")
+    ];
+}
+
+static DependencyProbeDefinition CreateExecutableDependency(
+    string id,
+    bool required,
+    string? optionValue,
+    string? environmentVariableName,
+    string? defaultValue,
+    IReadOnlyList<string> probeArguments,
+    TimeSpan? timeout)
+{
+    var resolution = ResolveDependencyValue(optionValue, environmentVariableName, defaultValue);
+    return new DependencyProbeDefinition
+    {
+        Id = id,
+        Kind = DependencyProbeKind.Executable,
+        Required = required,
+        Source = resolution.Source,
+        ResolvedValue = resolution.Value,
+        ProbeArguments = probeArguments,
+        Timeout = timeout
+    };
+}
+
+static DependencyProbeDefinition CreateFileDependency(
+    string id,
+    bool required,
+    string? optionValue,
+    string? environmentVariableName)
+{
+    var resolution = ResolveDependencyValue(optionValue, environmentVariableName, defaultValue: null);
+    return new DependencyProbeDefinition
+    {
+        Id = id,
+        Kind = DependencyProbeKind.File,
+        Required = required,
+        Source = resolution.Source,
+        ResolvedValue = string.IsNullOrWhiteSpace(resolution.Value)
+            ? null
+            : Path.GetFullPath(resolution.Value)
+    };
+}
+
+static (string? Value, DependencyValueSource Source) ResolveDependencyValue(
+    string? optionValue,
+    string? environmentVariableName,
+    string? defaultValue)
+{
+    if (!string.IsNullOrWhiteSpace(optionValue))
+    {
+        return (optionValue, DependencyValueSource.Option);
+    }
+
+    if (!string.IsNullOrWhiteSpace(environmentVariableName))
+    {
+        var environmentValue = Environment.GetEnvironmentVariable(environmentVariableName);
+        if (!string.IsNullOrWhiteSpace(environmentValue))
+        {
+            return (environmentValue.Trim(), DependencyValueSource.Environment);
+        }
+    }
+
+    if (!string.IsNullOrWhiteSpace(defaultValue))
+    {
+        return (defaultValue, DependencyValueSource.Default);
+    }
+
+    return (null, DependencyValueSource.Unset);
 }
 
 static async Task<EditPlan> LoadEditPlanAsync(string planPath, string? outputOverridePath)
@@ -1475,6 +2077,21 @@ static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
         throw new InvalidOperationException(error!);
     }
 
+    if (!TryGetIntOption(options, "--transcript-segment-group-size", out var transcriptSegmentGroupSize, out error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
+    if (!TryGetIntOption(options, "--min-transcript-segment-duration-ms", out var minTranscriptSegmentDurationMs, out error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
+    if (!TryGetIntOption(options, "--max-transcript-gap-ms", out var maxTranscriptGapMs, out error))
+    {
+        throw new InvalidOperationException(error!);
+    }
+
     if (GetOption(options, "--seed-from-transcript") == "true" && GetOption(options, "--seed-from-beats") == "true")
     {
         throw new InvalidOperationException("Options '--seed-from-transcript' and '--seed-from-beats' cannot be used together.");
@@ -1539,6 +2156,9 @@ static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
             TranscriptPath = transcriptPath,
             Transcript = transcript,
             SeedClipsFromTranscript = GetOption(options, "--seed-from-transcript") == "true",
+            TranscriptSegmentGroupSize = transcriptSegmentGroupSize ?? 1,
+            MinTranscriptSegmentDuration = TimeSpan.FromMilliseconds(minTranscriptSegmentDurationMs ?? 0),
+            MaxTranscriptGap = maxTranscriptGapMs is null ? null : TimeSpan.FromMilliseconds(maxTranscriptGapMs.Value),
             SubtitlePath = GetOption(options, "--subtitle"),
             SubtitleModeOverride = subtitleMode,
             DisableSubtitles = disableSubtitles,
@@ -1664,14 +2284,20 @@ static void PrintUsage()
     Console.WriteLine("Commands:");
     Console.WriteLine("  presets");
     Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--json-out <path>] [--write-examples <dir>]");
+    Console.WriteLine("  doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--timeout-seconds <n>]");
+    Console.WriteLine("  audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>]");
     Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--json-out <path>]");
     Console.WriteLine("  probe <input> [--ffprobe <path>]");

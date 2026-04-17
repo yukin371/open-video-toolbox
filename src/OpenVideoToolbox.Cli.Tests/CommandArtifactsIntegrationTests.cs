@@ -33,12 +33,29 @@ public sealed class CommandArtifactsIntegrationTests
                 .ToArray();
             Assert.True(seedModes.SequenceEqual(["manual", "transcript"]));
 
+            var transcriptSeed = commands["seedCommands"]!.AsArray()
+                .Single(node => node!["mode"]!.GetValue<string>() == "transcript")!
+                .AsObject();
+            var transcriptVariants = transcriptSeed["variants"]!.AsArray();
+            Assert.Equal(3, transcriptVariants.Count);
+            Assert.Equal("min-duration", transcriptVariants[0]!["key"]!.GetValue<string>());
+            Assert.True(transcriptVariants[0]!["recommended"]!.GetValue<bool>());
+            Assert.Equal("grouped", transcriptVariants[1]!["key"]!.GetValue<string>());
+            Assert.False(transcriptVariants[1]!["recommended"]!.GetValue<bool>());
+            Assert.Equal("max-gap", transcriptVariants[2]!["key"]!.GetValue<string>());
+
             var workflowCommands = commands["workflowCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
             Assert.True(workflowCommands.SequenceEqual(
                 [
                     "ovt validate-plan --plan edit.json",
                     "ovt render --plan edit.json --preview",
                     "ovt mix-audio --plan edit.json --output mixed.wav --preview"
+                ]));
+            var signalCommands = commands["signalCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
+            Assert.True(signalCommands.SequenceEqual(
+                [
+                    "ovt transcribe <input> --model <path> --output transcript.json",
+                    "ovt detect-silence <input> --output silence.json"
                 ]));
 
             var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
@@ -104,10 +121,14 @@ public sealed class CommandArtifactsIntegrationTests
         var explainer = templates.Single(template => template["id"]!.GetValue<string>() == "explainer-captioned");
         Assert.Equal("explainer", explainer["category"]!.GetValue<string>());
         Assert.True(explainer["hasSubtitles"]!.GetValue<bool>());
+        Assert.True(explainer["recommendedTranscriptSeedStrategies"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .SequenceEqual(["grouped", "maxGap"]));
 
         var montage = templates.Single(template => template["id"]!.GetValue<string>() == "beat-montage");
         Assert.Equal("montage", montage["category"]!.GetValue<string>());
         Assert.True(montage["hasArtifacts"]!.GetValue<bool>());
+        Assert.Empty(montage["recommendedTranscriptSeedStrategies"]!.AsArray());
     }
 
     [Fact]
@@ -143,9 +164,12 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.Equal(0, montageResult.ExitCode);
 
         var montageTemplates = JsonNode.Parse(montageResult.StdOut)!.AsObject()["templates"]!.AsArray();
-        var montageNode = Assert.Single(montageTemplates);
-        var montage = Assert.IsType<JsonObject>(montageNode);
-        Assert.Equal("beat-montage", montage["id"]!.GetValue<string>());
+        Assert.Equal(2, montageTemplates.Count);
+        var montageIds = montageTemplates
+            .Select(node => node!["id"]!.GetValue<string>())
+            .ToArray();
+        Assert.Contains("beat-montage", montageIds);
+        Assert.Contains("music-captioned-montage", montageIds);
     }
 
     [Fact]
@@ -163,21 +187,53 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.True(template["recommendedSeedModes"]!.AsArray()
             .Select(node => node!.GetValue<string>())
             .SequenceEqual(["manual", "transcript", "beats"]));
+        Assert.True(template["supportingSignals"]!.AsArray()
+            .Select(node => node!["kind"]!.GetValue<string>())
+            .SequenceEqual(["transcript", "beats", "silence"]));
 
         Assert.Equal("subtitles.srt", examples["artifacts"]!["subtitles"]!.GetValue<string>());
         Assert.Equal("burn-later", examples["templateParams"]!["captionStyle"]!.GetValue<string>());
+        var supportingSignals = examples["supportingSignals"]!.AsArray();
+        Assert.Equal(3, supportingSignals.Count);
+        Assert.Contains(supportingSignals, node => node!["kind"]!.GetValue<string>() == "silence");
+        Assert.Contains(supportingSignals, node => node!["command"]!.GetValue<string>().Contains("detect-silence", StringComparison.Ordinal));
+        Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("beat-track", StringComparison.Ordinal));
 
         var seedCommands = examples["seedCommands"]!.AsArray();
         Assert.Equal(3, seedCommands.Count);
         Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "transcript");
         Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "beats");
 
+        var transcriptSeed = seedCommands
+            .Single(node => node!["mode"]!.GetValue<string>() == "transcript")!
+            .AsObject();
+        var transcriptVariants = transcriptSeed["variants"]!.AsArray();
+        Assert.Equal(3, transcriptVariants.Count);
+        Assert.Equal("grouped", transcriptVariants[0]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[0]!["recommended"]!.GetValue<bool>());
+        Assert.Equal("max-gap", transcriptVariants[1]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[1]!["recommended"]!.GetValue<bool>());
+        Assert.Equal("min-duration", transcriptVariants[2]!["key"]!.GetValue<string>());
+        Assert.False(transcriptVariants[2]!["recommended"]!.GetValue<bool>());
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--transcript-segment-group-size 2", StringComparison.Ordinal));
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--min-transcript-segment-duration-ms 500", StringComparison.Ordinal));
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--max-transcript-gap-ms 200", StringComparison.Ordinal));
+
         var previewPlans = examples["previewPlans"]!.AsArray();
         Assert.Equal(3, previewPlans.Count);
 
-        var transcriptPreview = GetPreviewPlan(previewPlans, "transcript");
+        var transcriptPreviewNode = GetPreview(previewPlans, "transcript");
+        var transcriptPreview = Assert.IsType<JsonObject>(transcriptPreviewNode["editPlan"]);
         Assert.NotNull(transcriptPreview["transcript"]);
         Assert.Equal(2, transcriptPreview["clips"]!.AsArray().Count);
+        var strategyVariants = transcriptPreviewNode["strategyVariants"]!.AsArray();
+        Assert.Equal(3, strategyVariants.Count);
+        Assert.Equal("grouped", strategyVariants[0]!["key"]!.GetValue<string>());
+        Assert.True(strategyVariants[0]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("max-gap", strategyVariants[1]!["key"]!.GetValue<string>());
+        Assert.True(strategyVariants[1]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("min-duration", strategyVariants[2]!["key"]!.GetValue<string>());
+        Assert.False(strategyVariants[2]!["isRecommended"]!.GetValue<bool>());
 
         var beatsPreview = GetPreviewPlan(previewPlans, "beats");
         Assert.NotNull(beatsPreview["beats"]);
@@ -199,9 +255,14 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.True(template["recommendedSeedModes"]!.AsArray()
             .Select(node => node!.GetValue<string>())
             .SequenceEqual(["manual", "beats"]));
+        Assert.True(template["supportingSignals"]!.AsArray()
+            .Select(node => node!["kind"]!.GetValue<string>())
+            .SequenceEqual(["beats", "stems"]));
 
         Assert.Equal("audio/input.wav", examples["artifacts"]!["bgm"]!.GetValue<string>());
         Assert.Equal("sync-cut", examples["templateParams"]!["pace"]!.GetValue<string>());
+        Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("separate-audio", StringComparison.Ordinal));
+        Assert.Contains(examples["supportingSignals"]!.AsArray(), node => node!["kind"]!.GetValue<string>() == "stems");
 
         var previewPlans = examples["previewPlans"]!.AsArray();
         Assert.Equal(2, previewPlans.Count);
@@ -278,7 +339,11 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(0, result.ExitCode);
 
-            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("validate-plan", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
             Assert.True(payload["isValid"]!.GetValue<bool>());
             Assert.False(payload["checkFiles"]!.GetValue<bool>());
             Assert.Equal(Path.GetFullPath(planPath), payload["planPath"]!.GetValue<string>());
@@ -323,22 +388,89 @@ public sealed class CommandArtifactsIntegrationTests
         {
             var result = await RunCliAsync("validate-plan", "--plan", planPath, "--check-files", "--json-out", jsonOutPath);
 
-            Assert.Equal(1, result.ExitCode);
+            Assert.Equal(0, result.ExitCode);
             Assert.True(File.Exists(jsonOutPath));
 
             var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
 
             Assert.Equal(stdout.ToJsonString(), file.ToJsonString());
-            Assert.False(stdout["isValid"]!.GetValue<bool>());
-            Assert.True(stdout["checkFiles"]!.GetValue<bool>());
+            Assert.Equal("validate-plan", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
 
-            var issueNode = Assert.Single(stdout["issues"]!.AsArray());
+            var payload = stdout["payload"]!.AsObject();
+            Assert.False(payload["isValid"]!.GetValue<bool>());
+            Assert.True(payload["checkFiles"]!.GetValue<bool>());
+
+            var issueNode = Assert.Single(payload["issues"]!.AsArray());
             var issue = Assert.IsType<JsonObject>(issueNode);
             Assert.Equal("error", issue["severity"]!.GetValue<string>());
             Assert.Equal("source.inputPath", issue["path"]!.GetValue<string>());
             Assert.Equal("source.inputPath.missing", issue["code"]!.GetValue<string>());
             Assert.Contains("missing.mp4", issue["message"]!.GetValue<string>(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RenderAndMixAudioPreview_ReturnUnifiedEnvelope()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-preview-envelope-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var inputPath = Path.Combine(outputDirectory, "input.mp4");
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+        await File.WriteAllTextAsync(inputPath, "fake-media");
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 1,
+              "source": {
+                "inputPath": "input.mp4"
+              },
+              "clips": [
+                {
+                  "id": "clip-001",
+                  "in": "00:00:00",
+                  "out": "00:00:03"
+                }
+              ],
+              "audioTracks": [],
+              "artifacts": [],
+              "output": {
+                "path": "final.mp4",
+                "container": "mp4"
+              }
+            }
+            """);
+
+        try
+        {
+            var render = JsonNode.Parse((await RunCliAsync("render", "--plan", planPath, "--preview")).StdOut)!.AsObject();
+            Assert.Equal("render", render["command"]!.GetValue<string>());
+            Assert.True(render["preview"]!.GetValue<bool>());
+            var renderPayload = render["payload"]!.AsObject();
+            var renderPreview = renderPayload["executionPreview"]!.AsObject();
+            Assert.Equal("render", renderPreview["operation"]!.GetValue<string>());
+            Assert.True(renderPreview["isPreview"]!.GetValue<bool>());
+            Assert.True(renderPreview["pathsResolved"]!.GetValue<bool>());
+
+            var mixedOutputPath = Path.Combine(outputDirectory, "mixed.wav");
+            var mixAudio = JsonNode.Parse((await RunCliAsync("mix-audio", "--plan", planPath, "--output", mixedOutputPath, "--preview")).StdOut)!.AsObject();
+            Assert.Equal("mix-audio", mixAudio["command"]!.GetValue<string>());
+            Assert.True(mixAudio["preview"]!.GetValue<bool>());
+            var mixPayload = mixAudio["payload"]!.AsObject();
+            var mixPreview = mixPayload["executionPreview"]!.AsObject();
+            Assert.Equal("mix-audio", mixPreview["operation"]!.GetValue<string>());
+            Assert.True(mixPreview["isPreview"]!.GetValue<bool>());
+            Assert.True(mixPreview["pathsResolved"]!.GetValue<bool>());
+            Assert.Equal(mixedOutputPath, mixPayload["mixAudio"]!["outputPath"]!.GetValue<string>());
         }
         finally
         {
@@ -542,6 +674,192 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal("seg-002", clips[1]!["label"]!.GetValue<string>());
             Assert.Equal(Path.GetFullPath(transcriptPath), editPlan["transcript"]!["path"]!.GetValue<string>());
             Assert.Equal(2, editPlan["transcript"]!["segmentCount"]!.GetValue<int>());
+            Assert.True(File.Exists(planPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitPlan_CanGroupTranscriptSegmentsIntoMergedSeedClips()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-transcript-group-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var transcriptPath = Path.Combine(outputDirectory, "transcript.json");
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+
+        await File.WriteAllTextAsync(
+            transcriptPath,
+            """
+            {
+              "schemaVersion": 1,
+              "language": "en",
+              "segments": [
+                { "id": "seg-001", "start": "00:00:00", "end": "00:00:01", "text": "Intro" },
+                { "id": "seg-002", "start": "00:00:01", "end": "00:00:02.5000000", "text": "Detail" },
+                { "id": "seg-003", "start": "00:00:02.5000000", "end": "00:00:04", "text": "Wrap" }
+              ]
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "shorts-basic",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--transcript",
+                transcriptPath,
+                "--seed-from-transcript",
+                "--transcript-segment-group-size",
+                "2");
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            var editPlan = payload["editPlan"]!.AsObject();
+            var clips = editPlan["clips"]!.AsArray();
+
+            Assert.Equal(2, clips.Count);
+            Assert.Equal("seg-001..seg-002", clips[0]!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:02.5000000", clips[0]!["out"]!.GetValue<string>());
+            Assert.Equal("seg-003", clips[1]!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:02.5000000", clips[1]!["in"]!.GetValue<string>());
+            Assert.True(File.Exists(planPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitPlan_CanSkipShortTranscriptSegmentsBeforeSeeding()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-transcript-min-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var transcriptPath = Path.Combine(outputDirectory, "transcript.json");
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+
+        await File.WriteAllTextAsync(
+            transcriptPath,
+            """
+            {
+              "schemaVersion": 1,
+              "language": "en",
+              "segments": [
+                { "id": "seg-001", "start": "00:00:00", "end": "00:00:00.2500000", "text": "Too short" },
+                { "id": "seg-002", "start": "00:00:00.2500000", "end": "00:00:01", "text": "Keep" },
+                { "id": "seg-003", "start": "00:00:01", "end": "00:00:02", "text": "Keep too" }
+              ]
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "shorts-basic",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--transcript",
+                transcriptPath,
+                "--seed-from-transcript",
+                "--transcript-segment-group-size",
+                "2",
+                "--min-transcript-segment-duration-ms",
+                "500");
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            var editPlan = payload["editPlan"]!.AsObject();
+            var clips = editPlan["clips"]!.AsArray();
+
+            var clip = Assert.Single(clips);
+            Assert.Equal("seg-002..seg-003", clip!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:00.2500000", clip["in"]!.GetValue<string>());
+            Assert.Equal("00:00:02", clip["out"]!.GetValue<string>());
+            Assert.True(File.Exists(planPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitPlan_CanSplitTranscriptSeedGroupsWhenGapExceedsThreshold()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-transcript-gap-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var transcriptPath = Path.Combine(outputDirectory, "transcript.json");
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+
+        await File.WriteAllTextAsync(
+            transcriptPath,
+            """
+            {
+              "schemaVersion": 1,
+              "language": "en",
+              "segments": [
+                { "id": "seg-001", "start": "00:00:00", "end": "00:00:00.6000000", "text": "First" },
+                { "id": "seg-002", "start": "00:00:00.7500000", "end": "00:00:01.3000000", "text": "Near" },
+                { "id": "seg-003", "start": "00:00:02", "end": "00:00:02.8000000", "text": "Far" }
+              ]
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "shorts-basic",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--transcript",
+                transcriptPath,
+                "--seed-from-transcript",
+                "--transcript-segment-group-size",
+                "3",
+                "--max-transcript-gap-ms",
+                "200");
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            var editPlan = payload["editPlan"]!.AsObject();
+            var clips = editPlan["clips"]!.AsArray();
+
+            Assert.Equal(2, clips.Count);
+            Assert.Equal("seg-001..seg-002", clips[0]!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:01.3000000", clips[0]!["out"]!.GetValue<string>());
+            Assert.Equal("seg-003", clips[1]!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:02", clips[1]!["in"]!.GetValue<string>());
             Assert.True(File.Exists(planPath));
         }
         finally
@@ -886,13 +1204,16 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal(0, result.ExitCode);
 
             var payload = JsonNode.Parse(result.StdOut)!.AsObject();
-            var executionPreview = payload["executionPreview"]!.AsObject();
+            Assert.Equal("mix-audio", payload["command"]!.GetValue<string>());
+            Assert.True(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            var executionPreview = envelope["executionPreview"]!.AsObject();
             var commandPlan = executionPreview["commandPlan"]!.AsObject();
             var producedPaths = executionPreview["producedPaths"]!.AsArray();
 
-            Assert.True(payload["preview"]!.GetValue<bool>());
-            Assert.Equal(Path.GetFullPath(planPath), payload["mixAudio"]!["planPath"]!.GetValue<string>());
-            Assert.Equal(Path.GetFullPath(outputPath), payload["mixAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(planPath), envelope["mixAudio"]!["planPath"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["mixAudio"]!["outputPath"]!.GetValue<string>());
             Assert.Equal("ffmpeg", commandPlan["toolName"]!.GetValue<string>());
             Assert.Equal("ffmpeg", commandPlan["executablePath"]!.GetValue<string>());
             Assert.Contains(commandPlan["arguments"]!.AsArray().Select(node => node!.GetValue<string>()), arg => arg == "-filter_complex");
@@ -900,6 +1221,53 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal(Path.GetFullPath(outputPath), Assert.Single(producedPaths)!.GetValue<string>());
             Assert.Empty(executionPreview["sideEffects"]!.AsArray());
             Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task MixAudioPreview_CanWriteEnvelopeToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-mix-preview-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+        var outputPath = Path.Combine(outputDirectory, "mixed.wav");
+        var jsonOutPath = Path.Combine(outputDirectory, "mix-preview.json");
+
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 1,
+              "source": { "inputPath": "input.mp4" },
+              "clips": [
+                { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
+              ],
+              "audioTracks": [],
+              "artifacts": [],
+              "output": { "path": "final.mp4", "container": "mp4" }
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync("mix-audio", "--plan", planPath, "--output", outputPath, "--preview", "--json-out", jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+
+            Assert.Equal(stdout.ToJsonString(), file.ToJsonString());
+            Assert.Equal("mix-audio", stdout["command"]!.GetValue<string>());
+            Assert.True(stdout["preview"]!.GetValue<bool>());
         }
         finally
         {
@@ -939,13 +1307,16 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal(0, result.ExitCode);
 
             var payload = JsonNode.Parse(result.StdOut)!.AsObject();
-            var executionPreview = payload["executionPreview"]!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.True(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            var executionPreview = envelope["executionPreview"]!.AsObject();
             var commandPlan = executionPreview["commandPlan"]!.AsObject();
             var producedPaths = executionPreview["producedPaths"]!.AsArray();
 
-            Assert.True(payload["preview"]!.GetValue<bool>());
-            Assert.Equal(Path.Combine(outputDirectory, "input.mp4"), payload["render"]!["source"]!["inputPath"]!.GetValue<string>());
-            Assert.Equal(Path.Combine(outputDirectory, "final.mp4"), payload["render"]!["output"]!["path"]!.GetValue<string>());
+            Assert.Equal(Path.Combine(outputDirectory, "input.mp4"), envelope["render"]!["source"]!["inputPath"]!.GetValue<string>());
+            Assert.Equal(Path.Combine(outputDirectory, "final.mp4"), envelope["render"]!["output"]!["path"]!.GetValue<string>());
             Assert.Equal("ffmpeg", commandPlan["toolName"]!.GetValue<string>());
             Assert.Contains(commandPlan["arguments"]!.AsArray().Select(node => node!.GetValue<string>()), arg => arg == "-filter_complex");
             Assert.Contains(commandPlan["arguments"]!.AsArray().Select(node => node!.GetValue<string>()), arg => arg == "libx264");
@@ -953,6 +1324,52 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal(Path.Combine(outputDirectory, "final.mp4"), Assert.Single(producedPaths)!.GetValue<string>());
             Assert.Empty(executionPreview["sideEffects"]!.AsArray());
             Assert.False(File.Exists(Path.Combine(outputDirectory, "final.mp4")));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RenderPreview_CanWriteEnvelopeToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-render-preview-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+        var jsonOutPath = Path.Combine(outputDirectory, "render-preview.json");
+
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 1,
+              "source": { "inputPath": "input.mp4" },
+              "clips": [
+                { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
+              ],
+              "audioTracks": [],
+              "artifacts": [],
+              "output": { "path": "final.mp4", "container": "mp4" }
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync("render", "--plan", planPath, "--preview", "--json-out", jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+
+            Assert.Equal(stdout.ToJsonString(), file.ToJsonString());
+            Assert.Equal("render", stdout["command"]!.GetValue<string>());
+            Assert.True(stdout["preview"]!.GetValue<bool>());
         }
         finally
         {
@@ -993,10 +1410,14 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal(0, result.ExitCode);
 
             var payload = JsonNode.Parse(result.StdOut)!.AsObject();
-            var executionPreview = payload["executionPreview"]!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.True(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            var executionPreview = envelope["executionPreview"]!.AsObject();
             var producedPath = Assert.Single(executionPreview["producedPaths"]!.AsArray())!.GetValue<string>();
 
-            Assert.Equal(overrideOutputPath, payload["render"]!["output"]!["path"]!.GetValue<string>());
+            Assert.Equal(overrideOutputPath, envelope["render"]!["output"]!["path"]!.GetValue<string>());
             Assert.Equal(overrideOutputPath, producedPath);
             Assert.Contains(executionPreview["commandPlan"]!["arguments"]!.AsArray().Select(node => node!.GetValue<string>()), arg => arg == overrideOutputPath);
         }
@@ -1319,6 +1740,379 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
             Assert.Contains("extract-audio <input> --track <n>", result.StdOut, StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioAnalyze_RequiresOutputOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-analyze-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await RunCliAsync("audio-analyze", "input.mp4");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--output' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("audio-analyze <input> --output <audio.json>", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioAnalyze_RejectsMissingFfmpegExecutable()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-analyze-missing-ffmpeg-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "audio.json");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-analyze",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                "missing-ffmpeg");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("audio-analyze <input> --output <audio.json>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioGain_RequiresGainDbOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-db-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "gain.wav");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-gain",
+                "input.mp4",
+                "--output",
+                outputPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--gain-db' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("audio-gain <input> --gain-db <n> --output <path>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioGain_RejectsInvalidGainDb()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-invalid-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "gain.wav");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-gain",
+                "input.mp4",
+                "--gain-db",
+                "oops",
+                "--output",
+                outputPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--gain-db' expects a numeric value.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("audio-gain <input> --gain-db <n> --output <path>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioGain_RejectsMissingFfmpegExecutable()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-missing-ffmpeg-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "gain.wav");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-gain",
+                "input.mp4",
+                "--gain-db",
+                "3",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                "missing-ffmpeg");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("audio-gain <input> --gain-db <n> --output <path>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Transcribe_RequiresModelOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-transcribe-model-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "transcript.json");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "transcribe",
+                "input.mp4",
+                "--output",
+                outputPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--model' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("transcribe <input> --model <path> --output <transcript.json>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Transcribe_RequiresOutputOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-transcribe-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "transcribe",
+                "input.mp4",
+                "--model",
+                "ggml-base.bin");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--output' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("transcribe <input> --model <path> --output <transcript.json>", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Transcribe_RejectsMissingFfmpegExecutable()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-transcribe-missing-ffmpeg-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "transcript.json");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "transcribe",
+                "input.mp4",
+                "--model",
+                "ggml-base.bin",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                "missing-ffmpeg");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("transcribe <input> --model <path> --output <transcript.json>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DetectSilence_RequiresOutputOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-detect-silence-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await RunCliAsync("detect-silence", "input.mp4");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--output' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("detect-silence <input> --output <silence.json>", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DetectSilence_RejectsInvalidNoiseDb()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-detect-silence-noise-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "silence.json");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "detect-silence",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--noise-db",
+                "oops");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--noise-db' expects a numeric value.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("detect-silence <input> --output <silence.json>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task DetectSilence_RejectsMissingFfmpegExecutable()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-detect-silence-ffmpeg-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "silence.json");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "detect-silence",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                "missing-ffmpeg");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("detect-silence <input> --output <silence.json>", result.StdOut, StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SeparateAudio_RequiresOutputDirectoryOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-separate-audio-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await RunCliAsync("separate-audio", "input.mp4");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("Option '--output-dir' is required.", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("separate-audio <input> --output-dir <path>", result.StdOut, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SeparateAudio_RejectsMissingDemucsExecutable()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-separate-audio-demucs-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "separate-audio",
+                "input.mp4",
+                "--output-dir",
+                outputDirectory,
+                "--demucs",
+                "missing-demucs");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-demucs", result.StdErr, StringComparison.Ordinal);
+            Assert.Contains("separate-audio <input> --output-dir <path>", result.StdOut, StringComparison.Ordinal);
         }
         finally
         {
@@ -1708,6 +2502,104 @@ public sealed class CommandArtifactsIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Doctor_ReturnsStructuredDependencyEnvelopeAndNonZeroWhenRequiredDependenciesMissing()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-doctor-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var modelPath = Path.Combine(outputDirectory, "model.gguf");
+        await File.WriteAllTextAsync(modelPath, "model");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "doctor",
+                "--ffmpeg",
+                "missing-ffmpeg",
+                "--ffprobe",
+                "missing-ffprobe",
+                "--whisper-cli",
+                "missing-whisper",
+                "--demucs",
+                "missing-demucs",
+                "--whisper-model",
+                modelPath);
+
+            Assert.Equal(1, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("doctor", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            Assert.False(payload["isHealthy"]!.GetValue<bool>());
+            Assert.Equal(2, payload["missingRequiredCount"]!.GetValue<int>());
+            Assert.Equal(2, payload["missingOptionalCount"]!.GetValue<int>());
+
+            var dependencies = payload["dependencies"]!.AsArray();
+            Assert.Equal(5, dependencies.Count);
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "ffmpeg"
+                    && node["source"]!.GetValue<string>() == "option"
+                    && !node["isAvailable"]!.GetValue<bool>());
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-model"
+                    && node["kind"]!.GetValue<string>() == "file"
+                    && node["isAvailable"]!.GetValue<bool>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Doctor_CanWriteEnvelopeToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-doctor-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var jsonOutPath = Path.Combine(outputDirectory, "doctor.json");
+        var modelPath = Path.Combine(outputDirectory, "model.gguf");
+        await File.WriteAllTextAsync(modelPath, "model");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "doctor",
+                "--ffmpeg",
+                "missing-ffmpeg",
+                "--ffprobe",
+                "missing-ffprobe",
+                "--whisper-cli",
+                "missing-whisper",
+                "--demucs",
+                "missing-demucs",
+                "--whisper-model",
+                modelPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
     private static async Task<CliRunResult> RunCliAsync(params string[] args)
     {
         var cliAssemblyPath = typeof(TemplateCommandArtifactsBuilder).Assembly.Location;
@@ -1741,9 +2633,14 @@ public sealed class CommandArtifactsIntegrationTests
 
     private static JsonObject GetPreviewPlan(JsonArray previews, string mode)
     {
-        var previewNode = previews.Single(node => node!["mode"]!.GetValue<string>() == mode);
-        var preview = Assert.IsType<JsonObject>(previewNode);
+        var preview = GetPreview(previews, mode);
         return Assert.IsType<JsonObject>(preview["editPlan"]);
+    }
+
+    private static JsonObject GetPreview(JsonArray previews, string mode)
+    {
+        var previewNode = previews.Single(node => node!["mode"]!.GetValue<string>() == mode);
+        return Assert.IsType<JsonObject>(previewNode);
     }
 
     private sealed record CliRunResult

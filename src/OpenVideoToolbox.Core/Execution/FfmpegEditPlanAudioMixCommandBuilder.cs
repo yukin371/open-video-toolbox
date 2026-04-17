@@ -43,7 +43,7 @@ public sealed class FfmpegEditPlanAudioMixCommandBuilder
         arguments.Add(graph.OutputLabel);
         arguments.Add("-vn");
 
-        foreach (var option in ResolveAudioCodecArguments(request.OutputPath))
+        foreach (var option in FfmpegAudioOutputCodecArguments.Resolve(request.OutputPath, "mix-audio"))
         {
             arguments.Add(option);
         }
@@ -57,19 +57,6 @@ public sealed class FfmpegEditPlanAudioMixCommandBuilder
             WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(request.OutputPath)),
             Arguments = arguments,
             CommandLine = BuildCommandLine(executablePath, arguments)
-        };
-    }
-
-    private static IReadOnlyList<string> ResolveAudioCodecArguments(string outputPath)
-    {
-        var extension = Path.GetExtension(outputPath).ToLowerInvariant();
-        return extension switch
-        {
-            ".wav" => ["-c:a", "pcm_s16le"],
-            ".flac" => ["-c:a", "flac"],
-            ".mp3" => ["-c:a", "libmp3lame", "-b:a", "192k"],
-            ".aac" or ".m4a" => ["-c:a", "aac", "-b:a", "192k"],
-            _ => throw new InvalidOperationException($"Unsupported mix-audio output extension '{extension}'. Use .wav, .flac, .mp3, .aac, or .m4a.")
         };
     }
 

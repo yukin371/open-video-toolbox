@@ -26,6 +26,8 @@ public sealed class EditPlanExecutionPreviewBuilder
 
         return new ExecutionPreview
         {
+            Operation = "render",
+            PathsResolved = Path.IsPathFullyQualified(request.Plan.Output.Path),
             CommandPlan = _renderCommandBuilder.Build(request, executablePath),
             ProducedPaths = EditPlanRenderRunner.BuildProducedPaths(request.Plan),
             SideEffects = EditPlanRenderRunner.BuildSideEffects(request.Plan)
@@ -38,6 +40,8 @@ public sealed class EditPlanExecutionPreviewBuilder
 
         return new ExecutionPreview
         {
+            Operation = "mix-audio",
+            PathsResolved = Path.IsPathFullyQualified(request.OutputPath),
             CommandPlan = _audioMixCommandBuilder.Build(request, executablePath),
             ProducedPaths = EditPlanAudioMixRunner.BuildProducedPaths(request),
             SideEffects = []

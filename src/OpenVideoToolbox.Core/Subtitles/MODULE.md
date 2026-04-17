@@ -1,10 +1,10 @@
 # OpenVideoToolbox.Core.Subtitles
 
-> 最后更新：2026-04-15
+> 最后更新：2026-04-16
 
 ## 职责
 
-本模块是 `transcript.json` 与确定性字幕导出的 canonical owner，负责承接外部 AI 或其他工具生成的 transcript，并渲染为 `srt` / `ass`。
+本模块是 `transcript.json` 与确定性字幕导出的 canonical owner，负责承接外部 AI、`whisper.cpp` 适配层或其他工具生成的 transcript，并渲染为 `srt` / `ass`。
 
 ## Owns
 
@@ -20,6 +20,7 @@
 - `ffmpeg` 烧录执行
 - GUI 样式编辑状态
 - 转录推理或任何供应商集成
+- 外部转写工具 JSON 到 transcript 的映射规则
 
 ## 关键依赖
 

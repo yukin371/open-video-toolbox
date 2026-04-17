@@ -2,6 +2,14 @@ namespace OpenVideoToolbox.Core.Execution;
 
 public sealed record ExecutionPreview
 {
+    public int SchemaVersion { get; init; } = 1;
+
+    public required string Operation { get; init; }
+
+    public bool IsPreview { get; init; } = true;
+
+    public bool PathsResolved { get; init; }
+
     public required CommandPlan CommandPlan { get; init; }
 
     public IReadOnlyList<string> ProducedPaths { get; init; } = [];

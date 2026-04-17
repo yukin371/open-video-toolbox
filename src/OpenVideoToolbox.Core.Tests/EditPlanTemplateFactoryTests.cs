@@ -187,6 +187,257 @@ public sealed class EditPlanTemplateFactoryTests
     }
 
     [Fact]
+    public void Create_CanGroupTranscriptSegmentsIntoDeterministicSeedClips()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(1),
+                            Text = "Intro"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-002",
+                            Start = TimeSpan.FromSeconds(1),
+                            End = TimeSpan.FromSeconds(2.5),
+                            Text = "Detail"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-003",
+                            Start = TimeSpan.FromSeconds(2.5),
+                            End = TimeSpan.FromSeconds(4),
+                            Text = "Wrap"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                TranscriptSegmentGroupSize = 2
+            });
+
+        Assert.Equal(2, plan.Clips.Count);
+        Assert.Equal(TimeSpan.Zero, plan.Clips[0].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(2.5), plan.Clips[0].OutPoint);
+        Assert.Equal("seg-001..seg-002", plan.Clips[0].Label);
+        Assert.Equal(TimeSpan.FromSeconds(2.5), plan.Clips[1].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(4), plan.Clips[1].OutPoint);
+        Assert.Equal("seg-003", plan.Clips[1].Label);
+    }
+
+    [Fact]
+    public void Create_CanFilterTranscriptSegmentsByMinimumDurationBeforeGrouping()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromMilliseconds(250),
+                            Text = "Too short"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-002",
+                            Start = TimeSpan.FromMilliseconds(250),
+                            End = TimeSpan.FromSeconds(1),
+                            Text = "Keep"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-003",
+                            Start = TimeSpan.FromSeconds(1),
+                            End = TimeSpan.FromSeconds(2),
+                            Text = "Keep too"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                MinTranscriptSegmentDuration = TimeSpan.FromMilliseconds(500),
+                TranscriptSegmentGroupSize = 2
+            });
+
+        var clip = Assert.Single(plan.Clips);
+        Assert.Equal(TimeSpan.FromMilliseconds(250), clip.InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(2), clip.OutPoint);
+        Assert.Equal("seg-002..seg-003", clip.Label);
+    }
+
+    [Fact]
+    public void Create_CanSplitTranscriptSeedGroupsWhenGapExceedsThreshold()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromMilliseconds(600),
+                            Text = "First"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-002",
+                            Start = TimeSpan.FromMilliseconds(750),
+                            End = TimeSpan.FromSeconds(1.3),
+                            Text = "Near"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-003",
+                            Start = TimeSpan.FromSeconds(2),
+                            End = TimeSpan.FromSeconds(2.8),
+                            Text = "Far"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                TranscriptSegmentGroupSize = 3,
+                MaxTranscriptGap = TimeSpan.FromMilliseconds(200)
+            });
+
+        Assert.Equal(2, plan.Clips.Count);
+        Assert.Equal("seg-001..seg-002", plan.Clips[0].Label);
+        Assert.Equal(TimeSpan.Zero, plan.Clips[0].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(1.3), plan.Clips[0].OutPoint);
+        Assert.Equal("seg-003", plan.Clips[1].Label);
+        Assert.Equal(TimeSpan.FromSeconds(2), plan.Clips[1].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(2.8), plan.Clips[1].OutPoint);
+    }
+
+    [Fact]
+    public void Create_RejectsNonPositiveTranscriptSegmentGroupSize()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(1),
+                            Text = "Hello"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                TranscriptSegmentGroupSize = 0
+            }));
+    }
+
+    [Fact]
+    public void Create_RejectsNegativeMinimumTranscriptSegmentDuration()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(1),
+                            Text = "Hello"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                MinTranscriptSegmentDuration = TimeSpan.FromMilliseconds(-1)
+            }));
+    }
+
+    [Fact]
+    public void Create_RejectsNegativeMaximumTranscriptGap()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => factory.Create(
+            "shorts-basic",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(1),
+                            Text = "Hello"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true,
+                MaxTranscriptGap = TimeSpan.FromMilliseconds(-1)
+            }));
+    }
+
+    [Fact]
     public void Create_BindsTemplateArtifactsFromGenericArtifactMap()
     {
         var factory = new EditPlanTemplateFactory();
@@ -303,6 +554,100 @@ public sealed class EditPlanTemplateFactoryTests
         Assert.Single(plan.AudioTracks);
         Assert.Equal("audio/montage.wav", plan.AudioTracks[0].Path);
         Assert.Equal("beats.json", plan.Beats!.Path);
+    }
+
+    [Fact]
+    public void Create_CommentaryCaptioned_BindsSubtitleAndBgmArtifacts()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "commentary-captioned",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                ArtifactBindings = new Dictionary<string, string>
+                {
+                    ["subtitles"] = "subs/commentary.srt",
+                    ["bgm"] = "audio/commentary-bed.wav"
+                },
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "line-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(2.5),
+                            Text = "Welcome back."
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true
+            });
+
+        Assert.Equal("commentary-captioned", plan.Template!.Id);
+        Assert.Equal("clean-sidecar", plan.Template.Parameters["captionStyle"]);
+        Assert.Single(plan.Clips);
+        Assert.Equal("line-001", plan.Clips[0].Label);
+        Assert.Equal(2, plan.Artifacts.Count);
+        Assert.Single(plan.AudioTracks);
+        Assert.Equal("audio/commentary-bed.wav", plan.AudioTracks[0].Path);
+        Assert.NotNull(plan.Subtitles);
+        Assert.Equal("subs/commentary.srt", plan.Subtitles!.Path);
+        Assert.Equal("transcript.json", plan.Transcript!.Path);
+    }
+
+    [Fact]
+    public void Create_MusicCaptionedMontage_BindsCaptionAndMusicForBeatSeed()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "music-captioned-montage",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                ArtifactBindings = new Dictionary<string, string>
+                {
+                    ["subtitles"] = "subs/lyrics.srt",
+                    ["bgm"] = "audio/anthem.wav"
+                },
+                BeatTrackPath = "beats.json",
+                BeatTrack = new BeatTrackDocument
+                {
+                    SourcePath = "input.mp4",
+                    SampleRateHz = 16000,
+                    FrameDuration = TimeSpan.FromMilliseconds(50),
+                    EstimatedBpm = 132,
+                    Beats =
+                    [
+                        new BeatMarker { Index = 0, Time = TimeSpan.Zero, Strength = 0.91 },
+                        new BeatMarker { Index = 1, Time = TimeSpan.FromSeconds(1), Strength = 0.88 },
+                        new BeatMarker { Index = 2, Time = TimeSpan.FromSeconds(2), Strength = 0.93 },
+                        new BeatMarker { Index = 3, Time = TimeSpan.FromSeconds(3), Strength = 0.87 },
+                        new BeatMarker { Index = 4, Time = TimeSpan.FromSeconds(4), Strength = 0.95 }
+                    ]
+                },
+                SeedClipsFromBeats = true,
+                BeatGroupSize = 2
+            });
+
+        Assert.Equal("music-captioned-montage", plan.Template!.Id);
+        Assert.Equal("punchy-hook", plan.Template.Parameters["captionStyle"]);
+        Assert.Equal(2, plan.Clips.Count);
+        Assert.Equal(2, plan.Artifacts.Count);
+        Assert.Single(plan.AudioTracks);
+        Assert.Equal("audio/anthem.wav", plan.AudioTracks[0].Path);
+        Assert.NotNull(plan.Subtitles);
+        Assert.Equal("subs/lyrics.srt", plan.Subtitles!.Path);
+        Assert.Equal("beats.json", plan.Beats!.Path);
+        Assert.Equal(132, plan.Beats.EstimatedBpm);
     }
 
     [Fact]

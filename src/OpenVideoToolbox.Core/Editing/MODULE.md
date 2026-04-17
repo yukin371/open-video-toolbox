@@ -1,6 +1,6 @@
 # OpenVideoToolbox.Core.Editing
 
-> 最后更新：2026-04-15
+> 最后更新：2026-04-17
 
 ## 职责
 
@@ -49,6 +49,7 @@
 - CLI 写出的 example 文件必须来源于同一套模板示例输出，不能额外生成只存在于磁盘模式的变体
 - 模板分类和 seed 能力元数据必须稳定，便于 CLI 做可预测过滤
 - 模板列表摘要字段必须稳定，便于外部 AI 和未来 UI 做低成本模板发现
+- 模板 supporting signal guidance 必须由模板定义显式声明，不能在 CLI 层按类别或命令名临时猜测
 - 模板参数覆盖必须先落到稳定的 `template.parameters`，不能直接分裂成零散 CLI 特判
 - 模板清单与 plan skeleton 规则必须留在本模块，不得散落到 CLI
 - 计划模型只表达编辑意图，不直接表达 UI 状态
@@ -70,3 +71,4 @@
 - `transcript` 字段或 transcript 种子语义变化
 - `artifacts` 字段或模板 slot 绑定语义变化
 - `template.parameters` 覆盖语义变化
+- 模板 supporting signal 元数据或 template guide 派生规则变化

@@ -6,6 +6,11 @@ internal static class RealMediaSmokeTestHelper
 {
     public static bool IsToolAvailable(string toolName)
     {
+        if (string.IsNullOrWhiteSpace(toolName))
+        {
+            return false;
+        }
+
         try
         {
             using var process = Process.Start(new ProcessStartInfo
@@ -27,6 +32,47 @@ internal static class RealMediaSmokeTestHelper
         {
             return false;
         }
+    }
+
+    public static string? GetEnvironmentValue(string variableName)
+    {
+        var value = Environment.GetEnvironmentVariable(variableName);
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
+    }
+
+    public static string? GetOptionalFilePathFromEnvironment(string variableName)
+    {
+        var value = GetEnvironmentValue(variableName);
+        if (value is null)
+        {
+            return null;
+        }
+
+        var fullPath = Path.GetFullPath(value);
+        return File.Exists(fullPath)
+            ? fullPath
+            : null;
+    }
+
+    public static string? GetOptionalDirectoryPathFromEnvironment(string variableName)
+    {
+        var value = GetEnvironmentValue(variableName);
+        if (value is null)
+        {
+            return null;
+        }
+
+        var fullPath = Path.GetFullPath(value);
+        return Directory.Exists(fullPath)
+            ? fullPath
+            : null;
+    }
+
+    public static string GetToolFromEnvironmentOrDefault(string variableName, string defaultToolName)
+    {
+        return GetEnvironmentValue(variableName) ?? defaultToolName;
     }
 
     public static async Task CreateSampleVideoAsync(string outputPath, TimeSpan duration)

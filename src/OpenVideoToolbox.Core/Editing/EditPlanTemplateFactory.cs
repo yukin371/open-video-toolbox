@@ -52,6 +52,21 @@ public sealed class EditPlanTemplateFactory
 
     private static IReadOnlyList<EditClip> BuildSeedClips(EditPlanTemplateRequest request)
     {
+        if (request.TranscriptSegmentGroupSize <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Transcript segment group size must be greater than zero.");
+        }
+
+        if (request.MinTranscriptSegmentDuration < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Minimum transcript segment duration must be zero or greater.");
+        }
+
+        if (request.MaxTranscriptGap.HasValue && request.MaxTranscriptGap.Value < TimeSpan.Zero)
+        {
+            throw new ArgumentOutOfRangeException(nameof(request), "Maximum transcript gap must be zero or greater.");
+        }
+
         if (request.BeatGroupSize <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(request), "Beat group size must be greater than zero.");
@@ -59,7 +74,11 @@ public sealed class EditPlanTemplateFactory
 
         if (request.SeedClipsFromTranscript && request.Transcript is { Segments.Count: > 0 })
         {
-            return BuildTranscriptSeedClips(request.Transcript);
+            return BuildTranscriptSeedClips(
+                request.Transcript,
+                request.TranscriptSegmentGroupSize,
+                request.MinTranscriptSegmentDuration,
+                request.MaxTranscriptGap);
         }
 
         if (request.SeedClipsFromBeats && request.BeatTrack is { Beats.Count: > 1 })
@@ -84,32 +103,86 @@ public sealed class EditPlanTemplateFactory
         ];
     }
 
-    private static IReadOnlyList<EditClip> BuildTranscriptSeedClips(TranscriptDocument transcript)
+    private static IReadOnlyList<EditClip> BuildTranscriptSeedClips(
+        TranscriptDocument transcript,
+        int transcriptSegmentGroupSize,
+        TimeSpan minTranscriptSegmentDuration,
+        TimeSpan? maxTranscriptGap)
     {
+        var validSegments = transcript.Segments
+            .Where(segment => segment.End > segment.Start)
+            .Where(segment => segment.End - segment.Start >= minTranscriptSegmentDuration)
+            .ToArray();
+
+        if (validSegments.Length == 0)
+        {
+            return [];
+        }
+
         var clips = new List<EditClip>();
         var clipNumber = 1;
-
-        foreach (var segment in transcript.Segments)
+        for (var index = 0; index < validSegments.Length;)
         {
-            if (segment.End <= segment.Start)
+            var segmentGroup = new List<TranscriptSegment> { validSegments[index] };
+            var nextIndex = index + 1;
+
+            while (nextIndex < validSegments.Length && segmentGroup.Count < transcriptSegmentGroupSize)
             {
-                continue;
+                var previousSegment = validSegments[nextIndex - 1];
+                var currentSegment = validSegments[nextIndex];
+                var gap = currentSegment.Start - previousSegment.End;
+                if (gap < TimeSpan.Zero)
+                {
+                    gap = TimeSpan.Zero;
+                }
+
+                if (maxTranscriptGap is not null && gap > maxTranscriptGap.Value)
+                {
+                    break;
+                }
+
+                segmentGroup.Add(currentSegment);
+                nextIndex++;
             }
+
+            var firstSegment = segmentGroup[0];
+            var lastSegment = segmentGroup[^1];
 
             clips.Add(new EditClip
             {
                 Id = $"clip-{clipNumber:000}",
-                InPoint = segment.Start,
-                OutPoint = segment.End,
-                Label = string.IsNullOrWhiteSpace(segment.Id)
-                    ? $"transcript-segment-{clipNumber:000}"
-                    : segment.Id
+                InPoint = firstSegment.Start,
+                OutPoint = lastSegment.End,
+                Label = BuildTranscriptGroupLabel(segmentGroup, clipNumber)
             });
 
             clipNumber++;
+            index = nextIndex;
         }
 
         return clips;
+    }
+
+    private static string BuildTranscriptGroupLabel(IReadOnlyList<TranscriptSegment> segmentGroup, int clipNumber)
+    {
+        if (segmentGroup.Count == 1)
+        {
+            var segment = segmentGroup[0];
+            return string.IsNullOrWhiteSpace(segment.Id)
+                ? $"transcript-segment-{clipNumber:000}"
+                : segment.Id;
+        }
+
+        var firstId = segmentGroup[0].Id;
+        var lastId = segmentGroup[^1].Id;
+        if (!string.IsNullOrWhiteSpace(firstId) && !string.IsNullOrWhiteSpace(lastId))
+        {
+            return string.Equals(firstId, lastId, StringComparison.Ordinal)
+                ? firstId
+                : $"{firstId}..{lastId}";
+        }
+
+        return $"transcript-group-{clipNumber:000}";
     }
 
     private static IReadOnlyDictionary<string, string> BuildTemplateParameters(

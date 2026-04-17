@@ -13,8 +13,10 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         Assert.Contains(templates, template => template.Id == "shorts-basic");
         Assert.Contains(templates, template => template.Id == "shorts-captioned");
         Assert.Contains(templates, template => template.Id == "commentary-bgm");
+        Assert.Contains(templates, template => template.Id == "commentary-captioned");
         Assert.Contains(templates, template => template.Id == "explainer-captioned");
         Assert.Contains(templates, template => template.Id == "beat-montage");
+        Assert.Contains(templates, template => template.Id == "music-captioned-montage");
         Assert.Contains(
             templates.Single(template => template.Id == "shorts-basic").RecommendedSeedModes,
             mode => mode == EditPlanSeedMode.Transcript);
@@ -24,6 +26,16 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         Assert.DoesNotContain(
             templates.Single(template => template.Id == "beat-montage").RecommendedSeedModes,
             mode => mode == EditPlanSeedMode.Transcript);
+        Assert.True(
+            templates.Single(template => template.Id == "explainer-captioned").RecommendedTranscriptSeedStrategies
+                .SequenceEqual([TranscriptSeedStrategy.Grouped, TranscriptSeedStrategy.MaxGap]));
+        Assert.True(
+            templates.Single(template => template.Id == "commentary-captioned").RecommendedTranscriptSeedStrategies
+                .SequenceEqual([TranscriptSeedStrategy.MinDuration, TranscriptSeedStrategy.MaxGap]));
+        Assert.True(
+            templates.Single(template => template.Id == "beat-montage").SupportingSignals
+                .Select(signal => signal.Kind)
+                .SequenceEqual([EditPlanSupportingSignalKind.Beats, EditPlanSupportingSignalKind.Stems]));
     }
 
     [Fact]
@@ -37,8 +49,9 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
     {
         var templates = BuiltInEditPlanTemplateCatalog.GetAll(category: "commentary", seedMode: null);
 
-        var template = Assert.Single(templates);
-        Assert.Equal("commentary-bgm", template.Id);
+        Assert.Equal(2, templates.Count);
+        Assert.Contains(templates, template => template.Id == "commentary-bgm");
+        Assert.Contains(templates, template => template.Id == "commentary-captioned");
     }
 
     [Fact]
@@ -46,7 +59,7 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
     {
         var templates = BuiltInEditPlanTemplateCatalog.GetAll(category: null, seedMode: EditPlanSeedMode.Beats);
 
-        Assert.Equal(3, templates.Count);
+        Assert.Equal(4, templates.Count);
         Assert.DoesNotContain(templates, template => template.Id == "commentary-bgm");
     }
 
@@ -67,9 +80,11 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
             ArtifactKind = "subtitle"
         });
 
-        Assert.Equal(2, templates.Count);
+        Assert.Equal(4, templates.Count);
         Assert.Contains(templates, template => template.Id == "shorts-captioned");
+        Assert.Contains(templates, template => template.Id == "commentary-captioned");
         Assert.Contains(templates, template => template.Id == "explainer-captioned");
+        Assert.Contains(templates, template => template.Id == "music-captioned-montage");
     }
 
     [Fact]
@@ -92,9 +107,11 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
             HasSubtitles = true
         });
 
-        Assert.Equal(2, templates.Count);
+        Assert.Equal(4, templates.Count);
         Assert.Contains(templates, template => template.Id == "shorts-captioned");
+        Assert.Contains(templates, template => template.Id == "commentary-captioned");
         Assert.Contains(templates, template => template.Id == "explainer-captioned");
+        Assert.Contains(templates, template => template.Id == "music-captioned-montage");
     }
 
     [Fact]
@@ -103,7 +120,8 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         var summary = Assert.Single(BuiltInEditPlanTemplateCatalog.GetSummaries(new EditPlanTemplateCatalogQuery
         {
             Category = "commentary",
-            HasArtifacts = true
+            HasArtifacts = true,
+            HasSubtitles = false
         }));
 
         Assert.Equal("commentary-bgm", summary.Id);
@@ -112,5 +130,29 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         Assert.False(summary.HasSubtitles);
         Assert.Contains("audio", summary.ArtifactKinds);
         Assert.Contains(EditPlanSeedMode.Transcript, summary.RecommendedSeedModes);
+        Assert.True(summary.RecommendedTranscriptSeedStrategies.SequenceEqual([TranscriptSeedStrategy.MinDuration]));
+        Assert.True(summary.SupportingSignals.SequenceEqual([
+            EditPlanSupportingSignalKind.Transcript,
+            EditPlanSupportingSignalKind.Silence
+        ]));
+    }
+
+    [Fact]
+    public void GetSummaries_ExposeTranscriptStrategiesOnlyForTranscriptTemplates()
+    {
+        var summaries = BuiltInEditPlanTemplateCatalog.GetSummaries();
+
+        var shortsCaptioned = summaries.Single(summary => summary.Id == "shorts-captioned");
+        Assert.True(shortsCaptioned.RecommendedTranscriptSeedStrategies.SequenceEqual([
+            TranscriptSeedStrategy.Grouped,
+            TranscriptSeedStrategy.MaxGap
+        ]));
+
+        var beatMontage = summaries.Single(summary => summary.Id == "beat-montage");
+        Assert.Empty(beatMontage.RecommendedTranscriptSeedStrategies);
+        Assert.True(beatMontage.SupportingSignals.SequenceEqual([
+            EditPlanSupportingSignalKind.Beats,
+            EditPlanSupportingSignalKind.Stems
+        ]));
     }
 }

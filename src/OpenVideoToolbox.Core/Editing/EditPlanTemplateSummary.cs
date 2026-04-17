@@ -17,4 +17,8 @@ public sealed record EditPlanTemplateSummary
     public bool HasArtifacts { get; init; }
 
     public bool HasSubtitles { get; init; }
+
+    public IReadOnlyList<TranscriptSeedStrategy> RecommendedTranscriptSeedStrategies { get; init; } = [];
+
+    public IReadOnlyList<EditPlanSupportingSignalKind> SupportingSignals { get; init; } = [];
 }

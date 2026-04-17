@@ -1,6 +1,6 @@
 # CLI MVP
 
-最后更新：2026-04-15
+最后更新：2026-04-17
 
 ## 目标
 
@@ -25,15 +25,26 @@
   - 执行转码任务并输出执行结果
 - `templates`
   - 输出内置模板列表与 artifact slot
-  - 支持按模板 id 输出单模板指南，便于外部 AI 直接生成 `artifacts.json`、`template-params.json` 并选择合适的 seed 方式
+  - 支持按模板 id 输出单模板指南，便于外部 AI 直接生成 `artifacts.json`、`template-params.json`、supporting signal 命令，并选择合适的 seed 方式
+- `doctor`
+  - 已实现依赖预检，统一检查 `ffmpeg`、`ffprobe`、`whisper-cli`、`demucs` 与 `whisper model`
+  - 支持稳定 JSON envelope、`--json-out`，缺失 required 依赖时返回非零退出码
 - `init-plan`
   - 已实现生成可编辑的 `edit.json` skeleton
   - 已支持 `--artifacts <artifacts.json>` 绑定模板 artifact slot
   - 已支持 `--template-params <template-params.json>` 覆盖模板默认参数
-  - 已支持 `--transcript <transcript.json>`、`--seed-from-transcript`
+  - 已支持 `--transcript <transcript.json>`、`--seed-from-transcript`、`--transcript-segment-group-size`、`--min-transcript-segment-duration-ms`、`--max-transcript-gap-ms`
   - 已支持 `--beats`、`--seed-from-beats`、`--beat-group-size`
 - `beat-track`
   - 已实现输出 `beats.json`
+- `audio-analyze`
+  - 已实现输出 `audio.json`
+- `audio-gain`
+  - 已实现最小显式增益命令
+- `transcribe`
+  - 已实现从外部 `whisper.cpp` 生成 `transcript.json`
+- `detect-silence`
+  - 已实现输出 `silence.json`
 - `cut`
   - 已实现最小单段裁切命令
 - `concat`
@@ -57,7 +68,7 @@
   - 根据 `edit.json` 执行最终导出
 
 说明：
-- `templates`、`init-plan`、`beat-track`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已进入当前实现。
+- `templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已进入当前实现。
 
 ### 第二批常用增强
 
@@ -71,8 +82,7 @@
   - 处理 BGM、多轨混音、音量包络和 ducking
 
 说明：
-- `subtitle`、`beat-track`、`mix-audio` 已进入当前实现。
-- `separate-audio` 仍是后续能力，不代表当前仓库已实现。
+- `subtitle`、`beat-track`、`mix-audio`、`separate-audio` 已进入当前实现。
 
 ## 最小中间产物
 
@@ -82,6 +92,8 @@
   - 来自外部 AI 或外部转录工具，不要求仓库内生成
 - `beats.json`
   - 来自 `beat-track`
+- `audio.json`
+  - 来自 `audio-analyze`
 - `edit.json`
   - AI 生成的剪辑计划与人工二次修正结果
   - 保留模板标识与扩展字段，便于外部 AI 复用固定套路
@@ -112,11 +124,15 @@ ovt templates --seed-mode beats --json-out templates.json
 ovt templates --artifact-kind subtitle --has-subtitles --summary
 ovt templates shorts-captioned
 ovt templates shorts-captioned --write-examples .template-guide
+ovt doctor --json-out doctor.json
 ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4
 ovt scaffold-template <input> --template shorts-captioned --dir .workspace --validate
 ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4 --artifacts artifacts.json
 ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4 --template-params template-params.json
 ovt init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript
+ovt init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 2
+ovt init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500
+ovt init-plan <input> --template shorts-basic --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200
 ovt init-plan <input> --template shorts-captioned --output edit.json --render-output final.mp4 --beats beats.json --seed-from-beats --beat-group-size 2
 ovt cut <input> --from 00:00:12.000 --to 00:00:27.500 --output clip-01.mp4
 ovt concat --input-list clips.txt --output merged.mp4
@@ -124,31 +140,43 @@ ovt extract-audio <input> --track 0 --output voice.wav
 ovt separate-audio <input> --output-dir stems/
 ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt
 ovt beat-track <input> --output beats.json
+ovt audio-analyze <input> --output audio.json
+ovt audio-gain <input> --gain-db -6 --output leveled.wav
+ovt transcribe <input> --model ggml-base.bin --output transcript.json
+ovt detect-silence <input> --output silence.json
 ovt validate-plan --plan edit.json --check-files
-ovt mix-audio --plan edit.json --output mixed.wav --preview
-ovt render --plan edit.json --output final.mp4 --preview
+ovt mix-audio --plan edit.json --output mixed.wav --preview --json-out mix-preview.json
+ovt render --plan edit.json --output final.mp4 --preview --json-out render-preview.json
 ovt mix-audio --plan edit.json --output mixed.wav
 ovt render --plan edit.json --output final.mp4
 ```
 
 说明：
-- `templates`、`init-plan`、`scaffold-template`、`beat-track`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
+- `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
+- `separate-audio` 已实现，用于以确定性 CLI 方式接入外部分离工具并返回结构化 stem 结果。
 - 其余命令仍是 MVP 草案，不代表当前仓库已经实现。
+- `doctor` 会优先读取 CLI 显式参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`，最后回退到默认可执行名或 `unset` 状态。
 - `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton。
-- `templates <id>` 还会返回 `recommendedSeedModes` 与对应 `seedCommands`，明确这个模板更适合手工 plan、transcript seed 还是 beat seed。
-- `templates <id>` 还会返回 `previewPlans`，直接展示按这些 seed 模式生成后的最小 `edit.json` 形状。
+- `templates <id>` 还会返回 `recommendedSeedModes` 与对应 `seedCommands`，明确这个模板更适合手工 plan、transcript seed 还是 beat seed；transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令，并带 `recommended` 标记。
+- `templates <id>` 还会返回 `supportingSignals` 与 `signalCommands`，明确这个模板更值得先准备 transcript、beats、silence 还是 stems，以及这些信号后续如何回接到模板工作流。
+- `templates <id>` 还会返回 `previewPlans`，直接展示按这些 seed 模式生成后的最小 `edit.json` 形状；transcript preview 还会额外挂出对应策略变体 preview，并带 `isRecommended` 标记。
 - `templates <id> --write-examples <dir>` 会直接写出 `guide.json`、`template.json`、`artifacts.json`、`template-params.json`、`preview-*.edit.json`，以及 `commands.json` / `commands.ps1` / `commands.cmd` / `commands.sh`，适合外部 AI 或脚本直接复用。
 - `templates --category <id>`、`--seed-mode <mode>`、`--output-container <ext>`、`--artifact-kind <kind>`、`--has-artifacts`、`--has-subtitles` 可以先缩小模板集合，再决定是否查询单模板详情。
-- `templates --summary` 会返回稳定的机器友好摘要，避免外部 AI 先读取完整模板定义再自行裁剪字段。
+- `templates --summary` 会返回稳定的机器友好摘要，并额外包含模板级 transcript 策略推荐，降低外部 AI 首次筛选成本，避免先读取完整模板定义再自行裁剪字段。
 - `templates --json-out <path>` 会把当前返回值原样写到文件，适合把模板列表或筛选结果直接交给后续脚本。
 - `scaffold-template` 会把 `guide.json`、`template.json`、`artifacts.json`、`template-params.json`、`preview-*.edit.json`、命令脚本文件和初始 `edit.json` 一次落到工作目录，适合外部 AI 在目录内继续编辑。
+- `commands.json` / `commands.*` 现在除了 `init-plan` / workflow 命令外，还会附带 supporting signal 命令，降低外部 AI 手工拼接 transcript / silence / stems 准备步骤的成本。
 - `scaffold-template --validate` 会在生成后立即附带一份 plan 校验结果；加 `--check-files` 时，缺失输入或引用文件会让命令以非零退出码返回。
 - `validate-plan --check-files` 会额外检查 `source`、`audioTracks`、`artifacts`、`transcript`、`beats`、`subtitles` 引用文件是否存在；命令无论成功失败都输出 JSON，失败时返回非零退出码。
-- `mix-audio --preview` 与 `render --preview` 会输出统一的 `executionPreview`，不会创建目录、不会启动 `ffmpeg`；适合外部 AI 先审查路径、参数、滤镜图与预期产物。
+- `doctor` 无论成功失败都输出 JSON envelope；其中 `ffmpeg`、`ffprobe` 属于 required 依赖，`whisper-cli`、`demucs`、`whisper-model` 属于 optional 依赖。
+- `mix-audio --preview` 与 `render --preview` 会输出统一的 `executionPreview`，不会创建目录、不会启动 `ffmpeg`；适合外部 AI 先审查路径、参数、滤镜图与预期产物。传 `--json-out <path>` 时会把同一份 envelope 原样写到文件，便于把预览结果直接交给后续脚本。
 - `init-plan --artifacts` 读取一个简单 JSON object，例如 `{ "subtitles": "subs/captions.srt", "bgm": "audio/theme.wav" }`，把模板 slot 绑定写进 `edit.json.artifacts`。
 - `init-plan --template-params` 读取一个简单 JSON object，例如 `{ "hookStyle": "match-cut", "captionStyle": "clean-sidecar" }`，把模板默认参数覆盖后写进 `edit.json.template.parameters`。
 - `init-plan --transcript` 会把 `transcript.json` 写入顶层 `transcript`，仅作引用。
 - `init-plan` 只有在额外传入 `--seed-from-transcript` 时，才会按 transcript segment 确定性生成初始 clips；若同时传 `--seed-from-transcript` 和 `--seed-from-beats`，CLI 会直接报错。
+- `init-plan --transcript-segment-group-size` 仅在 `--seed-from-transcript` 下生效，默认 `1`；传 `2` 代表每两个相邻有效 segment 合并成一个 seed clip。
+- `init-plan --min-transcript-segment-duration-ms` 仅在 `--seed-from-transcript` 下生效，默认 `0`；传 `500` 代表过滤掉时长短于 `500ms` 的 segment，再参与后续 seed。
+- `init-plan --max-transcript-gap-ms` 仅在 `--seed-from-transcript` 下生效，默认不限制；传 `200` 代表相邻 segment 间隔大于 `200ms` 时，即使 group size 还没满也会先断开。
 - `init-plan` 在传入 `--beats` 时会把 `beats.json` 写入顶层 `beats`，仅作引用。
 - `init-plan` 只有在额外传入 `--seed-from-beats` 时，才会按节拍组自动生成初始 clips；`--beat-group-size` 默认为 `4`。
 
@@ -174,6 +202,66 @@ ovt render --plan edit.json --output final.mp4
 说明：
 - `beat-track` 当前是确定性波形分析，不依赖内置 AI 或在线服务。
 - 输出先服务于节奏参考、模板填充和外部脚本编排，不先追求 DAW 级精度。
+
+## `audio.json` 最小结构草案
+
+```json
+{
+  "schemaVersion": 1,
+  "inputPath": "input.mp4",
+  "analysis": {
+    "integratedLoudness": -15.2,
+    "loudnessRange": 5.4,
+    "truePeakDb": -1.1,
+    "thresholdDb": -25.8,
+    "targetOffset": -0.3
+  }
+}
+```
+
+说明：
+- `audio-analyze` 当前复用 `ffmpeg loudnorm=print_format=json` 的测量输出，不在仓库内重复实现响度检测算法。
+- 第一版先稳定面向模板和后续混音流程可复用的基础响度指标，再决定是否补 `volumedetect`、峰值统计或更多 stem 相关字段。
+
+## `audio-gain` 命令草案
+
+```text
+ovt audio-gain <input> --gain-db <n> --output <path>
+```
+
+说明：
+- `audio-gain` 当前复用 `ffmpeg volume`，提供显式 `dB` 增益控制。
+- 第一版只做“按指定增益值导出音频”，不把 `loudnorm` 归一化和显式 gain 混成同一个模糊命令。
+
+## `transcribe` 命令草案
+
+```text
+ovt transcribe <input> --model <path> --output <transcript.json>
+```
+
+说明：
+- `transcribe` 当前优先复用 `whisper.cpp` 官方 `whisper-cli`，不在仓库内嵌语音模型或远程 AI provider。
+- 为了保持输入统一，当前实现会先复用 `ffmpeg` 提取 `16kHz/mono/pcm_s16le wav`，再调用 `whisper-cli` 输出 JSON，并映射为仓库标准 `transcript.json`。
+
+## `silence.json` 最小结构草案
+
+```json
+{
+  "schemaVersion": 1,
+  "inputPath": "input.mp4",
+  "segments": [
+    {
+      "start": "00:00:04.2000000",
+      "end": "00:00:05.1000000",
+      "duration": "00:00:00.9000000"
+    }
+  ]
+}
+```
+
+说明：
+- `detect-silence` 当前复用 `ffmpeg silencedetect`，只输出确定性的停顿段，不在这层发明“自动剪辑”规则。
+- 第一版只提供 `noise-db` 和 `min-duration-ms` 两个显式参数，便于模板或后续编辑辅助复用。
 
 ## `transcript.json` 最小结构草案
 
@@ -265,6 +353,9 @@ ovt render --plan edit.json --output final.mp4
 - `beats` 是显式顶层字段，不再藏在扩展区，便于 CLI、外部 AI 和未来 UI 共享相同语义。
 - 如果只传 `--transcript`，它只表达 transcript 来源，不强制改变现有 clips。
 - 如果同时传 `--seed-from-transcript`，`init-plan` 会按 transcript segment 的 `start/end` 确定性生成初始 clips。
+- 如果同时传 `--seed-from-transcript --transcript-segment-group-size N`，`init-plan` 会按顺序把每 `N` 个有效 segment 合并成一个 clip，范围为首 segment 的 `start` 到末 segment 的 `end`。
+- 如果同时传 `--seed-from-transcript --min-transcript-segment-duration-ms N`，`init-plan` 会先过滤时长小于 `N` 毫秒的 segment，再进入后续 transcript seed 规则。
+- 如果同时传 `--seed-from-transcript --max-transcript-gap-ms N`，`init-plan` 会在相邻 segment 的时间间隔大于 `N` 毫秒时提前断开当前 clip，再开始下一组。
 - 如果只传 `--beats`，它只表达节奏参考来源，不强制改变现有 clips。
 - 如果同时传 `--seed-from-beats`，`init-plan` 会按 `beat[i]` 到 `beat[i+N]` 的规则，以 `N = --beat-group-size` 确定性生成初始 clips。
 
