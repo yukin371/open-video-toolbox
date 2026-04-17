@@ -138,7 +138,7 @@ ovt cut <input> --from 00:00:12.000 --to 00:00:27.500 --output clip-01.mp4
 ovt concat --input-list clips.txt --output merged.mp4
 ovt extract-audio <input> --track 0 --output voice.wav
 ovt separate-audio <input> --output-dir stems/
-ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt
+ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json
 ovt audio-gain <input> --gain-db -6 --output leveled.wav
@@ -284,6 +284,7 @@ ovt transcribe <input> --model <path> --output <transcript.json>
 说明：
 - `transcript.json` 只保留最小字段，方便外部 AI 或其他工具直接生成。
 - `subtitle` 默认会做简单换行，输出机器可复现的 `srt` / `ass`。
+- `subtitle --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于外部 AI 或脚本把 sidecar 生成结果继续传给后续流程。
 
 ## `edit.json` 最小结构草案
 

@@ -2193,6 +2193,51 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task Subtitle_CanWriteStructuredResultToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-subtitle-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var transcriptPath = Path.Combine(outputDirectory, "transcript.json");
+        var outputPath = Path.Combine(outputDirectory, "subs.srt");
+        var jsonOutPath = Path.Combine(outputDirectory, "subtitle.json");
+        await File.WriteAllTextAsync(
+            transcriptPath,
+            """{"schemaVersion":1,"language":"en","segments":[{"id":"seg-001","start":"00:00:00","end":"00:00:01","text":"hello world"}]}""");
+
+        try
+        {
+            var result = await RunCliAsync(
+                "subtitle",
+                "input.mp4",
+                "--transcript",
+                transcriptPath,
+                "--format",
+                "srt",
+                "--output",
+                outputPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal(Path.GetFullPath(outputPath), stdout["subtitle"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal("srt", stdout["subtitle"]!["format"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task BeatTrack_RequiresOutputOption()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-beat-output-{Guid.NewGuid():N}");

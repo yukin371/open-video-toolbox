@@ -45,7 +45,7 @@
 - `cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
-- `subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>]`
+- `subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]`
 - `validate-plan --plan <edit.json> [--check-files [true|false]] [--json-out <path>]`
 - `mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
@@ -58,6 +58,7 @@
 - `doctor` 已实现，用于把 required / optional 外部依赖状态收敛为稳定 JSON；命令会优先读取 CLI 参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`。
 - `validate-plan` 已实现，用于在真正执行前校验外部 AI 或人工修改后的 `edit.json` 是否仍满足当前 schema v1 与基础语义约束。
 - `mix-audio --preview` 与 `render --preview` 已实现，用于在真实执行前输出稳定的 `executionPreview`；传 `--json-out` 时会把统一 envelope 原样写到文件。
+- `subtitle` 已支持 `--json-out`，用于把 sidecar 生成结果的同一份结构化 envelope 直接写到文件。
 - `scaffold-template` 已实现，用于一次性落出模板指南、示例文件与初始 `edit.json` 工作目录；传 `--validate` 时还会同步返回校验结果。
 - `templates <id>` / `--write-examples` 已把 transcript、beats、silence、stems 等 supporting signal guidance 纳入稳定输出，外部 AI 不必再自己猜前置命令和接入方式。
 - 对支持字幕的模板，`templates <id>` / `commands.*` 还会给出稳定的 subtitle artifact preparation 命令，帮助外部 AI 串起 `transcribe -> subtitle -> render`。

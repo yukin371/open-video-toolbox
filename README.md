@@ -83,7 +83,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- cut <input> --from 00:00:12.000 --to 00:00:27.500 --output clip-01.mp4
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- concat --input-list clips.txt --output merged.mp4
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- extract-audio <input> --track 0 --output voice.m4a
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- subtitle <input> --transcript transcript.json --format srt --output subtitles.srt
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- subtitle <input> --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- validate-plan --plan edit.json --check-files
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- mix-audio --plan edit.json --output mixed.wav --preview --json-out mix-preview.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- render --plan edit.json --output final.mp4 --preview --json-out render-preview.json
@@ -113,7 +113,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `cut` 通过 `ffmpeg -map 0 -c copy` 做最小单段裁切
 - `concat` 通过 `ffmpeg concat demuxer` 合并片段列表
 - `extract-audio` 通过 `ffmpeg -map 0:a:<n> -vn -c copy` 提取指定音频轨
-- `subtitle` 把外部 `transcript.json` 渲染为 `srt` / `ass`，供 sidecar 或后续烧录使用
+- `subtitle` 把外部 `transcript.json` 渲染为 `srt` / `ass`，供 sidecar 或后续烧录使用；stdout 输出稳定 envelope，传 `--json-out` 时会把同一份结果写到文件
 - `validate-plan` 对手改或 AI 生成后的 `edit.json` 做结构化语义校验；可选 `--check-files` 检查引用文件是否存在，stdout 始终输出 JSON，失败时返回非零退出码
 - `mix-audio` 消费 `edit.json`，只导出混合后的音频文件，供独立检查或后续复用；传 `--preview` 时输出由 `Core.Execution` 生成的统一 `executionPreview`，传 `--json-out` 时可把同一份 envelope 原样写到文件
 - `render` 消费 `edit.json`，完成片段拼接、额外音轨混入，以及字幕烧录或外挂输出；传 `--preview` 时输出由 `Core.Execution` 生成的统一 `executionPreview`，其中包含 `CommandPlan`、`ProducedPaths` 与 side effect 预览；传 `--json-out` 时可把同一份 envelope 原样写到文件

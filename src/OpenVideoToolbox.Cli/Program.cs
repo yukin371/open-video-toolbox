@@ -771,6 +771,8 @@ static async Task<int> RunSubtitleAsync(string[] args)
         return Fail(error!);
     }
 
+    var jsonOutPath = GetOption(options, "--json-out");
+
     try
     {
         var transcript = await LoadTranscriptAsync(transcriptPath!);
@@ -787,7 +789,7 @@ static async Task<int> RunSubtitleAsync(string[] args)
         Directory.CreateDirectory(Path.GetDirectoryName(result.OutputPath)!);
         await File.WriteAllTextAsync(result.OutputPath, result.Content, Encoding.UTF8);
 
-        WriteJson(new
+        return WriteResult(new
         {
             source = new
             {
@@ -802,9 +804,7 @@ static async Task<int> RunSubtitleAsync(string[] args)
                 result.MaxLineLength,
                 transcript.Language
             }
-        });
-
-        return 0;
+        }, jsonOutPath);
     }
     catch (Exception ex)
     {
@@ -2328,7 +2328,7 @@ static void PrintUsage()
     Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>]");
+    Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
     Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--json-out <path>]");
     Console.WriteLine("  probe <input> [--ffprobe <path>]");
     Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--overwrite]");
