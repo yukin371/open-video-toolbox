@@ -20,6 +20,12 @@ public sealed class EditPlanSerializationTests
             {
                 Id = "shorts-captioned",
                 Version = "1.0.0",
+                Source = new EditTemplateSourceReference
+                {
+                    Kind = EditTemplateSourceKinds.Plugin,
+                    PluginId = "community-pack",
+                    PluginVersion = "2.1.0"
+                },
                 Parameters = new Dictionary<string, string>
                 {
                     ["hookStyle"] = "hard-cut"
@@ -92,6 +98,9 @@ public sealed class EditPlanSerializationTests
         Assert.NotNull(restored);
         Assert.Equal("input.mp4", restored!.Source.InputPath);
         Assert.Equal("shorts-captioned", restored.Template!.Id);
+        Assert.Equal(EditTemplateSourceKinds.Plugin, restored.Template.Source!.Kind);
+        Assert.Equal("community-pack", restored.Template.Source.PluginId);
+        Assert.Equal("2.1.0", restored.Template.Source.PluginVersion);
         Assert.Equal("hard-cut", restored.Template.Parameters["hookStyle"]);
         Assert.Equal(TimeSpan.FromSeconds(12.5), restored.Clips[0].InPoint);
         Assert.Equal(AudioTrackRole.Bgm, restored.AudioTracks[0].Role);

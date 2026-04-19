@@ -41,7 +41,25 @@ public sealed record EditTemplateReference
 
     public string? Version { get; init; }
 
+    public EditTemplateSourceReference? Source { get; init; }
+
     public IReadOnlyDictionary<string, string> Parameters { get; init; } = new Dictionary<string, string>();
+}
+
+public sealed record EditTemplateSourceReference
+{
+    public required string Kind { get; init; }
+
+    public string? PluginId { get; init; }
+
+    public string? PluginVersion { get; init; }
+}
+
+public static class EditTemplateSourceKinds
+{
+    public const string BuiltIn = "builtIn";
+
+    public const string Plugin = "plugin";
 }
 
 public sealed record EditClip

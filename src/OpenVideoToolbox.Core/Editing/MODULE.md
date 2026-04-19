@@ -1,6 +1,6 @@
 # OpenVideoToolbox.Core.Editing
 
-> 最后更新：2026-04-17
+> 最后更新：2026-04-19
 
 ## 职责
 
@@ -10,6 +10,7 @@
 
 - `EditPlan`
 - `EditTemplateReference`
+- `EditTemplateSourceReference`
 - `EditClip`
 - `AudioTrackMix`
 - `EditArtifactReference`
@@ -20,6 +21,7 @@
 - `EditPlanPathResolver`
 - `EditPlanValidator`
 - `BuiltInEditPlanTemplateCatalog`
+- `EditPlanTemplateCatalog`
 - `EditPlanTemplateCatalogQuery`
 - `EditPlanTemplateSummary`
 - `EditPlanTemplateExampleBuilder`
@@ -43,9 +45,11 @@
 - 顶层 `transcript` 只表达 transcript 引用与基础元数据，不能混入摘要结果或 AI 判断
 - 顶层 `beats` 只表达节奏引用与可选 BPM 元数据，不能混入 CLI 专用临时状态
 - 模板标识和扩展字段必须保持可选，不得强行绑定单一模板系统
+- `template.source` 只表达稳定模板来源元数据；插件场景只允许写入 `kind` / `pluginId` / `pluginVersion` 这类可移植字段，不能把插件目录等环境路径持久化进 `edit.json`
 - 模板示例输出必须从模板定义稳定派生，不能在 CLI 层随手拼出另一套不一致 skeleton
 - 模板推荐 seed 模式必须由模板定义显式声明，不能在 CLI 层靠启发式猜测
 - preview plan 必须复用真实模板工厂生成，不能维护一份平行的假 schema 示例
+- 对插件模板，preview plan 也必须沿用同一份稳定 `template.source` 元数据，不能在 guide / scaffold 示例里回落成 built-in 来源
 - CLI 写出的 example 文件必须来源于同一套模板示例输出，不能额外生成只存在于磁盘模式的变体
 - 模板分类和 seed 能力元数据必须稳定，便于 CLI 做可预测过滤
 - 模板列表摘要字段必须稳定，便于外部 AI 和未来 UI 做低成本模板发现
@@ -73,4 +77,5 @@
 - `transcript` 字段或 transcript 种子语义变化
 - `artifacts` 字段或模板 slot 绑定语义变化
 - `template.parameters` 覆盖语义变化
+- `template.source` 字段或插件来源校验语义变化
 - 模板 supporting signal 元数据或 template guide 派生规则变化

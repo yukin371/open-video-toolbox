@@ -129,6 +129,76 @@ public sealed class EditPlanValidatorTests
         }
     }
 
+    [Fact]
+    public void Validate_ReturnsErrorForPluginTemplateWithoutCatalogContext()
+    {
+        var validator = new EditPlanValidator();
+        var plan = CreatePlan() with
+        {
+            Template = new EditTemplateReference
+            {
+                Id = "plugin-captioned",
+                Source = new EditTemplateSourceReference
+                {
+                    Kind = EditTemplateSourceKinds.Plugin,
+                    PluginId = "community-pack",
+                    PluginVersion = "1.0.0"
+                }
+            }
+        };
+
+        var result = validator.Validate(plan);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "template.source.catalog.required");
+    }
+
+    [Fact]
+    public void Validate_AllowsPluginTemplateWhenCatalogContextIsProvided()
+    {
+        var validator = new EditPlanValidator();
+        var plan = CreatePlan() with
+        {
+            Template = new EditTemplateReference
+            {
+                Id = "plugin-captioned",
+                Source = new EditTemplateSourceReference
+                {
+                    Kind = EditTemplateSourceKinds.Plugin,
+                    PluginId = "community-pack",
+                    PluginVersion = "1.0.0"
+                }
+            }
+        };
+
+        var result = validator.Validate(plan, availableTemplates: [CreatePluginTemplateDefinition("plugin-captioned")]);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public void Validate_ReturnsErrorWhenPluginSourceIsMissingPluginId()
+    {
+        var validator = new EditPlanValidator();
+        var plan = CreatePlan() with
+        {
+            Template = new EditTemplateReference
+            {
+                Id = "plugin-captioned",
+                Source = new EditTemplateSourceReference
+                {
+                    Kind = EditTemplateSourceKinds.Plugin
+                }
+            }
+        };
+
+        var result = validator.Validate(plan, availableTemplates: [CreatePluginTemplateDefinition("plugin-captioned")]);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "template.source.pluginId.required");
+    }
+
     private static EditPlan CreatePlan(string? root = null)
     {
         var basePath = root ?? Path.GetTempPath();
@@ -156,6 +226,18 @@ public sealed class EditPlanValidatorTests
                 Path = Path.Combine(basePath, "final.mp4"),
                 Container = "mp4"
             }
+        };
+    }
+
+    private static EditPlanTemplateDefinition CreatePluginTemplateDefinition(string id)
+    {
+        return new EditPlanTemplateDefinition
+        {
+            Id = id,
+            DisplayName = "Plugin Template",
+            Description = "Plugin template description",
+            Category = "plugin",
+            OutputContainer = "mp4"
         };
     }
 }

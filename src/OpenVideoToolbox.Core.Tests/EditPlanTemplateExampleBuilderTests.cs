@@ -191,6 +191,46 @@ public sealed class EditPlanTemplateExampleBuilderTests
     }
 
     [Fact]
+    public void BuildPreviewPlans_CanStampPluginTemplateSourceAcrossAllPreviewPlans()
+    {
+        var template = new EditPlanTemplateDefinition
+        {
+            Id = "plugin-captioned",
+            DisplayName = "Plugin Captioned",
+            Description = "Plugin template description",
+            Category = "plugin",
+            OutputContainer = "mp4",
+            DefaultSubtitleMode = SubtitleMode.Sidecar,
+            RecommendedSeedModes = [EditPlanSeedMode.Manual, EditPlanSeedMode.Transcript]
+        };
+        var source = new EditTemplateSourceReference
+        {
+            Kind = EditTemplateSourceKinds.Plugin,
+            PluginId = "community-pack",
+            PluginVersion = "1.0.0"
+        };
+
+        var previews = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template, source);
+
+        Assert.Equal(2, previews.Count);
+        Assert.All(previews, preview =>
+        {
+            Assert.NotNull(preview.EditPlan.Template);
+            Assert.Equal(EditTemplateSourceKinds.Plugin, preview.EditPlan.Template!.Source!.Kind);
+            Assert.Equal("community-pack", preview.EditPlan.Template.Source.PluginId);
+            Assert.Equal("1.0.0", preview.EditPlan.Template.Source.PluginVersion);
+        });
+
+        var transcript = Assert.Single(previews.Where(preview => preview.Mode == EditPlanSeedMode.Transcript));
+        Assert.All(transcript.StrategyVariants, variant =>
+        {
+            Assert.NotNull(variant.EditPlan.Template);
+            Assert.Equal(EditTemplateSourceKinds.Plugin, variant.EditPlan.Template!.Source!.Kind);
+            Assert.Equal("community-pack", variant.EditPlan.Template.Source.PluginId);
+        });
+    }
+
+    [Fact]
     public void BuildSupportingSignalExamples_ReturnsBeatAndStemGuidanceForMontageTemplates()
     {
         var template = BuiltInEditPlanTemplateCatalog.GetRequired("music-captioned-montage");

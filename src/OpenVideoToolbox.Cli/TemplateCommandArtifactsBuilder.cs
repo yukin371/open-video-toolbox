@@ -4,11 +4,12 @@ internal static class TemplateCommandArtifactsBuilder
 {
     public static TemplateCommandBundle BuildCommandBundle(
         IReadOnlyList<string> commands,
-        IReadOnlyList<object> seedCommands,
+        IReadOnlyList<TemplateSeedCommand> seedCommands,
         IReadOnlyList<TemplateSignalInstruction> signalInstructions,
-        IReadOnlyList<string> artifactCommands)
+        IReadOnlyList<string> artifactCommands,
+        bool requiresPluginDir = false)
     {
-        var variables = BuildVariables(signalInstructions);
+        var variables = BuildVariables(signalInstructions, requiresPluginDir);
 
         return new TemplateCommandBundle
         {
@@ -18,12 +19,19 @@ internal static class TemplateCommandArtifactsBuilder
             SignalInstructions = signalInstructions,
             SignalCommands = signalInstructions.Select(instruction => instruction.Command).ToArray(),
             ArtifactCommands = artifactCommands,
-            WorkflowCommands =
-            [
-                "ovt validate-plan --plan edit.json",
-                "ovt render --plan edit.json --preview",
-                "ovt mix-audio --plan edit.json --output mixed.wav --preview"
-            ]
+            WorkflowCommands = requiresPluginDir
+                ?
+                [
+                    "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>",
+                    "ovt render --plan edit.json --preview",
+                    "ovt mix-audio --plan edit.json --output mixed.wav --preview"
+                ]
+                :
+                [
+                    "ovt validate-plan --plan edit.json",
+                    "ovt render --plan edit.json --preview",
+                    "ovt mix-audio --plan edit.json --output mixed.wav --preview"
+                ]
         };
     }
 
@@ -32,6 +40,10 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildPowerShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
+        var seedLines = BuildSeedScriptLines(
+            commandBundle.SeedCommands,
+            BuildPowerShellPlaceholderMap(commandBundle.Variables),
+            "# ");
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
             BuildPowerShellPlaceholderMap(commandBundle.Variables),
@@ -39,7 +51,9 @@ internal static class TemplateCommandArtifactsBuilder
         var artifactCommands = commandBundle.ArtifactCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildPowerShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
-        var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var workflowCommands = commandBundle.WorkflowCommands
+            .Select(command => ReplaceCommandPlaceholders(command, BuildPowerShellPlaceholderMap(commandBundle.Variables)))
+            .ToArray();
         var variableLines = BuildPowerShellVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
@@ -56,6 +70,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "# init-plan examples",
                 ..initPlanCommands,
                 "",
+                "# seed mode examples",
+                ..seedLines,
+                "",
                 "# workflow examples",
                 ..workflowCommands,
                 ""
@@ -67,6 +84,10 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildBatchPlaceholderMap(commandBundle.Variables)))
             .ToArray();
+        var seedLines = BuildSeedScriptLines(
+            commandBundle.SeedCommands,
+            BuildBatchPlaceholderMap(commandBundle.Variables),
+            "REM ");
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
             BuildBatchPlaceholderMap(commandBundle.Variables),
@@ -74,7 +95,9 @@ internal static class TemplateCommandArtifactsBuilder
         var artifactCommands = commandBundle.ArtifactCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildBatchPlaceholderMap(commandBundle.Variables)))
             .ToArray();
-        var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var workflowCommands = commandBundle.WorkflowCommands
+            .Select(command => ReplaceCommandPlaceholders(command, BuildBatchPlaceholderMap(commandBundle.Variables)))
+            .ToArray();
         var variableLines = BuildBatchVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
@@ -91,6 +114,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "REM init-plan example",
                 ..initPlanCommands,
                 "",
+                "REM seed mode examples",
+                ..seedLines,
+                "",
                 "REM workflow examples",
                 ..workflowCommands,
                 ""
@@ -102,6 +128,10 @@ internal static class TemplateCommandArtifactsBuilder
         var initPlanCommands = commandBundle.InitPlanCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
+        var seedLines = BuildSeedScriptLines(
+            commandBundle.SeedCommands,
+            BuildShellPlaceholderMap(commandBundle.Variables),
+            "# ");
         var signalLines = BuildSignalScriptLines(
             commandBundle.SignalInstructions,
             BuildShellPlaceholderMap(commandBundle.Variables),
@@ -109,7 +139,9 @@ internal static class TemplateCommandArtifactsBuilder
         var artifactCommands = commandBundle.ArtifactCommands
             .Select(command => ReplaceCommandPlaceholders(command, BuildShellPlaceholderMap(commandBundle.Variables)))
             .ToArray();
-        var workflowCommands = commandBundle.WorkflowCommands.ToArray();
+        var workflowCommands = commandBundle.WorkflowCommands
+            .Select(command => ReplaceCommandPlaceholders(command, BuildShellPlaceholderMap(commandBundle.Variables)))
+            .ToArray();
         var variableLines = BuildShellVariableLines(commandBundle.Variables);
         return string.Join(
             Environment.NewLine,
@@ -125,6 +157,9 @@ internal static class TemplateCommandArtifactsBuilder
                 "",
                 "# init-plan example",
                 ..initPlanCommands,
+                "",
+                "# seed mode examples",
+                ..seedLines,
                 "",
                 "# workflow examples",
                 ..workflowCommands,
@@ -162,7 +197,36 @@ internal static class TemplateCommandArtifactsBuilder
         return lines;
     }
 
-    private static IReadOnlyDictionary<string, string> BuildVariables(IReadOnlyList<TemplateSignalInstruction> signalInstructions)
+    private static IReadOnlyList<string> BuildSeedScriptLines(
+        IReadOnlyList<TemplateSeedCommand> seedCommands,
+        IReadOnlyDictionary<string, string> replacements,
+        string commentPrefix)
+    {
+        var lines = new List<string>();
+        foreach (var seedCommand in seedCommands)
+        {
+            lines.Add($"{commentPrefix}{seedCommand.Mode} seed example");
+            lines.Add(ReplaceCommandPlaceholders(seedCommand.Command, replacements));
+
+            if (seedCommand.Variants is null)
+            {
+                continue;
+            }
+
+            foreach (var variant in seedCommand.Variants)
+            {
+                var recommendationSuffix = variant.Recommended ? " (recommended)" : string.Empty;
+                lines.Add($"{commentPrefix}{seedCommand.Mode} variant: {variant.Key}{recommendationSuffix}");
+                lines.Add(ReplaceCommandPlaceholders(variant.Command, replacements));
+            }
+        }
+
+        return lines;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildVariables(
+        IReadOnlyList<TemplateSignalInstruction> signalInstructions,
+        bool requiresPluginDir)
     {
         var variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -172,6 +236,11 @@ internal static class TemplateCommandArtifactsBuilder
         if (signalInstructions.Any(instruction => instruction.Command.Contains("<whisper-model-path>", StringComparison.Ordinal)))
         {
             variables["whisperModelPath"] = "<whisper-model-path>";
+        }
+
+        if (requiresPluginDir)
+        {
+            variables["pluginDir"] = "<plugin-dir>";
         }
 
         return variables;
@@ -189,6 +258,11 @@ internal static class TemplateCommandArtifactsBuilder
             map["<whisper-model-path>"] = "$WhisperModelPath";
         }
 
+        if (variables.ContainsKey("pluginDir"))
+        {
+            map["<plugin-dir>"] = "$PluginDir";
+        }
+
         return map;
     }
 
@@ -202,6 +276,11 @@ internal static class TemplateCommandArtifactsBuilder
         if (variables.ContainsKey("whisperModelPath"))
         {
             map["<whisper-model-path>"] = "\"%WHISPER_MODEL_PATH%\"";
+        }
+
+        if (variables.ContainsKey("pluginDir"))
+        {
+            map["<plugin-dir>"] = "\"%PLUGIN_DIR%\"";
         }
 
         return map;
@@ -219,6 +298,11 @@ internal static class TemplateCommandArtifactsBuilder
             map["<whisper-model-path>"] = "\"$WHISPER_MODEL_PATH\"";
         }
 
+        if (variables.ContainsKey("pluginDir"))
+        {
+            map["<plugin-dir>"] = "\"$PLUGIN_DIR\"";
+        }
+
         return map;
     }
 
@@ -232,6 +316,11 @@ internal static class TemplateCommandArtifactsBuilder
         if (variables.ContainsKey("whisperModelPath"))
         {
             lines.Add("$WhisperModelPath = \"<whisper-model-path>\"");
+        }
+
+        if (variables.ContainsKey("pluginDir"))
+        {
+            lines.Add("$PluginDir = \"<plugin-dir>\"");
         }
 
         return lines;
@@ -249,6 +338,11 @@ internal static class TemplateCommandArtifactsBuilder
             lines.Add("set WHISPER_MODEL_PATH=<whisper-model-path>");
         }
 
+        if (variables.ContainsKey("pluginDir"))
+        {
+            lines.Add("set PLUGIN_DIR=<plugin-dir>");
+        }
+
         return lines;
     }
 
@@ -264,6 +358,11 @@ internal static class TemplateCommandArtifactsBuilder
             lines.Add("WHISPER_MODEL_PATH=\"<whisper-model-path>\"");
         }
 
+        if (variables.ContainsKey("pluginDir"))
+        {
+            lines.Add("PLUGIN_DIR=\"<plugin-dir>\"");
+        }
+
         return lines;
     }
 }
@@ -274,7 +373,7 @@ internal sealed record TemplateCommandBundle
 
     public IReadOnlyList<string> InitPlanCommands { get; init; } = [];
 
-    public IReadOnlyList<object> SeedCommands { get; init; } = [];
+    public IReadOnlyList<TemplateSeedCommand> SeedCommands { get; init; } = [];
 
     public IReadOnlyList<TemplateSignalInstruction> SignalInstructions { get; init; } = [];
 
@@ -292,4 +391,24 @@ internal sealed record TemplateSignalInstruction
     public required string Command { get; init; }
 
     public required string Consumption { get; init; }
+}
+
+internal sealed record TemplateSeedCommand
+{
+    public required string Mode { get; init; }
+
+    public required string Command { get; init; }
+
+    public IReadOnlyList<TemplateSeedVariant>? Variants { get; init; }
+}
+
+internal sealed record TemplateSeedVariant
+{
+    public required string Key { get; init; }
+
+    public required string Command { get; init; }
+
+    public bool Recommended { get; init; }
+
+    public string? Strategy { get; init; }
 }

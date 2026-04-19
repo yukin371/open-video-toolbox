@@ -40,7 +40,9 @@ public static class EditPlanTemplateExampleBuilder
         return new Dictionary<string, string>(template.ParameterDefaults, StringComparer.OrdinalIgnoreCase);
     }
 
-    public static IReadOnlyList<EditPlanTemplatePreview> BuildPreviewPlans(EditPlanTemplateDefinition template)
+    public static IReadOnlyList<EditPlanTemplatePreview> BuildPreviewPlans(
+        EditPlanTemplateDefinition template,
+        EditTemplateSourceReference? templateSource = null)
     {
         ArgumentNullException.ThrowIfNull(template);
 
@@ -71,9 +73,9 @@ public static class EditPlanTemplateExampleBuilder
             previews.Add(new EditPlanTemplatePreview
             {
                 Mode = mode,
-                EditPlan = factory.Create(template.Id, request),
+                EditPlan = factory.Create(template, request, templateSource),
                 StrategyVariants = mode == EditPlanSeedMode.Transcript
-                    ? BuildTranscriptStrategyVariantPreviews(template, artifacts, templateParams, factory)
+                    ? BuildTranscriptStrategyVariantPreviews(template, artifacts, templateParams, factory, templateSource)
                     : []
             });
         }
@@ -85,7 +87,8 @@ public static class EditPlanTemplateExampleBuilder
         EditPlanTemplateDefinition template,
         IReadOnlyDictionary<string, string> artifacts,
         IReadOnlyDictionary<string, string> templateParams,
-        EditPlanTemplateFactory factory)
+        EditPlanTemplateFactory factory,
+        EditTemplateSourceReference? templateSource)
     {
         EditPlanTemplateStrategyPreview[] variants =
         [
@@ -95,7 +98,7 @@ public static class EditPlanTemplateExampleBuilder
                 Description = "Use a fixed transcript segment group size to merge adjacent lines into fewer seed clips.",
                 Strategy = TranscriptSeedStrategy.Grouped,
                 EditPlan = factory.Create(
-                    template.Id,
+                    template,
                     new EditPlanTemplateRequest
                     {
                         InputPath = "input.mp4",
@@ -106,7 +109,8 @@ public static class EditPlanTemplateExampleBuilder
                         Transcript = BuildGroupedTranscriptExample(),
                         SeedClipsFromTranscript = true,
                         TranscriptSegmentGroupSize = 2
-                    })
+                    },
+                    templateSource)
             },
             new EditPlanTemplateStrategyPreview
             {
@@ -114,7 +118,7 @@ public static class EditPlanTemplateExampleBuilder
                 Description = "Filter out very short transcript segments before clip seeding to avoid noisy micro-cuts.",
                 Strategy = TranscriptSeedStrategy.MinDuration,
                 EditPlan = factory.Create(
-                    template.Id,
+                    template,
                     new EditPlanTemplateRequest
                     {
                         InputPath = "input.mp4",
@@ -126,7 +130,8 @@ public static class EditPlanTemplateExampleBuilder
                         SeedClipsFromTranscript = true,
                         TranscriptSegmentGroupSize = 2,
                         MinTranscriptSegmentDuration = TimeSpan.FromMilliseconds(500)
-                    })
+                    },
+                    templateSource)
             },
             new EditPlanTemplateStrategyPreview
             {
@@ -134,7 +139,7 @@ public static class EditPlanTemplateExampleBuilder
                 Description = "Split transcript seed clips when adjacent segments have a large silence gap.",
                 Strategy = TranscriptSeedStrategy.MaxGap,
                 EditPlan = factory.Create(
-                    template.Id,
+                    template,
                     new EditPlanTemplateRequest
                     {
                         InputPath = "input.mp4",
@@ -146,7 +151,8 @@ public static class EditPlanTemplateExampleBuilder
                         SeedClipsFromTranscript = true,
                         TranscriptSegmentGroupSize = 3,
                         MaxTranscriptGap = TimeSpan.FromMilliseconds(200)
-                    })
+                    },
+                    templateSource)
             }
         ];
 

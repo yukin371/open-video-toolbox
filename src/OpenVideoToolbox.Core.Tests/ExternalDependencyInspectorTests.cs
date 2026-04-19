@@ -110,7 +110,16 @@ public sealed class ExternalDependencyInspectorTests
         var dependency = Assert.Single(report.Dependencies.Where(static item => item.Id == "ffprobe"));
         Assert.False(dependency.IsAvailable);
         Assert.False(dependency.ProbeSucceeded);
+        Assert.Null(dependency.ExitCode);
+        Assert.Equal("missing-ffprobe", dependency.ResolvedValue);
         Assert.Contains("missing-ffprobe", dependency.Detail, StringComparison.Ordinal);
+
+        var modelDependency = Assert.Single(report.Dependencies.Where(static item => item.Id == "whisper-model"));
+        Assert.False(modelDependency.IsAvailable);
+        Assert.False(modelDependency.ProbeSucceeded);
+        Assert.Null(modelDependency.ExitCode);
+        Assert.Null(modelDependency.ResolvedValue);
+        Assert.Equal("Dependency path is not configured.", modelDependency.Detail);
     }
 
     [Fact]
@@ -142,6 +151,42 @@ public sealed class ExternalDependencyInspectorTests
             Assert.True(dependency.ProbeSucceeded);
             Assert.Equal(Path.GetFullPath(modelPath), dependency.ResolvedValue);
             Assert.Equal("File exists.", dependency.Detail);
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task InspectAsync_ReturnsUnavailableFileDependencyWhenPathIsMissing()
+    {
+        var tempDirectory = Path.Combine(Path.GetTempPath(), $"ovt-dependency-missing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempDirectory);
+        var modelPath = Path.Combine(tempDirectory, "missing-model.gguf");
+
+        try
+        {
+            var inspector = new ExternalDependencyInspector(new FakeProcessRunner(_ => throw new NotSupportedException()));
+            var report = await inspector.InspectAsync(
+            [
+                new DependencyProbeDefinition
+                {
+                    Id = "whisper-model",
+                    Kind = DependencyProbeKind.File,
+                    Required = false,
+                    Source = DependencyValueSource.Option,
+                    ResolvedValue = modelPath
+                }
+            ]);
+
+            var dependency = Assert.Single(report.Dependencies);
+            Assert.True(report.IsHealthy);
+            Assert.False(dependency.IsAvailable);
+            Assert.False(dependency.ProbeSucceeded);
+            Assert.Null(dependency.ExitCode);
+            Assert.Equal(Path.GetFullPath(modelPath), dependency.ResolvedValue);
+            Assert.Equal($"File not found: {Path.GetFullPath(modelPath)}", dependency.Detail);
         }
         finally
         {

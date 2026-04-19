@@ -10,9 +10,20 @@ public sealed class EditPlanTemplateFactory
     public EditPlan Create(string templateId, EditPlanTemplateRequest request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
+        return Create(
+            BuiltInEditPlanTemplateCatalog.GetRequired(templateId),
+            request,
+            CreateBuiltInTemplateSource());
+    }
+
+    public EditPlan Create(
+        EditPlanTemplateDefinition template,
+        EditPlanTemplateRequest request,
+        EditTemplateSourceReference? templateSource = null)
+    {
+        ArgumentNullException.ThrowIfNull(template);
         ArgumentNullException.ThrowIfNull(request);
 
-        var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId);
         var artifactBindings = BuildArtifactBindings(template, request);
         var subtitleMode = request.DisableSubtitles
             ? null
@@ -33,6 +44,7 @@ public sealed class EditPlanTemplateFactory
             {
                 Id = template.Id,
                 Version = template.Version,
+                Source = templateSource ?? CreateBuiltInTemplateSource(),
                 Parameters = BuildTemplateParameters(template, request)
             },
             Clips = BuildSeedClips(request),
@@ -403,6 +415,14 @@ public sealed class EditPlanTemplateFactory
             {
                 slots
             }, OpenVideoToolboxJson.Shared)
+        };
+    }
+
+    private static EditTemplateSourceReference CreateBuiltInTemplateSource()
+    {
+        return new EditTemplateSourceReference
+        {
+            Kind = EditTemplateSourceKinds.BuiltIn
         };
     }
 }

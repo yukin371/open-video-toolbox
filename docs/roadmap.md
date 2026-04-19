@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-18
+最后更新：2026-04-19
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -36,6 +36,7 @@
 - 保持 `Core` 作为唯一业务 owner，避免在 `Cli` 或未来 Desktop 重复实现命令构建和外部工具调用。
 - 当前实施计划：`docs/plans/2026-04-15-cli-mvp-implementation.md`
 - 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
+- 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
 - 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
 
 ## 阶段检查（2026-04-18）
@@ -44,8 +45,23 @@
 - 最近一轮小提交主要完成了两类收敛：
   - `audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`subtitle` 已补齐或延续 `--json-out` 路径，进一步稳定外部 AI / 脚本消费契约。
   - 模板脚手架与 `commands.json` / `commands.*` 已继续收敛 supporting signal guidance、consumption 提示和外部依赖占位符，其中 transcript signal 显式使用 `<whisper-model-path>`。
+- 最近补充的 hardening 还包括：
+  - `commands.json` 与 `commands.ps1` / `commands.cmd` / `commands.sh` 现已共同覆盖 seed mode commands、transcript strategy variants、subtitle artifact commands 与 stems guidance，并有 CLI 集成测试锁住。
+  - 可选重依赖 smoke 已扩到 CLI 入口层，`transcribe` / `separate-audio` 在本机依赖满足时会额外验证 stdout envelope、`--json-out` 与产物落盘一致性。
+  - `doctor` 已补 environment fallback、option 优先级，以及 `default` / `unset` / `resolvedValue` / `detail` 等输出语义测试，进一步收敛依赖预检语义。
 - 仓库级基础 CI 已落地为 GitHub Actions `restore + build + test`，先保护主干提交与 PR 的回归底线。
 - 当前判断不需要继续优先扩新命令；更高价值的是把重依赖 smoke、模板信号接线和模板扩展边界做实。
+- 模板插件扩展面现已先落文档草案，下一步只应围绕显式目录发现与清单输出验证推进，不直接跳到运行时代码加载。
+- `templates`、`init-plan`、`scaffold-template` 已支持 `--plugin-dir` 显式目录发现；当前插件入口仍限定为“静态 manifest + 现有 template schema”，不引入运行时代码加载。
+- `init-plan` / `scaffold-template` 现会把稳定的 `template.source` 元数据写进 `edit.json`，`validate-plan` 也已支持 `--plugin-dir` 把插件模板目录接回校验链，避免插件 plan 静默回退到 built-in 目录。
+- `render` / `mix-audio` 的 preview 与执行 envelope 现也会透出稳定 `templateSource`，让插件来源在执行阶段继续可审计，而不是只停留在 `init-plan` / `validate-plan`。
+- 插件模板的 `commands.json` / `commands.*` 现也会显式携带 `<plugin-dir>` 占位符和变量声明，避免脚手架目录里的 workflow commands 因缺少插件上下文而失效。
+- 插件模板 guide / scaffold 里的 preview plan 现也会沿用稳定 `template.source`，使模板来源在 discovery、生成、校验和执行四个阶段保持一致。
+- `render` / `mix-audio` 在 plan 已成功加载后的 preview / 执行失败，现也会回到结构化 failure envelope；即使是底层执行返回 failed status 而不是抛异常，也会继续保留 `templateSource`、可用的 `executionPreview` / `execution`，并返回非零退出码，避免插件来源在真正出错时再次丢失。
+- `cut` / `concat` / `extract-audio` 也开始从旧的裸 `execution` JSON 收敛到统一 command envelope；这几条命令在请求已建立后的执行失败场景下，现也会优先返回结构化 failure envelope，而不是 usage 文本。
+- `beat-track` 也已从旧的裸 JSON / 退出码分支收进统一 command envelope，并补上 `--json-out`；当波形提取失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
+- `audio-analyze` / `detect-silence` / `separate-audio` 也已从旧的裸结果 JSON 收进统一 command envelope；这几条命令在分析 / 检测 / 分离阶段失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
+- `audio-gain` / `transcribe` 现也已切到统一 command envelope；至此当前 Wave 1 的主要执行/分析类命令都已收进同一套成功/失败输出语义，减少外部 AI 在错误路径上遇到 usage 文本回退。
 
 ## 总体路线
 
@@ -256,17 +272,20 @@
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-  - `OpenVideoToolbox.Core.Tests`: 123/123
-  - `OpenVideoToolbox.Cli.Tests`: 76/76
+- `OpenVideoToolbox.Core.Tests`: 130/130
+- `OpenVideoToolbox.Cli.Tests`: 92/92
 - 当前开发机已通过真实 `ffprobe` / `ffmpeg` smoke：
   - `ffprobe` 媒体探测
   - `render` 导出与 sidecar 字幕复制
   - `mix-audio` 音频混合导出
   - `cut` 单段裁切
   - `concat` 片段拼接
+- 可选的重依赖 real smoke：
+  - `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs`
+  - `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`
 
 ## 下一步
 
 1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
 2. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
-3. 在不引入运行时复杂度的前提下，先产出“模板插件优先”的入口草案，明确发现、清单与扩展边界。
+3. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。

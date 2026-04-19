@@ -342,86 +342,11 @@ public static class BuiltInEditPlanTemplateCatalog
         });
 
     public static IReadOnlyList<EditPlanTemplateDefinition> GetAll(EditPlanTemplateCatalogQuery? query)
-    {
-        IEnumerable<EditPlanTemplateDefinition> candidates = Templates;
-
-        if (!string.IsNullOrWhiteSpace(query?.Category))
-        {
-            candidates = candidates.Where(template => string.Equals(template.Category, query.Category, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (query?.SeedMode is not null)
-        {
-            candidates = candidates.Where(template => template.RecommendedSeedModes.Contains(query.SeedMode.Value));
-        }
-
-        if (!string.IsNullOrWhiteSpace(query?.OutputContainer))
-        {
-            candidates = candidates.Where(template => string.Equals(template.OutputContainer, query.OutputContainer, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(query?.ArtifactKind))
-        {
-            candidates = candidates.Where(template => template.ArtifactSlots.Any(
-                slot => string.Equals(slot.Kind, query.ArtifactKind, StringComparison.OrdinalIgnoreCase)));
-        }
-
-        if (query?.HasArtifacts is not null)
-        {
-            candidates = candidates.Where(template => template.ArtifactSlots.Count > 0 == query.HasArtifacts.Value);
-        }
-
-        if (query?.HasSubtitles is not null)
-        {
-            candidates = candidates.Where(template => HasSubtitles(template) == query.HasSubtitles.Value);
-        }
-
-        return candidates.ToArray();
-    }
+        => EditPlanTemplateCatalog.Filter(Templates, query);
 
     public static IReadOnlyList<EditPlanTemplateSummary> GetSummaries(EditPlanTemplateCatalogQuery? query = null)
-    {
-        return GetAll(query)
-            .Select(template => new EditPlanTemplateSummary
-            {
-                Id = template.Id,
-                DisplayName = template.DisplayName,
-                Category = template.Category,
-                OutputContainer = template.OutputContainer,
-                RecommendedSeedModes = template.RecommendedSeedModes.Distinct().ToArray(),
-                ArtifactKinds = template.ArtifactSlots
-                    .Select(slot => slot.Kind)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(kind => kind, StringComparer.OrdinalIgnoreCase)
-                    .ToArray(),
-                HasArtifacts = template.ArtifactSlots.Count > 0,
-                HasSubtitles = HasSubtitles(template),
-                RecommendedTranscriptSeedStrategies = template.RecommendedTranscriptSeedStrategies.ToArray(),
-                SupportingSignals = template.SupportingSignals
-                    .Select(signal => signal.Kind)
-                    .Distinct()
-                    .ToArray()
-            })
-            .ToArray();
-    }
+        => EditPlanTemplateCatalog.GetSummaries(Templates, query);
 
     public static EditPlanTemplateDefinition GetRequired(string templateId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(templateId);
-
-        return Templates.FirstOrDefault(template => string.Equals(template.Id, templateId, StringComparison.OrdinalIgnoreCase))
-            ?? throw new InvalidOperationException($"Unknown edit plan template '{templateId}'.");
-    }
-
-    private static bool HasSubtitles(EditPlanTemplateDefinition template)
-    {
-        if (template.DefaultSubtitleMode is not null)
-        {
-            return true;
-        }
-
-        return template.ArtifactSlots.Any(slot =>
-            string.Equals(slot.Kind, "subtitle", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(slot.Id, "subtitles", StringComparison.OrdinalIgnoreCase));
-    }
+        => EditPlanTemplateCatalog.GetRequired(Templates, templateId);
 }

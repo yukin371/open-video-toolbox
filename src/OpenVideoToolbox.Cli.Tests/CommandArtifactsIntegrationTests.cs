@@ -2,6 +2,8 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using OpenVideoToolbox.Cli;
+using OpenVideoToolbox.Core.Editing;
+using OpenVideoToolbox.Core.Serialization;
 using Xunit;
 
 namespace OpenVideoToolbox.Cli.Tests;
@@ -76,8 +78,15 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal("<whisper-model-path>", commands["variables"]!["whisperModelPath"]!.GetValue<string>());
             var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
             Assert.Contains("$WhisperModelPath = \"<whisper-model-path>\"", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("# transcript seed example", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt init-plan $InputPath --template commentary-bgm --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("# transcript variant: min-duration (recommended)", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt init-plan $InputPath --template commentary-bgm --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500", powerShellScript, StringComparison.Ordinal);
             var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
             Assert.Contains("REM Review silence.json before hand-tuning edit.json clip boundaries", batchScript, StringComparison.Ordinal);
+            Assert.Contains("REM transcript variant: min-duration (recommended)", batchScript, StringComparison.Ordinal);
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+            Assert.Contains("# transcript variant: min-duration (recommended)", shellScript, StringComparison.Ordinal);
         }
         finally
         {
@@ -119,6 +128,70 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task TemplatesWriteExamples_ForCaptionedTemplate_WritesArtifactCommandsIntoAllScripts()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-captioned-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("templates", "shorts-captioned", "--write-examples", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var commands = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.json")))!.AsObject();
+            Assert.Contains(
+                commands["artifactCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
+
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+
+            Assert.Contains("ovt subtitle $InputPath --transcript transcript.json --format srt --output subtitles.srt", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt subtitle \"%INPUT_PATH%\" --transcript transcript.json --format srt --output subtitles.srt", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt subtitle \"$INPUT_PATH\" --transcript transcript.json --format srt --output subtitles.srt", shellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplatesWriteExamples_ForBeatMontage_WritesStemGuidanceIntoAllScripts()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-beat-scripts-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("templates", "beat-montage", "--write-examples", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio $InputPath --output-dir stems", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio \"%INPUT_PATH%\" --output-dir stems", batchScript, StringComparison.Ordinal);
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", shellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio \"$INPUT_PATH\" --output-dir stems", shellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task TemplatesSummary_ExposesNewTemplateCategoriesForDiscovery()
     {
         var result = await RunCliAsync("templates", "--summary");
@@ -146,6 +219,252 @@ public sealed class CommandArtifactsIntegrationTests
         Assert.Equal("montage", montage["category"]!.GetValue<string>());
         Assert.True(montage["hasArtifacts"]!.GetValue<bool>());
         Assert.Empty(montage["recommendedTranscriptSeedStrategies"]!.AsArray());
+    }
+
+    [Fact]
+    public async Task TemplatesSummary_WithPluginDir_IncludesPluginMetadataAndTemplates()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-plugin-summary-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var result = await RunCliAsync("templates", "--summary", "--plugin-dir", pluginDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            var plugins = payload["plugins"]!.AsArray();
+            var plugin = Assert.IsType<JsonObject>(Assert.Single(plugins));
+            Assert.Equal("community-pack", plugin["id"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(pluginDirectory), plugin["directory"]!.GetValue<string>());
+
+            var templates = payload["templates"]!.AsArray();
+            Assert.Contains(
+                templates,
+                node => node is JsonObject templateNode
+                    && templateNode["id"]!.GetValue<string>() == "plugin-captioned");
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplateGuide_WithPluginDir_ReturnsPluginSourceAndWritesExamples()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-plugin-guide-{Guid.NewGuid():N}");
+        var outputDirectory = Path.Combine(workingDirectory, "examples");
+        Directory.CreateDirectory(workingDirectory);
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var result = await RunCliAsync(
+                "templates",
+                "plugin-captioned",
+                "--plugin-dir",
+                pluginDirectory,
+                "--write-examples",
+                outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "guide.json")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "template.json")));
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("plugin", payload["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", payload["source"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", payload["template"]!["id"]!.GetValue<string>());
+
+            var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
+            Assert.Equal("plugin", guide["source"]!["kind"]!.GetValue<string>());
+            var previewPlan = guide["examples"]!["previewPlans"]![0]!["editPlan"]!.AsObject();
+            Assert.Equal("plugin", previewPlan["template"]!["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", previewPlan["template"]!["source"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", previewPlan["template"]!["source"]!["pluginVersion"]!.GetValue<string>());
+
+            var template = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "template.json")))!.AsObject();
+            Assert.Equal("plugin-captioned", template["id"]!.GetValue<string>());
+
+            var commands = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.json")))!.AsObject();
+            Assert.Equal("<plugin-dir>", commands["variables"]!["pluginDir"]!.GetValue<string>());
+            Assert.Contains(
+                commands["initPlanCommands"]!.AsArray(),
+                node => node!.GetValue<string>().Contains("--plugin-dir <plugin-dir>", StringComparison.Ordinal));
+            Assert.Contains(
+                commands["workflowCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>");
+
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            Assert.Contains("$PluginDir = \"<plugin-dir>\"", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir $PluginDir", powerShellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplatesSummary_WithPluginDir_FailsWhenTemplateIdConflictsWithBuiltInCatalog()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-plugin-duplicate-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("shorts-captioned", "Conflicting Plugin Template"));
+
+            var result = await RunCliAsync("templates", "--summary", "--plugin-dir", pluginDirectory);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Duplicate edit plan template id 'shorts-captioned'.", result.StdErr, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitPlan_WithPluginDir_CreatesPlanFromPluginTemplate()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-plugin-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+        var planPath = Path.Combine(workingDirectory, "edit.json");
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var result = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "plugin-captioned",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--plugin-dir",
+                pluginDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("plugin", payload["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", payload["source"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", payload["source"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", payload["template"]!["id"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", payload["editPlan"]!["template"]!["id"]!.GetValue<string>());
+            Assert.True(File.Exists(planPath));
+
+            var editPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            Assert.Equal("plugin", editPlan["template"]!["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", editPlan["template"]!["source"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", editPlan["template"]!["source"]!["pluginVersion"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ScaffoldTemplate_WithPluginDir_WritesPluginTemplateOutputs()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-scaffold-plugin-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+        var outputDirectory = Path.Combine(workingDirectory, "scaffold");
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var result = await RunCliAsync(
+                "scaffold-template",
+                "input.mp4",
+                "--template",
+                "plugin-captioned",
+                "--dir",
+                outputDirectory,
+                "--validate",
+                "--plugin-dir",
+                pluginDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "edit.json")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "guide.json")));
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("plugin", payload["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", payload["source"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", payload["source"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", payload["template"]!["id"]!.GetValue<string>());
+            Assert.Contains(payload["scaffold"]!["writtenFiles"]!.AsArray(), node => Path.GetFileName(node!.GetValue<string>()) == "guide.json");
+            Assert.True(payload["validated"]!.GetValue<bool>());
+            Assert.True(payload["validation"]!["isValid"]!.GetValue<bool>());
+
+            var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
+            Assert.Equal("plugin", guide["source"]!["kind"]!.GetValue<string>());
+            var previewPlan = guide["examples"]!["previewPlans"]![0]!["editPlan"]!.AsObject();
+            Assert.Equal("plugin", previewPlan["template"]!["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", previewPlan["template"]!["source"]!["pluginId"]!.GetValue<string>());
+
+            var editPlan = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "edit.json")))!.AsObject();
+            Assert.Equal("plugin", editPlan["template"]!["source"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", editPlan["template"]!["source"]!["pluginId"]!.GetValue<string>());
+
+            var commands = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.json")))!.AsObject();
+            Assert.Equal("<plugin-dir>", commands["variables"]!["pluginDir"]!.GetValue<string>());
+            Assert.Contains(
+                commands["workflowCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>");
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
     }
 
     [Fact]
@@ -466,6 +785,105 @@ public sealed class CommandArtifactsIntegrationTests
     }
 
     [Fact]
+    public async Task ValidatePlan_WithPluginDir_AllowsPluginTemplatePlan()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-validate-plugin-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+        var planPath = Path.Combine(workingDirectory, "edit.json");
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var initResult = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "plugin-captioned",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--plugin-dir",
+                pluginDirectory);
+
+            Assert.Equal(0, initResult.ExitCode);
+
+            var result = await RunCliAsync(
+                "validate-plan",
+                "--plan",
+                planPath,
+                "--plugin-dir",
+                pluginDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject()["payload"]!.AsObject();
+            Assert.True(payload["isValid"]!.GetValue<bool>());
+            Assert.Empty(payload["issues"]!.AsArray());
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ValidatePlan_WithoutPluginDir_ReportsPluginCatalogRequirement()
+    {
+        var workingDirectory = Path.Combine(Path.GetTempPath(), $"ovt-validate-plugin-missing-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(workingDirectory);
+        var planPath = Path.Combine(workingDirectory, "edit.json");
+
+        try
+        {
+            var pluginDirectory = await CreateTemplatePluginAsync(
+                workingDirectory,
+                pluginId: "community-pack",
+                pluginDisplayName: "Community Pack",
+                template: CreatePluginTemplateDefinition("plugin-captioned", "Plugin Captioned"));
+
+            var initResult = await RunCliAsync(
+                "init-plan",
+                "input.mp4",
+                "--template",
+                "plugin-captioned",
+                "--output",
+                planPath,
+                "--render-output",
+                "final.mp4",
+                "--plugin-dir",
+                pluginDirectory);
+
+            Assert.Equal(0, initResult.ExitCode);
+
+            var result = await RunCliAsync("validate-plan", "--plan", planPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject()["payload"]!.AsObject();
+            Assert.False(payload["isValid"]!.GetValue<bool>());
+            Assert.Contains(
+                payload["issues"]!.AsArray(),
+                node => node!["code"]!.GetValue<string>() == "template.source.catalog.required");
+        }
+        finally
+        {
+            if (Directory.Exists(workingDirectory))
+            {
+                Directory.Delete(workingDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task RenderAndMixAudioPreview_ReturnUnifiedEnvelope()
     {
         var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-preview-envelope-{Guid.NewGuid():N}");
@@ -480,6 +898,15 @@ public sealed class CommandArtifactsIntegrationTests
               "schemaVersion": 1,
               "source": {
                 "inputPath": "input.mp4"
+              },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
               },
               "clips": [
                 {
@@ -507,6 +934,9 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.Equal("render", renderPreview["operation"]!.GetValue<string>());
             Assert.True(renderPreview["isPreview"]!.GetValue<bool>());
             Assert.True(renderPreview["pathsResolved"]!.GetValue<bool>());
+            Assert.Equal("plugin", renderPayload["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", renderPayload["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", renderPayload["templateSource"]!["pluginVersion"]!.GetValue<string>());
 
             var mixedOutputPath = Path.Combine(outputDirectory, "mixed.wav");
             var mixAudio = JsonNode.Parse((await RunCliAsync("mix-audio", "--plan", planPath, "--output", mixedOutputPath, "--preview")).StdOut)!.AsObject();
@@ -518,6 +948,9 @@ public sealed class CommandArtifactsIntegrationTests
             Assert.True(mixPreview["isPreview"]!.GetValue<bool>());
             Assert.True(mixPreview["pathsResolved"]!.GetValue<bool>());
             Assert.Equal(mixedOutputPath, mixPayload["mixAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal("plugin", mixPayload["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", mixPayload["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", mixPayload["templateSource"]!["pluginVersion"]!.GetValue<string>());
         }
         finally
         {
@@ -1491,6 +1924,15 @@ public sealed class CommandArtifactsIntegrationTests
             {
               "schemaVersion": 1,
               "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
               "clips": [],
               "audioTracks": [],
               "artifacts": [],
@@ -1504,7 +1946,16 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("Edit plan must contain at least one clip.", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("mix-audio --plan <edit.json>", result.StdOut, StringComparison.Ordinal);
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("mix-audio", payload["command"]!.GetValue<string>());
+            Assert.True(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal(outputPath, envelope["mixAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("Edit plan must contain at least one clip.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
         }
         finally
         {
@@ -1528,6 +1979,15 @@ public sealed class CommandArtifactsIntegrationTests
             {
               "schemaVersion": 1,
               "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
               "clips": [],
               "audioTracks": [],
               "artifacts": [],
@@ -1541,7 +2001,16 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("Render plan must contain at least one clip.", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("render --plan <path>", result.StdOut, StringComparison.Ordinal);
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.True(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", envelope["render"]!["template"]!["id"]!.GetValue<string>());
+            Assert.Contains("Render plan must contain at least one clip.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
         }
         finally
         {
@@ -1566,6 +2035,15 @@ public sealed class CommandArtifactsIntegrationTests
             {
               "schemaVersion": 1,
               "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
               "clips": [
                 { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
               ],
@@ -1581,7 +2059,17 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("mix-audio --plan <edit.json>", result.StdOut, StringComparison.Ordinal);
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("mix-audio", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal(outputPath, envelope["mixAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.NotNull(envelope["executionPreview"]);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -1606,6 +2094,15 @@ public sealed class CommandArtifactsIntegrationTests
             {
               "schemaVersion": 1,
               "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
               "clips": [
                 { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
               ],
@@ -1621,7 +2118,170 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("render --plan <path>", result.StdOut, StringComparison.Ordinal);
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", envelope["render"]!["template"]!["id"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.NotNull(envelope["executionPreview"]);
+            Assert.False(File.Exists(Path.Combine(outputDirectory, "final.mp4")));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task MixAudio_ReturnsFailureEnvelope_WhenExecutableExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-mix-process-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+        var outputPath = Path.Combine(outputDirectory, "mixed.wav");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            echo fake ffmpeg failure 1>&2
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "fake ffmpeg failure" >&2
+            exit 7
+            """);
+
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 1,
+              "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
+              "clips": [
+                { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
+              ],
+              "audioTracks": [],
+              "artifacts": [],
+              "output": { "path": "final.mp4", "container": "mp4" }
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync("mix-audio", "--plan", planPath, "--output", outputPath, "--ffmpeg", ffmpegPath);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("Process exited with code 7.", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("mix-audio", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal(outputPath, envelope["mixAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("Process exited with code 7.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.NotNull(envelope["executionPreview"]);
+            Assert.Equal("failed", envelope["execution"]!["status"]!.GetValue<string>());
+            Assert.Equal(7, envelope["execution"]!["exitCode"]!.GetValue<int>());
+            Assert.Contains("Process exited with code 7.", envelope["execution"]!["errorMessage"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Render_ReturnsFailureEnvelope_WhenExecutableExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-render-process-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var planPath = Path.Combine(outputDirectory, "edit.json");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            echo fake ffmpeg failure 1>&2
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "fake ffmpeg failure" >&2
+            exit 7
+            """);
+
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 1,
+              "source": { "inputPath": "input.mp4" },
+              "template": {
+                "id": "plugin-captioned",
+                "source": {
+                  "kind": "plugin",
+                  "pluginId": "community-pack",
+                  "pluginVersion": "1.0.0"
+                },
+                "parameters": {}
+              },
+              "clips": [
+                { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
+              ],
+              "audioTracks": [],
+              "artifacts": [],
+              "output": { "path": "final.mp4", "container": "mp4" }
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync("render", "--plan", planPath, "--ffmpeg", ffmpegPath);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("Process exited with code 7.", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal("plugin", envelope["templateSource"]!["kind"]!.GetValue<string>());
+            Assert.Equal("community-pack", envelope["templateSource"]!["pluginId"]!.GetValue<string>());
+            Assert.Equal("1.0.0", envelope["templateSource"]!["pluginVersion"]!.GetValue<string>());
+            Assert.Equal("plugin-captioned", envelope["render"]!["template"]!["id"]!.GetValue<string>());
+            Assert.Contains("Process exited with code 7.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.NotNull(envelope["executionPreview"]);
+            Assert.Equal("failed", envelope["execution"]!["status"]!.GetValue<string>());
+            Assert.Equal(7, envelope["execution"]!["exitCode"]!.GetValue<int>());
+            Assert.Contains("Process exited with code 7.", envelope["execution"]!["errorMessage"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(Path.Combine(outputDirectory, "final.mp4")));
         }
         finally
@@ -1689,7 +2349,73 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("cut <input>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("cut", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["cut"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["execution"]);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Cut_ReturnsFailureEnvelope_WhenExecutableExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-cut-process-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "clip.mp4");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            echo fake ffmpeg failure 1>&2
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "fake ffmpeg failure" >&2
+            exit 7
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "cut",
+                "input.mp4",
+                "--from",
+                "00:00:00",
+                "--to",
+                "00:00:02",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("Process exited with code 7.", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("cut", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["cut"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("Process exited with code 7.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Equal("failed", envelope["execution"]!["status"]!.GetValue<string>());
+            Assert.Equal(7, envelope["execution"]!["exitCode"]!.GetValue<int>());
+            Assert.Contains("Process exited with code 7.", envelope["execution"]!["errorMessage"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -1723,7 +2449,16 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("concat --input-list <path>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("concat", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(inputListPath), envelope["concat"]!["inputListPath"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["concat"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["execution"]);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -1785,7 +2520,16 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("extract-audio <input> --track <n>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("extract-audio", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["extractAudio"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(0, envelope["extractAudio"]!["trackIndex"]!.GetValue<int>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["execution"]);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -1839,7 +2583,65 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("audio-analyze <input> --output <audio.json>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("audio-analyze", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioAnalyze"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioAnalyze_ReturnsFailureEnvelope_WhenProcessExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-analyze-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "audio.json");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            1>&2 echo loudnorm failed
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "loudnorm failed" >&2
+            exit 7
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-analyze",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("ffmpeg audio analysis failed", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("audio-analyze", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioAnalyze"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("ffmpeg audio analysis failed", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -1905,13 +2707,16 @@ public sealed class CommandArtifactsIntegrationTests
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
             var analysisFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
             Assert.True(JsonNode.DeepEquals(stdout, file));
-            Assert.Equal(Path.GetFullPath(outputPath), stdout["audioAnalyze"]!["outputPath"]!.GetValue<string>());
-            Assert.True(JsonNode.DeepEquals(stdout["analysis"], analysisFile));
-            Assert.Equal(-16.4, stdout["analysis"]!["analysis"]!["integratedLoudness"]!.GetValue<double>());
-            Assert.Equal(3.1, stdout["analysis"]!["analysis"]!["loudnessRange"]!.GetValue<double>());
-            Assert.Equal(-1.2, stdout["analysis"]!["analysis"]!["truePeakDb"]!.GetValue<double>());
-            Assert.Equal(-27.3, stdout["analysis"]!["analysis"]!["thresholdDb"]!.GetValue<double>());
-            Assert.Equal(0.5, stdout["analysis"]!["analysis"]!["targetOffset"]!.GetValue<double>());
+            Assert.Equal("audio-analyze", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioAnalyze"]!["outputPath"]!.GetValue<string>());
+            Assert.True(JsonNode.DeepEquals(envelope["analysis"], analysisFile));
+            Assert.Equal(-16.4, envelope["analysis"]!["analysis"]!["integratedLoudness"]!.GetValue<double>());
+            Assert.Equal(3.1, envelope["analysis"]!["analysis"]!["loudnessRange"]!.GetValue<double>());
+            Assert.Equal(-1.2, envelope["analysis"]!["analysis"]!["truePeakDb"]!.GetValue<double>());
+            Assert.Equal(-27.3, envelope["analysis"]!["analysis"]!["thresholdDb"]!.GetValue<double>());
+            Assert.Equal(0.5, envelope["analysis"]!["analysis"]!["targetOffset"]!.GetValue<double>());
         }
         finally
         {
@@ -2003,7 +2808,73 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("audio-gain <input> --gain-db <n> --output <path>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("audio-gain", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioGain"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(3, envelope["audioGain"]!["gainDb"]!.GetValue<double>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["execution"]);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AudioGain_ReturnsFailureEnvelope_WhenProcessExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-audio-gain-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "gain.wav");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            echo volume failed 1>&2
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "volume failed" >&2
+            exit 7
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "audio-gain",
+                "input.mp4",
+                "--gain-db",
+                "-6",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("Process exited with code 7.", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("audio-gain", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioGain"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(-6, envelope["audioGain"]!["gainDb"]!.GetValue<double>());
+            Assert.Contains("Process exited with code 7.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Equal("failed", envelope["execution"]!["status"]!.GetValue<string>());
+            Assert.Equal(7, envelope["execution"]!["exitCode"]!.GetValue<int>());
+            Assert.Contains("Process exited with code 7.", envelope["execution"]!["errorMessage"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -2072,10 +2943,13 @@ public sealed class CommandArtifactsIntegrationTests
             var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
             Assert.True(JsonNode.DeepEquals(stdout, file));
-            Assert.Equal(Path.GetFullPath(outputPath), stdout["audioGain"]!["outputPath"]!.GetValue<string>());
-            Assert.Equal(-6, stdout["audioGain"]!["gainDb"]!.GetValue<double>());
-            Assert.Equal("succeeded", stdout["execution"]!["status"]!.GetValue<string>());
-            Assert.Contains(Path.GetFullPath(outputPath), stdout["execution"]!["producedPaths"]!.AsArray().Select(node => node!.GetValue<string>()));
+            Assert.Equal("audio-gain", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["audioGain"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(-6, envelope["audioGain"]!["gainDb"]!.GetValue<double>());
+            Assert.Equal("succeeded", envelope["execution"]!["status"]!.GetValue<string>());
+            Assert.Contains(Path.GetFullPath(outputPath), envelope["execution"]!["producedPaths"]!.AsArray().Select(node => node!.GetValue<string>()));
         }
         finally
         {
@@ -2163,7 +3037,15 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("transcribe <input> --model <path> --output <transcript.json>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("transcribe", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["transcribe"]!["outputPath"]!.GetValue<string>());
+            Assert.EndsWith("ggml-base.bin", envelope["transcribe"]!["modelPath"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -2277,12 +3159,15 @@ public sealed class CommandArtifactsIntegrationTests
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
             var transcriptFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
             Assert.True(JsonNode.DeepEquals(stdout, file));
-            Assert.Equal(Path.GetFullPath(outputPath), stdout["transcribe"]!["outputPath"]!.GetValue<string>());
-            Assert.Equal(Path.GetFullPath(modelPath), stdout["transcribe"]!["modelPath"]!.GetValue<string>());
-            Assert.Equal("en", stdout["transcribe"]!["language"]!.GetValue<string>());
-            Assert.Equal(1, stdout["transcribe"]!["segmentCount"]!.GetValue<int>());
-            Assert.NotNull(stdout["transcript"]);
-            Assert.True(JsonNode.DeepEquals(stdout["transcript"], transcriptFile));
+            Assert.Equal("transcribe", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["transcribe"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(modelPath), envelope["transcribe"]!["modelPath"]!.GetValue<string>());
+            Assert.Equal("en", envelope["transcribe"]!["language"]!.GetValue<string>());
+            Assert.Equal(1, envelope["transcribe"]!["segmentCount"]!.GetValue<int>());
+            Assert.NotNull(envelope["transcript"]);
+            Assert.True(JsonNode.DeepEquals(envelope["transcript"], transcriptFile));
         }
         finally
         {
@@ -2366,7 +3251,14 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("detect-silence <input> --output <silence.json>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("detect-silence", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["detectSilence"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -2420,12 +3312,15 @@ public sealed class CommandArtifactsIntegrationTests
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
             var silenceFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
             Assert.True(JsonNode.DeepEquals(stdout, file));
-            Assert.Equal(Path.GetFullPath(outputPath), stdout["detectSilence"]!["outputPath"]!.GetValue<string>());
-            Assert.Equal(1, stdout["detectSilence"]!["segmentCount"]!.GetValue<int>());
-            Assert.True(JsonNode.DeepEquals(stdout["silence"], silenceFile));
-            Assert.Equal("00:00:01.2500000", stdout["silence"]!["segments"]![0]!["start"]!.GetValue<string>());
-            Assert.Equal("00:00:02.7500000", stdout["silence"]!["segments"]![0]!["end"]!.GetValue<string>());
-            Assert.Equal("00:00:01.5000000", stdout["silence"]!["segments"]![0]!["duration"]!.GetValue<string>());
+            Assert.Equal("detect-silence", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["detectSilence"]!["outputPath"]!.GetValue<string>());
+            Assert.Equal(1, envelope["detectSilence"]!["segmentCount"]!.GetValue<int>());
+            Assert.True(JsonNode.DeepEquals(envelope["silence"], silenceFile));
+            Assert.Equal("00:00:01.2500000", envelope["silence"]!["segments"]![0]!["start"]!.GetValue<string>());
+            Assert.Equal("00:00:02.7500000", envelope["silence"]!["segments"]![0]!["end"]!.GetValue<string>());
+            Assert.Equal("00:00:01.5000000", envelope["silence"]!["segments"]![0]!["duration"]!.GetValue<string>());
         }
         finally
         {
@@ -2477,7 +3372,14 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-demucs", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("separate-audio <input> --output-dir <path>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("separate-audio", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputDirectory), envelope["separateAudio"]!["outputDirectory"]!.GetValue<string>());
+            Assert.Contains("missing-demucs", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
         }
         finally
         {
@@ -2579,10 +3481,13 @@ public sealed class CommandArtifactsIntegrationTests
             var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
             var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
             Assert.True(JsonNode.DeepEquals(stdout, file));
-            Assert.Equal(Path.GetFullPath(outputDirectory), stdout["separateAudio"]!["outputDirectory"]!.GetValue<string>());
-            Assert.Equal("htdemucs", stdout["separateAudio"]!["model"]!.GetValue<string>());
-            Assert.EndsWith(Path.Combine("htdemucs", "input", "vocals.wav"), stdout["stems"]!["vocals"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
-            Assert.EndsWith(Path.Combine("htdemucs", "input", "no_vocals.wav"), stdout["stems"]!["accompaniment"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("separate-audio", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputDirectory), envelope["separateAudio"]!["outputDirectory"]!.GetValue<string>());
+            Assert.Equal("htdemucs", envelope["separateAudio"]!["model"]!.GetValue<string>());
+            Assert.EndsWith(Path.Combine("htdemucs", "input", "vocals.wav"), envelope["stems"]!["vocals"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
+            Assert.EndsWith(Path.Combine("htdemucs", "input", "no_vocals.wav"), envelope["stems"]!["accompaniment"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
@@ -2777,8 +3682,144 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("beat-track <input> --output <beats.json>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("beat-track", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["beatTrack"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["extraction"]);
             Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task BeatTrack_ReturnsFailureEnvelope_WhenExtractionExitsNonZero()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-beat-process-failed-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "beats.json");
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-fail",
+            """
+            @echo off
+            echo fake ffmpeg failure 1>&2
+            exit /b 7
+            """,
+            """
+            #!/bin/sh
+            echo "fake ffmpeg failure" >&2
+            exit 7
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "beat-track",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath);
+
+            Assert.Equal(2, result.ExitCode);
+            Assert.Contains("Process exited with code 7.", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("beat-track", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["beatTrack"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("Process exited with code 7.", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Equal("failed", envelope["extraction"]!["status"]!.GetValue<string>());
+            Assert.Equal(7, envelope["extraction"]!["exitCode"]!.GetValue<int>());
+            Assert.Contains("Process exited with code 7.", envelope["extraction"]!["errorMessage"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.False(File.Exists(outputPath));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task BeatTrack_CanWriteEnvelopeToJsonOut()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-beat-json-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var outputPath = Path.Combine(outputDirectory, "beats.json");
+        var jsonOutPath = Path.Combine(outputDirectory, "beat-track.json");
+        var sourceWavePath = Path.Combine(outputDirectory, "source.wav");
+        WriteMonoPcmWave(sourceWavePath, sampleRateHz: 16000, sampleCount: 16000);
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg-copy-wave",
+            $"""
+            @echo off
+            set "out=%~1"
+            :loop
+            if "%~2"=="" goto done
+            shift
+            set "out=%~1"
+            goto loop
+            :done
+            copy /Y "{sourceWavePath}" "%out%" >nul
+            exit /b 0
+            """,
+            $"""
+            #!/bin/sh
+            out=""
+            for arg in "$@"; do
+              out="$arg"
+            done
+            cp "{sourceWavePath.Replace("\\", "/")}" "$out"
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "beat-track",
+                "input.mp4",
+                "--output",
+                outputPath,
+                "--ffmpeg",
+                ffmpegPath,
+                "--json-out",
+                jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+            var beatsFile = JsonNode.Parse(await File.ReadAllTextAsync(outputPath))!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal("beat-track", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+
+            var envelope = stdout["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["beatTrack"]!["outputPath"]!.GetValue<string>());
+            Assert.True(envelope["beatTrack"]!["beatCount"]!.GetValue<int>() >= 0);
+            Assert.Equal("succeeded", envelope["extraction"]!["status"]!.GetValue<string>());
+            Assert.Equal(1, beatsFile["schemaVersion"]!.GetValue<int>());
+            Assert.Equal("input.mp4", beatsFile["sourcePath"]!.GetValue<string>());
+            Assert.Equal(envelope["beatTrack"]!["beatCount"]!.GetValue<int>(), beatsFile["beats"]!.AsArray().Count);
         }
         finally
         {
@@ -2928,7 +3969,15 @@ public sealed class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("beat-track <input> --output <beats.json>", result.StdOut, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("beat-track", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(Path.GetFullPath(outputPath), envelope["beatTrack"]!["outputPath"]!.GetValue<string>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Null(envelope["extraction"]);
             Assert.False(File.Exists(outputPath));
         }
         finally
@@ -3115,34 +4164,374 @@ public sealed class CommandArtifactsIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task Doctor_UsesEnvironmentFallbackForOptionalDependencies()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-doctor-env-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
+            """
+            @echo off
+            echo ffmpeg version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffmpeg version n-test\n'
+            """);
+        var ffprobePath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffprobe",
+            """
+            @echo off
+            echo ffprobe version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffprobe version n-test\n'
+            """);
+        var whisperCliPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-whisper-cli",
+            """
+            @echo off
+            echo usage: whisper-cli
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'usage: whisper-cli\n'
+            """);
+        var demucsPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-demucs",
+            """
+            @echo off
+            echo usage: demucs
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'usage: demucs\n'
+            """);
+        var modelPath = Path.Combine(outputDirectory, "model.gguf");
+        await File.WriteAllTextAsync(modelPath, "model");
+
+        try
+        {
+            var result = await CliTestProcessHelper.RunCliAsync(
+                new Dictionary<string, string?>
+                {
+                    ["OVT_WHISPER_CLI_PATH"] = whisperCliPath,
+                    ["OVT_DEMUCS_PATH"] = demucsPath,
+                    ["OVT_WHISPER_MODEL_PATH"] = modelPath
+                },
+                "doctor",
+                "--ffmpeg",
+                ffmpegPath,
+                "--ffprobe",
+                ffprobePath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            var payload = envelope["payload"]!.AsObject();
+            Assert.True(payload["isHealthy"]!.GetValue<bool>());
+
+            var dependencies = payload["dependencies"]!.AsArray();
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-cli"
+                    && node["source"]!.GetValue<string>() == "environment"
+                    && node["isAvailable"]!.GetValue<bool>());
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "demucs"
+                    && node["source"]!.GetValue<string>() == "environment"
+                    && node["isAvailable"]!.GetValue<bool>());
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-model"
+                    && node["source"]!.GetValue<string>() == "environment"
+                    && node["isAvailable"]!.GetValue<bool>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Doctor_OptionValuesOverrideEnvironmentFallback()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-doctor-option-precedence-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
+            """
+            @echo off
+            echo ffmpeg version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffmpeg version n-test\n'
+            """);
+        var ffprobePath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffprobe",
+            """
+            @echo off
+            echo ffprobe version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffprobe version n-test\n'
+            """);
+        var whisperCliPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-whisper-cli",
+            """
+            @echo off
+            echo usage: whisper-cli
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'usage: whisper-cli\n'
+            """);
+        var demucsPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-demucs",
+            """
+            @echo off
+            echo usage: demucs
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'usage: demucs\n'
+            """);
+        var modelPath = Path.Combine(outputDirectory, "model.gguf");
+        await File.WriteAllTextAsync(modelPath, "model");
+
+        try
+        {
+            var result = await CliTestProcessHelper.RunCliAsync(
+                new Dictionary<string, string?>
+                {
+                    ["OVT_WHISPER_CLI_PATH"] = whisperCliPath,
+                    ["OVT_DEMUCS_PATH"] = demucsPath,
+                    ["OVT_WHISPER_MODEL_PATH"] = modelPath
+                },
+                "doctor",
+                "--ffmpeg",
+                ffmpegPath,
+                "--ffprobe",
+                ffprobePath,
+                "--whisper-cli",
+                "missing-whisper",
+                "--demucs",
+                "missing-demucs",
+                "--whisper-model",
+                "missing-model.gguf");
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            var payload = envelope["payload"]!.AsObject();
+            Assert.True(payload["isHealthy"]!.GetValue<bool>());
+
+            var dependencies = payload["dependencies"]!.AsArray();
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-cli"
+                    && node["source"]!.GetValue<string>() == "option"
+                    && node["resolvedValue"]!.GetValue<string>() == "missing-whisper"
+                    && node["detail"]!.GetValue<string>().Contains("missing-whisper", StringComparison.Ordinal)
+                    && !node["isAvailable"]!.GetValue<bool>());
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "demucs"
+                    && node["source"]!.GetValue<string>() == "option"
+                    && node["resolvedValue"]!.GetValue<string>() == "missing-demucs"
+                    && node["detail"]!.GetValue<string>().Contains("missing-demucs", StringComparison.Ordinal)
+                    && !node["isAvailable"]!.GetValue<bool>());
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-model"
+                    && node["source"]!.GetValue<string>() == "option"
+                    && node["resolvedValue"]!.GetValue<string>().EndsWith("missing-model.gguf", StringComparison.OrdinalIgnoreCase)
+                    && node["detail"]!.GetValue<string>().Contains("missing-model.gguf", StringComparison.OrdinalIgnoreCase)
+                    && !node["isAvailable"]!.GetValue<bool>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Doctor_UsesDefaultAndUnsetSourcesWhenOptionalDependenciesAreNotConfigured()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-doctor-default-unset-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var ffmpegPath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffmpeg",
+            """
+            @echo off
+            echo ffmpeg version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffmpeg version n-test\n'
+            """);
+        var ffprobePath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffprobe",
+            """
+            @echo off
+            echo ffprobe version n-test
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf 'ffprobe version n-test\n'
+            """);
+
+        try
+        {
+            var result = await CliTestProcessHelper.RunCliAsync(
+                new Dictionary<string, string?>
+                {
+                    ["OVT_WHISPER_CLI_PATH"] = null,
+                    ["OVT_DEMUCS_PATH"] = null,
+                    ["OVT_WHISPER_MODEL_PATH"] = null
+                },
+                "doctor",
+                "--ffmpeg",
+                ffmpegPath,
+                "--ffprobe",
+                ffprobePath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            var payload = envelope["payload"]!.AsObject();
+
+            var dependencies = payload["dependencies"]!.AsArray();
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-cli"
+                    && node["source"]!.GetValue<string>() == "default"
+                    && node["resolvedValue"]!.GetValue<string>() == "whisper-cli");
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "demucs"
+                    && node["source"]!.GetValue<string>() == "default"
+                    && node["resolvedValue"]!.GetValue<string>() == "demucs");
+            Assert.Contains(
+                dependencies,
+                node => node!["id"]!.GetValue<string>() == "whisper-model"
+                    && node["source"]!.GetValue<string>() == "unset"
+                    && node["resolvedValue"] is null
+                    && node["detail"]!.GetValue<string>() == "Dependency path is not configured.");
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
     private static async Task<CliRunResult> RunCliAsync(params string[] args)
     {
-        var cliAssemblyPath = typeof(TemplateCommandArtifactsBuilder).Assembly.Location;
-        var repoRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(cliAssemblyPath)!, "..", "..", "..", "..", ".."));
+        return await CliTestProcessHelper.RunCliAsync(args);
+    }
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "dotnet",
-            WorkingDirectory = repoRoot,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
-        };
-        startInfo.ArgumentList.Add(cliAssemblyPath);
-        foreach (var arg in args)
-        {
-            startInfo.ArgumentList.Add(arg);
-        }
+    private static async Task<string> CreateTemplatePluginAsync(
+        string workingDirectory,
+        string pluginId,
+        string pluginDisplayName,
+        EditPlanTemplateDefinition template)
+    {
+        var pluginDirectory = Path.Combine(workingDirectory, pluginId);
+        var templateDirectory = Path.Combine(pluginDirectory, "templates", template.Id);
+        Directory.CreateDirectory(templateDirectory);
 
-        using var process = Process.Start(startInfo)!;
-        var stdout = await process.StandardOutput.ReadToEndAsync();
-        var stderr = await process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
+        await File.WriteAllTextAsync(
+            Path.Combine(pluginDirectory, "plugin.json"),
+            System.Text.Json.JsonSerializer.Serialize(
+                new
+                {
+                    schemaVersion = 1,
+                    id = pluginId,
+                    displayName = pluginDisplayName,
+                    version = "1.0.0",
+                    description = $"{pluginDisplayName} plugin",
+                    templates = new[]
+                    {
+                        new
+                        {
+                            id = template.Id,
+                            path = Path.Combine("templates", template.Id).Replace('\\', '/')
+                        }
+                    }
+                },
+                OpenVideoToolboxJson.Default));
 
-        return new CliRunResult
+        await File.WriteAllTextAsync(
+            Path.Combine(templateDirectory, "template.json"),
+            System.Text.Json.JsonSerializer.Serialize(template, OpenVideoToolboxJson.Default));
+
+        return pluginDirectory;
+    }
+
+    private static EditPlanTemplateDefinition CreatePluginTemplateDefinition(string id, string displayName)
+    {
+        return new EditPlanTemplateDefinition
         {
-            ExitCode = process.ExitCode,
-            StdOut = stdout,
-            StdErr = stderr
+            Id = id,
+            DisplayName = displayName,
+            Description = $"{displayName} description",
+            Category = "plugin",
+            OutputContainer = "mp4",
+            DefaultSubtitleMode = SubtitleMode.Sidecar,
+            RecommendedSeedModes = [EditPlanSeedMode.Manual, EditPlanSeedMode.Transcript],
+            RecommendedTranscriptSeedStrategies = [TranscriptSeedStrategy.Grouped],
+            ArtifactSlots =
+            [
+                new EditPlanArtifactSlot
+                {
+                    Id = "subtitles",
+                    Kind = "subtitle",
+                    Description = "Subtitle sidecar",
+                    Required = false
+                }
+            ],
+            SupportingSignals =
+            [
+                new EditPlanSupportingSignalHint
+                {
+                    Kind = EditPlanSupportingSignalKind.Transcript,
+                    Reason = "Use transcript guidance before generating subtitles."
+                }
+            ]
         };
     }
 
@@ -3158,35 +4547,39 @@ public sealed class CommandArtifactsIntegrationTests
         return Assert.IsType<JsonObject>(previewNode);
     }
 
-    private sealed record CliRunResult
-    {
-        public required int ExitCode { get; init; }
-
-        public required string StdOut { get; init; }
-
-        public required string StdErr { get; init; }
-    }
-
     private static string WriteExecutableScript(string directory, string baseName, string windowsContent, string unixContent)
     {
-        if (OperatingSystem.IsWindows())
-        {
-            var windowsPath = Path.Combine(directory, $"{baseName}.cmd");
-            File.WriteAllText(windowsPath, windowsContent.ReplaceLineEndings("\r\n"), new UTF8Encoding(false));
-            return windowsPath;
-        }
+        return CliTestProcessHelper.WriteExecutableScript(directory, baseName, windowsContent, unixContent);
+    }
 
-        var unixPath = Path.Combine(directory, baseName);
-        File.WriteAllText(unixPath, unixContent.ReplaceLineEndings("\n"), new UTF8Encoding(false));
-        File.SetUnixFileMode(
-            unixPath,
-            UnixFileMode.UserRead
-            | UnixFileMode.UserWrite
-            | UnixFileMode.UserExecute
-            | UnixFileMode.GroupRead
-            | UnixFileMode.GroupExecute
-            | UnixFileMode.OtherRead
-            | UnixFileMode.OtherExecute);
-        return unixPath;
+    private static void WriteMonoPcmWave(string path, int sampleRateHz, int sampleCount)
+    {
+        const short bitsPerSample = 16;
+        const short channels = 1;
+        var blockAlign = (short)(channels * bitsPerSample / 8);
+        var byteRate = sampleRateHz * blockAlign;
+        var dataSize = sampleCount * blockAlign;
+
+        using var stream = File.Create(path);
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: false);
+        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
+        writer.Write(36 + dataSize);
+        writer.Write(Encoding.ASCII.GetBytes("WAVE"));
+        writer.Write(Encoding.ASCII.GetBytes("fmt "));
+        writer.Write(16);
+        writer.Write((short)1);
+        writer.Write(channels);
+        writer.Write(sampleRateHz);
+        writer.Write(byteRate);
+        writer.Write(blockAlign);
+        writer.Write(bitsPerSample);
+        writer.Write(Encoding.ASCII.GetBytes("data"));
+        writer.Write(dataSize);
+
+        for (var i = 0; i < sampleCount; i++)
+        {
+            var sample = (short)((i % 200) < 100 ? short.MaxValue / 8 : short.MinValue / 8);
+            writer.Write(sample);
+        }
     }
 }

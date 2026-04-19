@@ -131,12 +131,13 @@ static async Task<int> RunValidatePlanAsync(string[] args)
     }
 
     var jsonOutPath = GetOption(options, "--json-out");
+    var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
     var fullPlanPath = Path.GetFullPath(planPath!);
     var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
 
     try
     {
-        var validation = await ValidatePlanFileAsync(fullPlanPath, checkFiles == true);
+        var validation = await ValidatePlanFileAsync(fullPlanPath, checkFiles == true, pluginCatalog);
         var report = new
         {
             planPath = fullPlanPath,
@@ -224,17 +225,36 @@ static async Task<int> RunCutAsync(string[] args)
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
-        WriteJson(new
+        if (result.Status != ExecutionStatus.Succeeded)
         {
-            cut = request,
-            execution = result
-        });
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "cut",
+                preview: false,
+                BuildFailedCommandPayload("cut", request, message, result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
 
-        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+        return WriteCommandEnvelope(
+            "cut",
+            preview: false,
+            new
+            {
+                cut = request,
+                execution = result
+            },
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "cut",
+            preview: false,
+            BuildFailedCommandPayload("cut", request, ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -278,17 +298,36 @@ static async Task<int> RunConcatAsync(string[] args)
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
-        WriteJson(new
+        if (result.Status != ExecutionStatus.Succeeded)
         {
-            concat = request,
-            execution = result
-        });
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "concat",
+                preview: false,
+                BuildFailedCommandPayload("concat", request, message, result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
 
-        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+        return WriteCommandEnvelope(
+            "concat",
+            preview: false,
+            new
+            {
+                concat = request,
+                execution = result
+            },
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "concat",
+            preview: false,
+            BuildFailedCommandPayload("concat", request, ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -338,17 +377,36 @@ static async Task<int> RunExtractAudioAsync(string[] args)
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
-        WriteJson(new
+        if (result.Status != ExecutionStatus.Succeeded)
         {
-            extractAudio = request,
-            execution = result
-        });
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "extract-audio",
+                preview: false,
+                BuildFailedCommandPayload("extractAudio", request, message, result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
 
-        return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+        return WriteCommandEnvelope(
+            "extract-audio",
+            preview: false,
+            new
+            {
+                extractAudio = request,
+                execution = result
+            },
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "extract-audio",
+            preview: false,
+            BuildFailedCommandPayload("extractAudio", request, ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -387,19 +445,35 @@ static async Task<int> RunAudioAnalyzeAsync(string[] args)
             JsonSerializer.Serialize(analysis, OpenVideoToolboxJson.Default),
             Encoding.UTF8);
 
-        return WriteResult(new
-        {
-            audioAnalyze = new
+        return WriteCommandEnvelope(
+            "audio-analyze",
+            preview: false,
+            new
             {
-                inputPath,
-                outputPath = resolvedOutputPath
+                audioAnalyze = new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath
+                },
+                analysis
             },
-            analysis
-        }, jsonOutPath);
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "audio-analyze",
+            preview: false,
+            BuildFailedCommandPayload(
+                "audioAnalyze",
+                new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath
+                },
+                ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -444,15 +518,36 @@ static async Task<int> RunAudioGainAsync(string[] args)
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
 
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
-        return WriteResult(new
+        if (result.Status != ExecutionStatus.Succeeded)
         {
-            audioGain = request,
-            execution = result
-        }, jsonOutPath, result.Status == ExecutionStatus.Succeeded ? 0 : 2);
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "audio-gain",
+                preview: false,
+                BuildFailedCommandPayload("audioGain", request, message, result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
+
+        return WriteCommandEnvelope(
+            "audio-gain",
+            preview: false,
+            new
+            {
+                audioGain = request,
+                execution = result
+            },
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "audio-gain",
+            preview: false,
+            BuildFailedCommandPayload("audioGain", request, ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -514,23 +609,41 @@ static async Task<int> RunTranscribeAsync(string[] args)
             JsonSerializer.Serialize(transcript, OpenVideoToolboxJson.Default),
             Encoding.UTF8);
 
-        return WriteResult(new
-        {
-            transcribe = new
+        return WriteCommandEnvelope(
+            "transcribe",
+            preview: false,
+            new
             {
-                inputPath,
-                modelPath = Path.GetFullPath(modelPath!),
-                outputPath = resolvedOutputPath,
-                language = transcript.Language,
-                segmentCount = transcript.Segments.Count,
-                translate = translateToEnglish == true
+                transcribe = new
+                {
+                    inputPath,
+                    modelPath = Path.GetFullPath(modelPath!),
+                    outputPath = resolvedOutputPath,
+                    language = transcript.Language,
+                    segmentCount = transcript.Segments.Count,
+                    translate = translateToEnglish == true
+                },
+                transcript
             },
-            transcript
-        }, jsonOutPath);
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "transcribe",
+            preview: false,
+            BuildFailedCommandPayload(
+                "transcribe",
+                new
+                {
+                    inputPath,
+                    modelPath = Path.GetFullPath(modelPath!),
+                    outputPath = resolvedOutputPath,
+                    translate = translateToEnglish == true
+                },
+                ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -590,20 +703,36 @@ static async Task<int> RunDetectSilenceAsync(string[] args)
             JsonSerializer.Serialize(document, OpenVideoToolboxJson.Default),
             Encoding.UTF8);
 
-        return WriteResult(new
-        {
-            detectSilence = new
+        return WriteCommandEnvelope(
+            "detect-silence",
+            preview: false,
+            new
             {
-                inputPath,
-                outputPath = resolvedOutputPath,
-                segmentCount = document.Segments.Count
+                detectSilence = new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath,
+                    segmentCount = document.Segments.Count
+                },
+                silence = document
             },
-            silence = document
-        }, jsonOutPath);
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "detect-silence",
+            preview: false,
+            BuildFailedCommandPayload(
+                "detectSilence",
+                new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath
+                },
+                ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -646,20 +775,37 @@ static async Task<int> RunSeparateAudioAsync(string[] args)
             demucsPath,
             timeout);
 
-        return WriteResult(new
-        {
-            separateAudio = new
+        return WriteCommandEnvelope(
+            "separate-audio",
+            preview: false,
+            new
             {
-                inputPath,
-                outputDirectory = resolvedOutputDirectory,
-                model = document.Model
+                separateAudio = new
+                {
+                    inputPath,
+                    outputDirectory = resolvedOutputDirectory,
+                    model = document.Model
+                },
+                stems = document.Stems
             },
-            stems = document.Stems
-        }, jsonOutPath);
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        return FailWithCommandEnvelope(
+            "separate-audio",
+            preview: false,
+            BuildFailedCommandPayload(
+                "separateAudio",
+                new
+                {
+                    inputPath,
+                    outputDirectory = resolvedOutputDirectory,
+                    model
+                },
+                ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -688,10 +834,12 @@ static async Task<int> RunRenderAsync(string[] args)
     var jsonOutPath = GetOption(options, "--json-out");
     var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    EditPlan? plan = null;
+    object? preview = null;
 
     try
     {
-        var plan = await LoadEditPlanAsync(planPath!, GetOption(options, "--output"));
+        plan = await LoadEditPlanAsync(planPath!, GetOption(options, "--output"));
         var request = new EditPlanRenderRequest
         {
             Plan = plan,
@@ -700,7 +848,7 @@ static async Task<int> RunRenderAsync(string[] args)
 
         var builder = new FfmpegEditPlanRenderCommandBuilder();
         var previewBuilder = new EditPlanExecutionPreviewBuilder(builder, new FfmpegEditPlanAudioMixCommandBuilder());
-        var preview = previewBuilder.BuildRenderPreview(request, ffmpegPath);
+        preview = previewBuilder.BuildRenderPreview(request, ffmpegPath);
         if (previewOnly == true)
         {
             return WriteCommandEnvelope(
@@ -709,6 +857,7 @@ static async Task<int> RunRenderAsync(string[] args)
                 new
                 {
                     render = request.Plan,
+                    templateSource = BuildPlanTemplateSourcePayload(request.Plan),
                     executionPreview = preview
                 },
                 jsonOutPath);
@@ -720,12 +869,25 @@ static async Task<int> RunRenderAsync(string[] args)
         var runner = new EditPlanRenderRunner(builder, processRunner);
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
 
+        if (result.Status != ExecutionStatus.Succeeded)
+        {
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "render",
+                preview: false,
+                BuildFailedPlanCommandPayload("render", request.Plan, request.Plan, preview, message, result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
+
         return WriteCommandEnvelope(
             "render",
             preview: false,
             new
             {
                 render = request.Plan,
+                templateSource = BuildPlanTemplateSourcePayload(request.Plan),
                 executionPreview = preview,
                 execution = result
             },
@@ -733,7 +895,17 @@ static async Task<int> RunRenderAsync(string[] args)
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        if (plan is null)
+        {
+            return Fail(ex.Message);
+        }
+
+        return FailWithCommandEnvelope(
+            "render",
+            previewOnly == true,
+            BuildFailedPlanCommandPayload("render", plan, plan, preview, ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -840,13 +1012,16 @@ static async Task<int> RunMixAudioAsync(string[] args)
     var jsonOutPath = GetOption(options, "--json-out");
     var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+    var fullPlanPath = Path.GetFullPath(planPath!);
+    EditPlan? plan = null;
+    string? resolvedOutputPath = null;
+    object? preview = null;
 
     try
     {
-        var fullPlanPath = Path.GetFullPath(planPath!);
         var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
-        var plan = await LoadEditPlanAsync(fullPlanPath, outputOverridePath: null);
-        var resolvedOutputPath = EditPlanPathResolver.ResolvePath(planDirectory, outputPath!);
+        plan = await LoadEditPlanAsync(fullPlanPath, outputOverridePath: null);
+        resolvedOutputPath = EditPlanPathResolver.ResolvePath(planDirectory, outputPath!);
         Directory.CreateDirectory(Path.GetDirectoryName(resolvedOutputPath)!);
 
         var request = new EditPlanAudioMixRequest
@@ -858,7 +1033,7 @@ static async Task<int> RunMixAudioAsync(string[] args)
 
         var builder = new FfmpegEditPlanAudioMixCommandBuilder();
         var previewBuilder = new EditPlanExecutionPreviewBuilder(new FfmpegEditPlanRenderCommandBuilder(), builder);
-        var preview = previewBuilder.BuildAudioMixPreview(request, ffmpegPath);
+        preview = previewBuilder.BuildAudioMixPreview(request, ffmpegPath);
         if (previewOnly == true)
         {
             return WriteCommandEnvelope(
@@ -871,6 +1046,7 @@ static async Task<int> RunMixAudioAsync(string[] args)
                         planPath = fullPlanPath,
                         request.OutputPath
                     },
+                    templateSource = BuildPlanTemplateSourcePayload(plan),
                     executionPreview = preview
                 },
                 jsonOutPath);
@@ -882,6 +1058,28 @@ static async Task<int> RunMixAudioAsync(string[] args)
         var runner = new EditPlanAudioMixRunner(builder, processRunner);
         var result = await runner.RunAsync(request, ffmpegPath, timeout);
 
+        if (result.Status != ExecutionStatus.Succeeded)
+        {
+            var message = BuildExecutionFailureMessage(result);
+            return FailWithCommandEnvelope(
+                "mix-audio",
+                preview: false,
+                BuildFailedPlanCommandPayload(
+                    "mixAudio",
+                    new
+                    {
+                        planPath = fullPlanPath,
+                        outputPath = resolvedOutputPath
+                    },
+                    plan,
+                    preview,
+                    message,
+                    result),
+                message,
+                jsonOutPath,
+                exitCode: 2);
+        }
+
         return WriteCommandEnvelope(
             "mix-audio",
             preview: false,
@@ -892,6 +1090,7 @@ static async Task<int> RunMixAudioAsync(string[] args)
                     planPath = fullPlanPath,
                     request.OutputPath
                 },
+                templateSource = BuildPlanTemplateSourcePayload(plan),
                 executionPreview = preview,
                 execution = result
             },
@@ -899,7 +1098,26 @@ static async Task<int> RunMixAudioAsync(string[] args)
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        if (plan is null || string.IsNullOrWhiteSpace(resolvedOutputPath))
+        {
+            return Fail(ex.Message);
+        }
+
+        return FailWithCommandEnvelope(
+            "mix-audio",
+            previewOnly == true,
+            BuildFailedPlanCommandPayload(
+                "mixAudio",
+                new
+                {
+                    planPath = fullPlanPath,
+                    outputPath = resolvedOutputPath
+                },
+                plan,
+                preview,
+                ex.Message),
+            ex.Message,
+            jsonOutPath);
     }
 }
 
@@ -931,9 +1149,15 @@ static async Task<int> RunBeatTrackAsync(string[] args)
     }
 
     var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+    var jsonOutPath = GetOption(options, "--json-out");
     TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
     var resolvedOutputPath = Path.GetFullPath(outputPath!);
     var tempWavePath = Path.Combine(Path.GetTempPath(), $"ovt-beat-track-{Guid.NewGuid():N}.wav");
+    var beatTrackContext = new
+    {
+        inputPath,
+        outputPath = resolvedOutputPath
+    };
 
     try
     {
@@ -951,39 +1175,60 @@ static async Task<int> RunBeatTrackAsync(string[] args)
         var extraction = await extractRunner.RunAsync(extractRequest, ffmpegPath, timeout);
         if (extraction.Status != ExecutionStatus.Succeeded)
         {
-            WriteJson(new
-            {
-                beatTrack = new
+            var message = BuildExecutionFailureMessage(extraction);
+            Console.Error.WriteLine(message);
+            return WriteCommandEnvelope(
+                "beat-track",
+                preview: false,
+                new
                 {
-                    inputPath,
-                    outputPath = resolvedOutputPath
+                    beatTrack = beatTrackContext,
+                    extraction,
+                    error = new
+                    {
+                        message
+                    }
                 },
-                extraction
-            });
-            return 2;
+                jsonOutPath,
+                exitCode: 2);
         }
 
         var waveform = new WavePcmReader().ReadMono16Bit(tempWavePath);
         var beatTrack = new BeatTrackAnalyzer().Analyze(waveform, inputPath!);
         await File.WriteAllTextAsync(resolvedOutputPath, JsonSerializer.Serialize(beatTrack, OpenVideoToolboxJson.Default));
 
-        WriteJson(new
-        {
-            beatTrack = new
+        return WriteCommandEnvelope(
+            "beat-track",
+            preview: false,
+            new
             {
-                inputPath,
-                outputPath = resolvedOutputPath,
-                beatCount = beatTrack.Beats.Count,
-                beatTrack.EstimatedBpm
+                beatTrack = new
+                {
+                    inputPath,
+                    outputPath = resolvedOutputPath,
+                    beatCount = beatTrack.Beats.Count,
+                    beatTrack.EstimatedBpm
+                },
+                extraction
             },
-            extraction
-        });
-
-        return 0;
+            jsonOutPath);
     }
     catch (Exception ex)
     {
-        return Fail(ex.Message);
+        Console.Error.WriteLine(ex.Message);
+        return WriteCommandEnvelope(
+            "beat-track",
+            preview: false,
+            new
+            {
+                beatTrack = beatTrackContext,
+                error = new
+                {
+                    message = ex.Message
+                }
+            },
+            jsonOutPath,
+            exitCode: 1);
     }
     finally
     {
@@ -1029,6 +1274,7 @@ static async Task<int> RunInitPlanAsync(string[] args)
 
         WriteJson(new
         {
+            source = build.TemplateSource,
             template = build.Template,
             planPath = fullPlanOutputPath,
             probed = build.Probe is not null,
@@ -1072,16 +1318,21 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         return Fail(error!);
     }
 
+    var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+
     try
     {
         var build = await BuildEditPlanFromTemplateAsync(inputPath!, templateId!, fullPlanOutputPath, options);
-        var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId!);
+        var template = build.Template;
         var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
         var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
-        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(
+            template,
+            BuildPersistedTemplateSource(template, pluginCatalog));
         var supportingSignals = EditPlanTemplateExampleBuilder.BuildSupportingSignalExamples(template);
-        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
-        var seedCommands = BuildTemplateSeedCommands(template);
+        var requiresPluginDir = FindPluginTemplate(template, pluginCatalog) is not null;
+        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0, requiresPluginDir);
+        var seedCommands = BuildTemplateSeedCommands(template, requiresPluginDir);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
         var signalInstructions = supportingSignals
             .Select(signal => new TemplateSignalInstruction
@@ -1094,6 +1345,8 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         var artifactCommands = BuildTemplateArtifactCommands(template, supportingSignals);
         var exampleWriteResult = WriteTemplateExamples(
             template,
+            build.TemplateSource,
+            requiresPluginDir,
             fullOutputDirectory,
             artifactsExample,
             templateParamsExample,
@@ -1129,11 +1382,12 @@ static async Task<int> RunScaffoldTemplateAsync(string[] args)
         EditPlanValidationResult? validation = null;
         if (validateAfterWrite == true)
         {
-            validation = await ValidatePlanFileAsync(fullPlanOutputPath, checkFiles == true);
+            validation = await ValidatePlanFileAsync(fullPlanOutputPath, checkFiles == true, pluginCatalog);
         }
 
         WriteJson(new
         {
+            source = build.TemplateSource,
             template = build.Template,
             scaffold = new
             {
@@ -1306,30 +1560,37 @@ static int RunTemplates(string[] args)
             HasSubtitles = hasSubtitles
         };
         var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var availableTemplates = BuildAvailableTemplates(pluginCatalog);
 
         if (string.IsNullOrWhiteSpace(templateId))
         {
             object templates = summaryOnly == true
-                ? BuiltInEditPlanTemplateCatalog.GetSummaries(query)
-                : BuiltInEditPlanTemplateCatalog.GetAll(query);
+                ? EditPlanTemplateCatalog.GetSummaries(availableTemplates, query)
+                : EditPlanTemplateCatalog.Filter(availableTemplates, query);
 
             return WriteResult(new
             {
                 filters = query,
                 summary = summaryOnly == true,
+                plugins = pluginCatalog.Plugins,
                 templates
             }, jsonOutPath);
         }
 
-        var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId!);
+        var template = EditPlanTemplateCatalog.GetRequired(availableTemplates, templateId!);
+        var templateSource = BuildTemplateSource(template, pluginCatalog);
         var artifactsExample = EditPlanTemplateExampleBuilder.BuildArtifactBindingsExample(template);
         var templateParamsExample = EditPlanTemplateExampleBuilder.BuildTemplateParamsExample(template);
-        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+        var previewPlans = EditPlanTemplateExampleBuilder.BuildPreviewPlans(
+            template,
+            BuildPersistedTemplateSource(template, pluginCatalog));
         var supportingSignals = EditPlanTemplateExampleBuilder.BuildSupportingSignalExamples(template);
         var writeExamplesDirectory = GetOption(options, "--write-examples");
         TemplateExampleWriteResult? writeResult = null;
-        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0);
-        var seedCommands = BuildTemplateSeedCommands(template);
+        var requiresPluginDir = FindPluginTemplate(template, pluginCatalog) is not null;
+        var commands = BuildTemplateExampleCommands(template, artifactsExample.Count > 0, templateParamsExample.Count > 0, requiresPluginDir);
+        var seedCommands = BuildTemplateSeedCommands(template, requiresPluginDir);
         var signalCommands = supportingSignals.Select(signal => signal.Command).ToArray();
         var signalInstructions = supportingSignals
             .Select(signal => new TemplateSignalInstruction
@@ -1345,6 +1606,8 @@ static int RunTemplates(string[] args)
         {
             writeResult = WriteTemplateExamples(
                 template,
+                templateSource,
+                requiresPluginDir,
                 writeExamplesDirectory,
                 artifactsExample,
                 templateParamsExample,
@@ -1359,6 +1622,7 @@ static int RunTemplates(string[] args)
 
         return WriteResult(BuildTemplateGuide(
             template,
+            templateSource,
             writeResult,
             artifactsExample,
             templateParamsExample,
@@ -1376,15 +1640,196 @@ static int RunTemplates(string[] args)
     }
 }
 
+static IReadOnlyList<EditPlanTemplateDefinition> BuildAvailableTemplates(TemplatePluginCatalog pluginCatalog)
+{
+    var templates = BuiltInEditPlanTemplateCatalog.GetAll()
+        .Concat(pluginCatalog.LoadedTemplates.Select(item => item.Template))
+        .ToArray();
+
+    EnsureUniqueTemplateIds(templates);
+    return templates;
+}
+
+static void EnsureUniqueTemplateIds(IReadOnlyList<EditPlanTemplateDefinition> templates)
+{
+    var duplicate = templates
+        .GroupBy(template => template.Id, StringComparer.OrdinalIgnoreCase)
+        .FirstOrDefault(group => group.Count() > 1);
+
+    if (duplicate is not null)
+    {
+        throw new InvalidOperationException($"Duplicate edit plan template id '{duplicate.Key}'.");
+    }
+}
+
+static object BuildTemplateSource(EditPlanTemplateDefinition template, TemplatePluginCatalog pluginCatalog)
+{
+    var pluginTemplate = FindPluginTemplate(template, pluginCatalog);
+
+    if (pluginTemplate is null)
+    {
+        return new
+        {
+            kind = "builtIn"
+        };
+    }
+
+    return new
+    {
+        kind = "plugin",
+        pluginId = pluginTemplate.Plugin.Id,
+        pluginVersion = pluginTemplate.Plugin.Version,
+        pluginDisplayName = pluginTemplate.Plugin.DisplayName,
+        pluginDirectory = pluginTemplate.Plugin.Directory
+    };
+}
+
+static object? BuildPlanTemplateSourcePayload(EditPlan plan)
+{
+    var source = plan.Template?.Source;
+    if (source is null)
+    {
+        return null;
+    }
+
+    return new
+    {
+        source.Kind,
+        source.PluginId,
+        source.PluginVersion
+    };
+}
+
+static JsonObject BuildFailedPlanCommandPayload(
+    string operationName,
+    object operationPayload,
+    EditPlan plan,
+    object? executionPreview,
+    string message,
+    ExecutionResult? execution = null)
+{
+    var payload = new JsonObject
+    {
+        [operationName] = JsonSerializer.SerializeToNode(operationPayload, OpenVideoToolboxJson.Default),
+        ["error"] = JsonSerializer.SerializeToNode(new
+        {
+            message
+        }, OpenVideoToolboxJson.Default)
+    };
+
+    var templateSource = BuildPlanTemplateSourcePayload(plan);
+    if (templateSource is not null)
+    {
+        payload["templateSource"] = JsonSerializer.SerializeToNode(templateSource, OpenVideoToolboxJson.Default);
+    }
+
+    if (executionPreview is not null)
+    {
+        payload["executionPreview"] = JsonSerializer.SerializeToNode(executionPreview, OpenVideoToolboxJson.Default);
+    }
+
+    if (execution is not null)
+    {
+        payload["execution"] = JsonSerializer.SerializeToNode(execution, OpenVideoToolboxJson.Default);
+    }
+
+    return payload;
+}
+
+static JsonObject BuildFailedCommandPayload(
+    string operationName,
+    object operationPayload,
+    string message,
+    object? execution = null)
+{
+    var payload = new JsonObject
+    {
+        [operationName] = JsonSerializer.SerializeToNode(operationPayload, OpenVideoToolboxJson.Default),
+        ["error"] = JsonSerializer.SerializeToNode(new
+        {
+            message
+        }, OpenVideoToolboxJson.Default)
+    };
+
+    if (execution is not null)
+    {
+        payload["execution"] = JsonSerializer.SerializeToNode(execution, OpenVideoToolboxJson.Default);
+    }
+
+    return payload;
+}
+
+static string BuildExecutionFailureMessage(ExecutionResult result)
+{
+    if (!string.IsNullOrWhiteSpace(result.ErrorMessage))
+    {
+        return result.ErrorMessage;
+    }
+
+    return result.Status switch
+    {
+        ExecutionStatus.Failed when result.ExitCode is { } exitCode
+            => $"{result.CommandPlan.ToolName} exited with code {exitCode}.",
+        ExecutionStatus.Cancelled
+            => $"{result.CommandPlan.ToolName} execution was cancelled.",
+        ExecutionStatus.TimedOut
+            => $"{result.CommandPlan.ToolName} execution timed out.",
+        _ => $"{result.CommandPlan.ToolName} execution did not succeed (status: {result.Status})."
+    };
+}
+
+static int FailWithCommandEnvelope(
+    string command,
+    bool preview,
+    JsonObject payload,
+    string message,
+    string? jsonOutPath = null,
+    int exitCode = 1)
+{
+    Console.Error.WriteLine(message);
+    return WriteCommandEnvelope(command, preview, payload, jsonOutPath, exitCode);
+}
+
+static EditTemplateSourceReference BuildPersistedTemplateSource(
+    EditPlanTemplateDefinition template,
+    TemplatePluginCatalog pluginCatalog)
+{
+    var pluginTemplate = FindPluginTemplate(template, pluginCatalog);
+    if (pluginTemplate is null)
+    {
+        return new EditTemplateSourceReference
+        {
+            Kind = EditTemplateSourceKinds.BuiltIn
+        };
+    }
+
+    return new EditTemplateSourceReference
+    {
+        Kind = EditTemplateSourceKinds.Plugin,
+        PluginId = pluginTemplate.Plugin.Id,
+        PluginVersion = pluginTemplate.Plugin.Version
+    };
+}
+
+static TemplatePluginLoadedTemplate? FindPluginTemplate(
+    EditPlanTemplateDefinition template,
+    TemplatePluginCatalog pluginCatalog)
+{
+    return pluginCatalog.LoadedTemplates.FirstOrDefault(item =>
+        string.Equals(item.Template.Id, template.Id, StringComparison.OrdinalIgnoreCase));
+}
+
 static TemplateExampleWriteResult WriteTemplateExamples(
     EditPlanTemplateDefinition template,
+    object source,
+    bool requiresPluginDir,
     string outputDirectory,
     IReadOnlyDictionary<string, string> artifactsExample,
     IReadOnlyDictionary<string, string> templateParamsExample,
     IReadOnlyList<EditPlanTemplatePreview> previewPlans,
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
-    IReadOnlyList<object> seedCommands,
+    IReadOnlyList<TemplateSeedCommand> seedCommands,
     IReadOnlyList<TemplateSignalInstruction> signalInstructions,
     IReadOnlyList<string> signalCommands,
     IReadOnlyList<string> artifactCommands)
@@ -1427,6 +1872,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
 
     var guide = BuildTemplateGuide(
         template,
+        source,
         new TemplateExampleWriteResult
         {
             OutputDirectory = fullOutputDirectory,
@@ -1448,7 +1894,7 @@ static TemplateExampleWriteResult WriteTemplateExamples(
         Encoding.UTF8);
     writtenFiles.Add(guidePath);
 
-    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalInstructions, artifactCommands);
+    var commandBundle = TemplateCommandArtifactsBuilder.BuildCommandBundle(commands, seedCommands, signalInstructions, artifactCommands, requiresPluginDir);
 
     var commandsJsonPath = Path.Combine(fullOutputDirectory, "commands.json");
     File.WriteAllText(
@@ -1487,19 +1933,21 @@ static TemplateExampleWriteResult WriteTemplateExamples(
 
 static object BuildTemplateGuide(
     EditPlanTemplateDefinition template,
+    object source,
     TemplateExampleWriteResult? writeResult,
     IReadOnlyDictionary<string, string> artifactsExample,
     IReadOnlyDictionary<string, string> templateParamsExample,
     IReadOnlyList<EditPlanTemplatePreview> previewPlans,
     IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
     IReadOnlyList<string> commands,
-    IReadOnlyList<object> seedCommands,
+    IReadOnlyList<TemplateSeedCommand> seedCommands,
     IReadOnlyList<TemplateSignalInstruction> signalInstructions,
     IReadOnlyList<string> signalCommands,
     IReadOnlyList<string> artifactCommands)
 {
     return new
     {
+        source,
         template,
         examples = new
         {
@@ -1549,48 +1997,54 @@ static IReadOnlyList<string> BuildTemplateArtifactCommands(
     ];
 }
 
-static IReadOnlyList<string> BuildTemplateExampleCommands(EditPlanTemplateDefinition template, bool hasArtifacts, bool hasTemplateParams)
+static IReadOnlyList<string> BuildTemplateExampleCommands(
+    EditPlanTemplateDefinition template,
+    bool hasArtifacts,
+    bool hasTemplateParams,
+    bool requiresPluginDir)
 {
+    var pluginArg = requiresPluginDir ? " --plugin-dir <plugin-dir>" : string.Empty;
     var commands = new List<string>
     {
-        $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}"
+        $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg}"
     };
 
     if (hasArtifacts)
     {
         commands.Add(
-            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --artifacts artifacts.json");
+            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --artifacts artifacts.json");
     }
 
     if (hasTemplateParams)
     {
         commands.Add(
-            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --template-params template-params.json");
+            $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --template-params template-params.json");
     }
 
     return commands;
 }
 
-static IReadOnlyList<object> BuildTemplateSeedCommands(EditPlanTemplateDefinition template)
+static IReadOnlyList<TemplateSeedCommand> BuildTemplateSeedCommands(EditPlanTemplateDefinition template, bool requiresPluginDir)
 {
-    var commands = new List<object>();
+    var pluginArg = requiresPluginDir ? " --plugin-dir <plugin-dir>" : string.Empty;
+    var commands = new List<TemplateSeedCommand>();
     foreach (var mode in template.RecommendedSeedModes.Distinct())
     {
-        commands.Add(new
+        commands.Add(new TemplateSeedCommand
         {
-            mode,
-            command = mode switch
+            Mode = mode.ToString().ToLowerInvariant(),
+            Command = mode switch
             {
                 EditPlanSeedMode.Manual =>
-                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}",
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg}",
                 EditPlanSeedMode.Transcript =>
-                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript",
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --transcript transcript.json --seed-from-transcript",
                 EditPlanSeedMode.Beats =>
-                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --beats beats.json --seed-from-beats --beat-group-size 4",
+                    $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --beats beats.json --seed-from-beats --beat-group-size 4",
                 _ => throw new InvalidOperationException($"Unsupported template seed mode '{mode}'.")
             },
-            variants = mode == EditPlanSeedMode.Transcript
-                ? BuildTranscriptSeedCommandVariants(template)
+            Variants = mode == EditPlanSeedMode.Transcript
+                ? BuildTranscriptSeedCommandVariants(template, requiresPluginDir)
                 : null
         });
     }
@@ -1598,27 +2052,28 @@ static IReadOnlyList<object> BuildTemplateSeedCommands(EditPlanTemplateDefinitio
     return commands;
 }
 
-static IReadOnlyList<object> BuildTranscriptSeedCommandVariants(EditPlanTemplateDefinition template)
+static IReadOnlyList<TemplateSeedVariant> BuildTranscriptSeedCommandVariants(EditPlanTemplateDefinition template, bool requiresPluginDir)
 {
+    var pluginArg = requiresPluginDir ? " --plugin-dir <plugin-dir>" : string.Empty;
     var variants = new[]
     {
         new
         {
             strategy = TranscriptSeedStrategy.Grouped,
             key = "grouped",
-            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 2"
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 2"
         },
         new
         {
             strategy = TranscriptSeedStrategy.MinDuration,
             key = "min-duration",
-            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500"
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500"
         },
         new
         {
             strategy = TranscriptSeedStrategy.MaxGap,
             key = "max-gap",
-            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200"
+            command = $"ovt init-plan <input> --template {template.Id} --output edit.json --render-output final.{template.OutputContainer}{pluginArg} --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200"
         }
     };
 
@@ -1629,11 +2084,12 @@ static IReadOnlyList<object> BuildTranscriptSeedCommandVariants(EditPlanTemplate
     return variants
         .OrderBy(variant => rankedStrategies.TryGetValue(variant.strategy, out var rank) ? rank : int.MaxValue)
         .ThenBy(variant => variant.key, StringComparer.Ordinal)
-        .Select(variant => (object)new
+        .Select(variant => new TemplateSeedVariant
         {
-            variant.key,
-            variant.command,
-            recommended = rankedStrategies.ContainsKey(variant.strategy)
+            Key = variant.key,
+            Command = variant.command,
+            Recommended = rankedStrategies.ContainsKey(variant.strategy),
+            Strategy = variant.strategy.ToString().ToLowerInvariant()
         })
         .ToArray();
 }
@@ -2097,7 +2553,10 @@ static async Task<BeatTrackDocument> LoadBeatTrackAsync(string beatsPath)
     return beatTrack;
 }
 
-static async Task<EditPlanValidationResult> ValidatePlanFileAsync(string fullPlanPath, bool checkFiles)
+static async Task<EditPlanValidationResult> ValidatePlanFileAsync(
+    string fullPlanPath,
+    bool checkFiles,
+    TemplatePluginCatalog? pluginCatalog = null)
 {
     var content = await File.ReadAllTextAsync(fullPlanPath);
     var plan = JsonSerializer.Deserialize<EditPlan>(content, OpenVideoToolboxJson.Default)
@@ -2109,7 +2568,27 @@ static async Task<EditPlanValidationResult> ValidatePlanFileAsync(string fullPla
     }
 
     var resolvedPlan = EditPlanPathResolver.ResolvePaths(plan, Path.GetDirectoryName(fullPlanPath)!);
-    return new EditPlanValidator().Validate(resolvedPlan, checkFiles);
+    var validationTemplates = SelectValidationTemplates(plan, pluginCatalog);
+    return new EditPlanValidator().Validate(resolvedPlan, checkFiles, validationTemplates);
+}
+
+static IReadOnlyList<EditPlanTemplateDefinition>? SelectValidationTemplates(
+    EditPlan plan,
+    TemplatePluginCatalog? pluginCatalog)
+{
+    if (pluginCatalog is null || pluginCatalog.Plugins.Count == 0)
+    {
+        return null;
+    }
+
+    if (string.Equals(plan.Template?.Source?.Kind, EditTemplateSourceKinds.Plugin, StringComparison.OrdinalIgnoreCase))
+    {
+        return pluginCatalog.LoadedTemplates
+            .Select(item => item.Template)
+            .ToArray();
+    }
+
+    return BuildAvailableTemplates(pluginCatalog);
 }
 
 static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
@@ -2153,7 +2632,9 @@ static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
         throw new InvalidOperationException(error!);
     }
 
-    var template = BuiltInEditPlanTemplateCatalog.GetRequired(templateId);
+    var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+    var availableTemplates = BuildAvailableTemplates(pluginCatalog);
+    var template = EditPlanTemplateCatalog.GetRequired(availableTemplates, templateId);
     var planDirectory = Path.GetDirectoryName(fullPlanOutputPath)!;
     var renderOutputPath = GetOption(options, "--render-output")
         ?? Path.Combine(planDirectory, $"{Path.GetFileNameWithoutExtension(inputPath)}.edited.{template.OutputContainer}");
@@ -2197,7 +2678,7 @@ static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
     }
 
     var plan = new EditPlanTemplateFactory().Create(
-        templateId,
+        template,
         new EditPlanTemplateRequest
         {
             InputPath = inputPath,
@@ -2219,11 +2700,13 @@ static async Task<TemplatePlanBuildResult> BuildEditPlanFromTemplateAsync(
             BeatGroupSize = beatGroupSize ?? 4,
             ArtifactBindings = artifactBindings,
             BgmPath = GetOption(options, "--bgm")
-        });
+        },
+        BuildPersistedTemplateSource(template, pluginCatalog));
 
     return new TemplatePlanBuildResult
     {
         Template = template,
+        TemplateSource = BuildTemplateSource(template, pluginCatalog),
         Plan = plan,
         Probe = probe,
         ArtifactBindings = artifactBindings,
@@ -2334,23 +2817,23 @@ static void PrintUsage()
     Console.WriteLine("Open Video Toolbox CLI");
     Console.WriteLine("Commands:");
     Console.WriteLine("  presets");
-    Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--json-out <path>] [--write-examples <dir>]");
+    Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--plugin-dir <path>] [--json-out <path>] [--write-examples <dir>]");
     Console.WriteLine("  doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--timeout-seconds <n>]");
+    Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
-    Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
-    Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
-    Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--json-out <path>]");
+    Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  probe <input> [--ffprobe <path>]");
     Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--overwrite]");
     Console.WriteLine("  run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
@@ -2375,7 +2858,7 @@ sealed record TemplateCommandBundle
 
     public IReadOnlyList<string> InitPlanCommands { get; init; } = [];
 
-    public IReadOnlyList<object> SeedCommands { get; init; } = [];
+    public IReadOnlyList<TemplateSeedCommand> SeedCommands { get; init; } = [];
 
     public IReadOnlyList<string> WorkflowCommands { get; init; } = [];
 }
@@ -2383,6 +2866,8 @@ sealed record TemplateCommandBundle
 sealed record TemplatePlanBuildResult
 {
     public required EditPlanTemplateDefinition Template { get; init; }
+
+    public required object TemplateSource { get; init; }
 
     public required EditPlan Plan { get; init; }
 
