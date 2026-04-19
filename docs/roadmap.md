@@ -36,6 +36,7 @@
 - 保持 `Core` 作为唯一业务 owner，避免在 `Cli` 或未来 Desktop 重复实现命令构建和外部工具调用。
 - 当前实施计划：`docs/plans/2026-04-15-cli-mvp-implementation.md`
 - 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
+- CLI 可维护性重构计划：`docs/plans/2026-04-19-cli-maintainability-refactor-plan.md`
 - 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
 - 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
 
@@ -62,6 +63,8 @@
 - `beat-track` 也已从旧的裸 JSON / 退出码分支收进统一 command envelope，并补上 `--json-out`；当波形提取失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
 - `audio-analyze` / `detect-silence` / `separate-audio` 也已从旧的裸结果 JSON 收进统一 command envelope；这几条命令在分析 / 检测 / 分离阶段失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
 - `audio-gain` / `transcribe` 现也已切到统一 command envelope；至此当前 Wave 1 的主要执行/分析类命令都已收进同一套成功/失败输出语义，减少外部 AI 在错误路径上遇到 usage 文本回退。
+- CLI 可维护性重构已启动，第一批先把共享 command output / failure helper 迁到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，并开始清理 `Program.cs` 里的纯转发 wrapper；当前策略仍是“先做组织性迁移，不改命令行为”。
+- `CommandArtifactsIntegrationTests` 也已开始按命令域拆成 partial files；当前已先分出 `utility`、`execution`、`audio-speech` 三组，主测试文件回收到 template / init / scaffold / validate 主线。
 
 ## 总体路线
 
@@ -177,6 +180,8 @@
   - 维持仓库级文档、模块 owner 和验证路径，避免后续 UI 开发把边界打散
 - `Repository automation`
   - 维持基础 CI 的可用性，并逐步评估哪些验证适合进入 GitHub Actions
+- `CLI maintainability refactor`
+  - 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续削减 `Program.cs` 与超大测试文件的维护摩擦
 
 ## 已实现基础
 
@@ -273,7 +278,7 @@
 
 - `dotnet test OpenVideoToolbox.sln`
 - `OpenVideoToolbox.Core.Tests`: 130/130
-- `OpenVideoToolbox.Cli.Tests`: 92/92
+- `OpenVideoToolbox.Cli.Tests`: 99/99
 - 当前开发机已通过真实 `ffprobe` / `ffmpeg` smoke：
   - `ffprobe` 媒体探测
   - `render` 导出与 sidecar 字幕复制
@@ -287,5 +292,6 @@
 ## 下一步
 
 1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
-2. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
-3. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。
+2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构，在已完成 output helper 清理与首批测试拆分后，继续评估是否还需要把 template / scaffold / validate 组再细分。
+3. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
+4. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。
