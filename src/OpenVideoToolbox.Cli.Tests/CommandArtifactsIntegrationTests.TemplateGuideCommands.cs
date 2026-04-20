@@ -1,0 +1,269 @@
+using System.Text.Json.Nodes;
+using Xunit;
+
+namespace OpenVideoToolbox.Cli.Tests;
+
+public sealed partial class CommandArtifactsIntegrationTests
+{
+    [Fact]
+    public async Task TemplatesWriteExamples_WritesStableCommandArtifacts()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-guide-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("templates", "commentary-bgm", "--write-examples", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "commands.json")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "commands.ps1")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "commands.cmd")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "commands.sh")));
+
+            var commands = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.json")))!.AsObject();
+            Assert.Equal("<input>", commands["variables"]!["inputPath"]!.GetValue<string>());
+
+            var initPlanCommands = commands["initPlanCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
+            Assert.Contains(initPlanCommands, command => command.Contains("--template commentary-bgm", StringComparison.Ordinal));
+
+            var seedModes = commands["seedCommands"]!.AsArray()
+                .Select(node => node!["mode"]!.GetValue<string>())
+                .ToArray();
+            Assert.True(seedModes.SequenceEqual(["manual", "transcript"]));
+
+            var transcriptSeed = commands["seedCommands"]!.AsArray()
+                .Single(node => node!["mode"]!.GetValue<string>() == "transcript")!
+                .AsObject();
+            var transcriptVariants = transcriptSeed["variants"]!.AsArray();
+            Assert.Equal(3, transcriptVariants.Count);
+            Assert.Equal("min-duration", transcriptVariants[0]!["key"]!.GetValue<string>());
+            Assert.True(transcriptVariants[0]!["recommended"]!.GetValue<bool>());
+            Assert.Equal("grouped", transcriptVariants[1]!["key"]!.GetValue<string>());
+            Assert.False(transcriptVariants[1]!["recommended"]!.GetValue<bool>());
+            Assert.Equal("max-gap", transcriptVariants[2]!["key"]!.GetValue<string>());
+
+            var workflowCommands = commands["workflowCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
+            Assert.True(workflowCommands.SequenceEqual(
+                [
+                    "ovt validate-plan --plan edit.json",
+                    "ovt render --plan edit.json --preview",
+                    "ovt mix-audio --plan edit.json --output mixed.wav --preview"
+                ]));
+            var signalCommands = commands["signalCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
+            Assert.True(signalCommands.SequenceEqual(
+                [
+                    "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
+                    "ovt detect-silence <input> --output silence.json"
+                ]));
+            var signalInstructions = commands["signalInstructions"]!.AsArray();
+            Assert.Equal(2, signalInstructions.Count);
+            Assert.Contains(
+                signalInstructions,
+                node => node!["kind"]!.GetValue<string>() == "transcript"
+                    && node["command"]!.GetValue<string>().Contains("<whisper-model-path>", StringComparison.Ordinal));
+            Assert.Contains(
+                signalInstructions,
+                node => node!["kind"]!.GetValue<string>() == "silence"
+                    && node["consumption"]!.GetValue<string>().Contains("edit.json clip boundaries", StringComparison.Ordinal));
+            Assert.Empty(commands["artifactCommands"]!.AsArray());
+
+            var guide = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "guide.json")))!.AsObject();
+            var commandFiles = guide["examples"]!["commandFiles"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
+            Assert.True(commandFiles.SequenceEqual(["commands.json", "commands.ps1", "commands.cmd", "commands.sh"]));
+            Assert.Equal("<whisper-model-path>", commands["variables"]!["whisperModelPath"]!.GetValue<string>());
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            Assert.Contains("$WhisperModelPath = \"<whisper-model-path>\"", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("# transcript seed example", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt init-plan $InputPath --template commentary-bgm --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("# transcript variant: min-duration (recommended)", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt init-plan $InputPath --template commentary-bgm --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500", powerShellScript, StringComparison.Ordinal);
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            Assert.Contains("REM Review silence.json before hand-tuning edit.json clip boundaries", batchScript, StringComparison.Ordinal);
+            Assert.Contains("REM transcript variant: min-duration (recommended)", batchScript, StringComparison.Ordinal);
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+            Assert.Contains("# transcript variant: min-duration (recommended)", shellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplatesWriteExamples_ForCaptionedTemplate_WritesArtifactCommandsIntoAllScripts()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-captioned-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("templates", "shorts-captioned", "--write-examples", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var commands = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.json")))!.AsObject();
+            Assert.Contains(
+                commands["artifactCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
+
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+
+            Assert.Contains("ovt subtitle $InputPath --transcript transcript.json --format srt --output subtitles.srt", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt subtitle \"%INPUT_PATH%\" --transcript transcript.json --format srt --output subtitles.srt", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt subtitle \"$INPUT_PATH\" --transcript transcript.json --format srt --output subtitles.srt", shellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplatesWriteExamples_ForBeatMontage_WritesStemGuidanceIntoAllScripts()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-template-beat-scripts-{Guid.NewGuid():N}");
+
+        try
+        {
+            var result = await RunCliAsync("templates", "beat-montage", "--write-examples", outputDirectory);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
+            var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
+            var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
+
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio $InputPath --output-dir stems", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio \"%INPUT_PATH%\" --output-dir stems", batchScript, StringComparison.Ordinal);
+            Assert.Contains("After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav", shellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt separate-audio \"$INPUT_PATH\" --output-dir stems", shellScript, StringComparison.Ordinal);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task TemplateGuide_ForShortsCaptioned_ReturnsStableSeedModesAndPreviewShapes()
+    {
+        var result = await RunCliAsync("templates", "shorts-captioned");
+
+        Assert.Equal(0, result.ExitCode);
+
+        var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+        var template = payload["template"]!.AsObject();
+        var examples = payload["examples"]!.AsObject();
+
+        Assert.Equal("shorts-captioned", template["id"]!.GetValue<string>());
+        Assert.True(template["recommendedSeedModes"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .SequenceEqual(["manual", "transcript", "beats"]));
+        Assert.True(template["supportingSignals"]!.AsArray()
+            .Select(node => node!["kind"]!.GetValue<string>())
+            .SequenceEqual(["transcript", "beats", "silence"]));
+
+        Assert.Equal("subtitles.srt", examples["artifacts"]!["subtitles"]!.GetValue<string>());
+        Assert.Equal("burn-later", examples["templateParams"]!["captionStyle"]!.GetValue<string>());
+        var supportingSignals = examples["supportingSignals"]!.AsArray();
+        Assert.Equal(3, supportingSignals.Count);
+        Assert.Contains(supportingSignals, node => node!["kind"]!.GetValue<string>() == "silence");
+        Assert.Contains(supportingSignals, node => node!["command"]!.GetValue<string>().Contains("detect-silence", StringComparison.Ordinal));
+        Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("beat-track", StringComparison.Ordinal));
+        Assert.Contains(examples["artifactCommands"]!.AsArray(), node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
+
+        var seedCommands = examples["seedCommands"]!.AsArray();
+        Assert.Equal(3, seedCommands.Count);
+        Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "transcript");
+        Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "beats");
+
+        var transcriptSeed = seedCommands
+            .Single(node => node!["mode"]!.GetValue<string>() == "transcript")!
+            .AsObject();
+        var transcriptVariants = transcriptSeed["variants"]!.AsArray();
+        Assert.Equal(3, transcriptVariants.Count);
+        Assert.Equal("grouped", transcriptVariants[0]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[0]!["recommended"]!.GetValue<bool>());
+        Assert.Equal("max-gap", transcriptVariants[1]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[1]!["recommended"]!.GetValue<bool>());
+        Assert.Equal("min-duration", transcriptVariants[2]!["key"]!.GetValue<string>());
+        Assert.False(transcriptVariants[2]!["recommended"]!.GetValue<bool>());
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--transcript-segment-group-size 2", StringComparison.Ordinal));
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--min-transcript-segment-duration-ms 500", StringComparison.Ordinal));
+        Assert.Contains(transcriptVariants, node => node!["command"]!.GetValue<string>().Contains("--max-transcript-gap-ms 200", StringComparison.Ordinal));
+
+        var previewPlans = examples["previewPlans"]!.AsArray();
+        Assert.Equal(3, previewPlans.Count);
+
+        var transcriptPreviewNode = GetPreview(previewPlans, "transcript");
+        var transcriptPreview = Assert.IsType<JsonObject>(transcriptPreviewNode["editPlan"]);
+        Assert.NotNull(transcriptPreview["transcript"]);
+        Assert.Equal(2, transcriptPreview["clips"]!.AsArray().Count);
+        var strategyVariants = transcriptPreviewNode["strategyVariants"]!.AsArray();
+        Assert.Equal(3, strategyVariants.Count);
+        Assert.Equal("grouped", strategyVariants[0]!["key"]!.GetValue<string>());
+        Assert.True(strategyVariants[0]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("max-gap", strategyVariants[1]!["key"]!.GetValue<string>());
+        Assert.True(strategyVariants[1]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("min-duration", strategyVariants[2]!["key"]!.GetValue<string>());
+        Assert.False(strategyVariants[2]!["isRecommended"]!.GetValue<bool>());
+
+        var beatsPreview = GetPreviewPlan(previewPlans, "beats");
+        Assert.NotNull(beatsPreview["beats"]);
+        Assert.Equal("sidecar", beatsPreview["subtitles"]!["mode"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task TemplateGuide_ForBeatMontage_ReturnsBeatFirstExamplesWithoutSubtitleShape()
+    {
+        var result = await RunCliAsync("templates", "beat-montage");
+
+        Assert.Equal(0, result.ExitCode);
+
+        var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+        var template = payload["template"]!.AsObject();
+        var examples = payload["examples"]!.AsObject();
+
+        Assert.Equal("beat-montage", template["id"]!.GetValue<string>());
+        Assert.True(template["recommendedSeedModes"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .SequenceEqual(["manual", "beats"]));
+        Assert.True(template["supportingSignals"]!.AsArray()
+            .Select(node => node!["kind"]!.GetValue<string>())
+            .SequenceEqual(["beats", "stems"]));
+
+        Assert.Equal("stems/htdemucs/input/no_vocals.wav", examples["artifacts"]!["bgm"]!.GetValue<string>());
+        Assert.Equal("sync-cut", examples["templateParams"]!["pace"]!.GetValue<string>());
+        Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("separate-audio", StringComparison.Ordinal));
+        Assert.Contains(examples["supportingSignals"]!.AsArray(), node => node!["kind"]!.GetValue<string>() == "stems");
+        Assert.Contains(
+            examples["supportingSignals"]!.AsArray(),
+            node => node!["kind"]!.GetValue<string>() == "stems"
+                && node["consumption"]!.GetValue<string>().Contains("artifacts.json", StringComparison.Ordinal));
+        Assert.Empty(examples["artifactCommands"]!.AsArray());
+
+        var previewPlans = examples["previewPlans"]!.AsArray();
+        Assert.Equal(2, previewPlans.Count);
+
+        var manualPreview = GetPreviewPlan(previewPlans, "manual");
+        Assert.Null(manualPreview["subtitles"]);
+        Assert.Single(manualPreview["audioTracks"]!.AsArray());
+
+        var beatsPreview = GetPreviewPlan(previewPlans, "beats");
+        Assert.NotNull(beatsPreview["beats"]);
+        Assert.Single(beatsPreview["clips"]!.AsArray());
+        Assert.Equal("stems/htdemucs/input/no_vocals.wav", beatsPreview["audioTracks"]![0]!["path"]!.GetValue<string>());
+    }
+}

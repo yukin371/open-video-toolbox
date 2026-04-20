@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-19
+最后更新：2026-04-20
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -40,8 +40,19 @@
 - 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
 - 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
 
-## 阶段检查（2026-04-18）
+## 阶段检查（2026-04-20）
 
+- `2026-04-20` 已将 CLI 可维护性重构第一批组织性迁移并入主干：共享 command output / failure helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，`CommandArtifactsIntegrationTests` 也已开始按命令域拆分。
+- `2026-04-20` 已继续完成第二批低风险整理：`validate-plan` / `init-plan` / `scaffold-template` 的 CLI 集成测试已迁到独立 partial 文件，`Program.cs` 底部仅承载模板命令结果形状的 record 也已迁到独立文件，继续缩小入口文件体量。
+- `2026-04-20` 已继续把模板命令的 presentation / validation helper 从 `Program.cs` 迁到独立文件：`TemplateCommandPresentation.cs` 负责模板 guide / preview / commands / example 写盘组织，`TemplatePlanValidationSupport.cs` 负责 `validate-plan` 的模板校验 glue，入口文件进一步收缩但命令契约保持不变。
+- `2026-04-20` 已继续把通用 CLI option parsing 与模板 plan build glue 从 `Program.cs` 迁到独立文件：`CliOptionParsing.cs` 统一承接 `TryParse*` / `TryGet*` 解析 helper，`TemplatePlanBuildSupport.cs` 承接模板 plan build、transcript / beats 输入加载与 string-map 解析，为下一步继续拆命令族 wrapper 预留更清晰的依赖面。
+- `2026-04-20` 已继续把模板命令 wrapper 本身迁出 `Program.cs`：`TemplateCommandHandlers.cs` 现承接 `templates`、`init-plan`、`scaffold-template` 三条命令的入口 glue，主入口文件进一步收缩到顶层分发为主，但命令参数、输出契约和退出码保持不变。
+- `2026-04-20` 已继续把剩余 CLI wrapper 按命令族迁出 `Program.cs`：`MediaCommandHandlers.cs` 现承接 `cut` / `concat` / `extract-audio`，`AudioCommandHandlers.cs` 现承接 `audio-analyze` / `audio-gain` / `transcribe` / `detect-silence` / `separate-audio` / `beat-track` / `subtitle`，`RenderCommandHandlers.cs` 现承接 `mix-audio` / `render` 与局部 `edit.json` loading glue；主入口文件已进一步回收到顶层分发、usage 与失败出口，但命令契约保持不变。
+- `2026-04-20` 已继续把 CLI 集成测试按命令域收口：模板发现 / guide 测试已迁到独立 partial，原先 1500+ 行的 `AudioSpeechCommands` 也已拆成 `AudioAnalysisCommands`、`SpeechSignalCommands`、`SubtitleBeatCommands` 三组，并顺手去掉 `subtitle` / `beat-track` 的重复参数校验测试，降低后续命令族重构时的测试维护摩擦。
+- `2026-04-20` 已继续把执行与模板校验测试按 owner 收口：`ExecutionCommands` 已先拆成 `RenderMixCommands` 与 `MediaExecutionCommands`，随后又把 `RenderMixCommands` 继续细分为 `RenderCommands` 与 `MixAudioCommands`；`validate-plan` 相关测试已迁到独立 `ValidatePlanCommands` partial，而原本仅保留 `init-plan` / `scaffold-template` 主线的 `TemplatePlanningCommands` 也已继续拆成 `InitPlanCommands` 与 `ScaffoldTemplateCommands`，进一步降低跨命令域修改时的测试噪音。
+- `2026-04-20` 已继续把剩余大体量测试 partial 再按真实命令 owner 细分：`SpeechSignalCommands` 已拆成 `TranscribeCommands`、`DetectSilenceCommands`、`SeparateAudioCommands`，`TemplateDiscoveryCommands` 也已拆成 `TemplateCatalogCommands`、`TemplateGuideCommands`、`TemplatePluginCommands`，同时把 plugin `init-plan` / `scaffold-template` 用例迁回各自命令文件，进一步压低未来修改时的跨域噪音。
+- `2026-04-20` 已继续把 `AudioAnalysisCommands`、`UtilityCommands` 与 `InitPlanCommands` 进一步拆到单命令 / 单职责 partial：`AudioAnalysisCommands` 已拆成 `ExtractAudioCommands`、`AudioAnalyzeCommands`、`AudioGainCommands`，`UtilityCommands` 已拆成 `ProbePlanRunCommands` 与 `DoctorCommands`，`InitPlanCommands` 也已拆成 `InitPlanSeedCommands` 与 `InitPlanValidationCommands`，让命令契约测试与真实 owner 更对齐。
+- `2026-04-20` 已继续把剩余混合测试再拆薄一层：`RenderCommands` 已拆成 `RenderPreviewCommands` 与 `RenderExecutionCommands`，`DoctorCommands` 已拆成 `DoctorEnvelopeCommands` 与 `DoctorResolutionCommands`，`SubtitleBeatCommands` 也已拆成 `SubtitleCommands` 与 `BeatTrackCommands`，让 preview / execution、依赖解析与命令本体的边界更清楚。
 - 当前仓库已经完成 Wave 1 命令面的主要铺设，工作重心正式转入 `Hardening`。
 - 最近一轮小提交主要完成了两类收敛：
   - `audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`subtitle` 已补齐或延续 `--json-out` 路径，进一步稳定外部 AI / 脚本消费契约。
@@ -276,9 +287,10 @@
 
 ## 已验证
 
+- `dotnet build OpenVideoToolbox.sln`
 - `dotnet test OpenVideoToolbox.sln`
 - `OpenVideoToolbox.Core.Tests`: 130/130
-- `OpenVideoToolbox.Cli.Tests`: 99/99
+- `OpenVideoToolbox.Cli.Tests`: 94/94
 - 当前开发机已通过真实 `ffprobe` / `ffmpeg` smoke：
   - `ffprobe` 媒体探测
   - `render` 导出与 sidecar 字幕复制
@@ -292,6 +304,6 @@
 ## 下一步
 
 1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
-2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构，在已完成 output helper 清理与首批测试拆分后，继续评估是否还需要把 template / scaffold / validate 组再细分。
+2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构；在已完成 `Program.cs` 命令族迁移与多轮测试 owner 收口后，下一步重点转为评估 `ScaffoldTemplateCommands`、`InitPlanSeedCommands`、`MixAudioCommands`、`DoctorResolutionCommands` 这些仍偏大的 partial 是否还值得继续细分。
 3. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
 4. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。
