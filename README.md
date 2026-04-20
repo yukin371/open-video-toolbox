@@ -18,12 +18,15 @@
 - Phase 2 外部工具抽象、`ffprobe` 解析、`ffmpeg` 命令构建与进程执行器
 - Phase 3 CLI 命令面：`presets`、`probe`、`plan`、`run`
 - Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
+- 当前主干重点已从“继续补命令”切到 `Hardening`：统一 CLI success / failure envelope、补齐 `--json-out`、稳定模板插件来源元数据与 guide / scaffold / commands 输出
+- CLI 可维护性重构已持续推进：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
 
-## 建议的近期目标
+## 当前优先方向
 
-1. 先做 CLI-first MVP，不追求完整 GUI。
-2. 先稳定媒体模型、任务模型、`edit.json` 和结构化 JSON 输出。
-3. 先补可供外部 AI 编排的确定性编辑子命令，再决定是否需要 Desktop。
+1. 继续优先做 `Hardening`，把 `ffmpeg` / `ffprobe` / `whisper.cpp` / `demucs` 真实工具 smoke、失败路径和依赖说明补扎实，而不是先继续扩命令数量。
+2. 继续收敛模板工作流，把 transcript / silence / stems 等 supporting signals 稳定接入 `guide.json`、`commands.json` / `commands.*`、脚手架目录和命令快照测试。
+3. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 推进 CLI 可维护性重构，逐步缩小 `Program.cs` 与超大测试文件的维护摩擦，但保持输出契约和退出码语义不变。
+4. 模板插件边界继续限定在“显式目录发现 + 静态 manifest + 复用现有 template schema”，不引入运行时代码加载；Desktop 仍在 CLI / 模板工作流稳定后再评估。
 
 ## 仓库结构
 
@@ -148,12 +151,12 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 
 ## 下一步
 
-下一阶段建议先落地可被外部 AI 代理稳定调用的 CLI 剪辑基元：
+下一阶段建议优先把现有 CLI 媒体工具链做实：
 
-1. 继续丰富模板契约，让外部 AI 能稳定复用固定剪辑套路与 artifact slot
-2. 在 `beat-track` 基础上补更多节奏辅助能力，但保持 `beats.json` 与 `edit.json` 的稳定边界
-3. 优先整合现有工具与格式，不重复造轮子
-4. Desktop 仅在 `edit.json` 工作流稳定后再评估
+1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
+2. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
+3. 继续推进 CLI 可维护性重构，在已完成 `Program.cs` 命令族抽取后，继续收敛剩余超大测试文件与命令域文档，让 command-family owner、测试分组和 roadmap 保持同步。
+4. 基于模板插件入口草案继续收敛插件来源提示与校验链，但仍不引入运行时代码加载，也暂不提前拉起 Desktop 复杂度。
 
 ## 设计文档
 
