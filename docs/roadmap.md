@@ -35,6 +35,7 @@
 - 把项目收敛为“基础能力层 + 模板层 + 插件扩展层”的结构，而不是继续堆离散命令。
 - 保持 `Core` 作为唯一业务 owner，避免在 `Cli` 或未来 Desktop 重复实现命令构建和外部工具调用。
 - 当前实施计划：`docs/plans/2026-04-15-cli-mvp-implementation.md`
+- 当前里程碑计划：`docs/plans/2026-04-20-cli-ai-ready-milestone.md`
 - 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
 - CLI 可维护性重构计划：`docs/plans/2026-04-19-cli-maintainability-refactor-plan.md`
 - 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
@@ -170,6 +171,36 @@
   - 用模板把常见短视频工作流收敛成简单入口
   - 视 CLI 成熟度决定是否接入 Desktop MVP
 
+## 阶段分界线
+
+### 何时认定 CLI 已足够提供给外部 AI 使用
+
+只有同时满足以下条件，才可认定当前 CLI 已足够支撑多数基础剪辑工作：
+
+1. 关键工作流闭环：
+   - `probe -> plan -> run`
+   - `templates -> init-plan / scaffold-template -> validate-plan -> render`
+   - `transcribe -> subtitle -> render`
+   - `audio-analyze` / `audio-gain` / `detect-silence` / `separate-audio`
+2. 关键命令成功与失败都输出结构化 JSON，而不是在错误路径退回纯 usage。
+3. 关键命令的 `--json-out` 契约齐备。
+4. `doctor` 能清晰表达依赖来源、默认值、unset、缺失原因与 required/optional 语义。
+5. 至少一套真实依赖 smoke 能重复通过，并有测试或 smoke 入口可追踪。
+
+### 何时启动 Desktop MVP
+
+只有同时满足以下条件，才启动 Desktop MVP：
+
+1. `edit.json schema v1` 已进入低频变更阶段。
+2. 模板工作流稳定：
+   - `templates`
+   - `init-plan`
+   - `scaffold-template`
+   - `validate-plan`
+   - `render` / `mix-audio`
+3. 外部 AI 已能通过 CLI 完成多数基础剪辑任务。
+4. Desktop 明确定位为“交互壳”，而不是新的业务 owner。
+
 ## Active Tracks
 
 - `Foundation hardening`
@@ -256,6 +287,7 @@
 - 保持 supporting signal guidance 由模板 owner 显式声明，避免 CLI 侧临时拼接
 - 为脚手架输出补更多命令快照 / 集成测试，锁住 `commands.json` / `commands.*` 的变量与占位符语义
 - 明确重型外部依赖的安装前提、日志保留和错误输出约束
+- 让当前阶段正式跨过 `CLI AI-ready` 门槛，而不是继续以“命令数量”衡量成熟度
 
 ### P1
 
@@ -307,3 +339,16 @@
 2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构；在已完成 `Program.cs` 命令族迁移与多轮测试 owner 收口后，下一步重点转为评估 `ScaffoldTemplateCommands`、`InitPlanSeedCommands`、`MixAudioCommands`、`DoctorResolutionCommands` 这些仍偏大的 partial 是否还值得继续细分。
 3. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
 4. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。
+
+## 文档保鲜方式
+
+- 只维护少数核心文档：
+  - `roadmap.md` 写当前活跃工作面
+  - `ARCHITECTURE_GUARDRAILS.md` 写长期边界与阶段门槛
+  - `plans/*.md` 写当前里程碑或专项
+  - `MODULE.md` 写模块独有边界
+- 每次任务收尾至少检查三件事：
+  - 当前优先级是否变化
+  - owner / 模块边界是否变化
+  - 外部使用方式或验收标准是否变化
+- 只要上述任一答案为“是”，就必须同步至少一个文档；不要把阶段目标、架构边界、模块规则分散到更多重复文档里。
