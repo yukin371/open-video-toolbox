@@ -39,6 +39,8 @@
 - 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
 - CLI 可维护性重构计划：`docs/plans/2026-04-19-cli-maintainability-refactor-plan.md`
 - 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
+- 长期演化路线（H1~E2）：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
+- H1 收口任务清单：`docs/plans/2026-04-21-h1-hardening-checklist.md`
 - 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
 
 ## 阶段检查（2026-04-20）

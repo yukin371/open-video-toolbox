@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Xunit;
 
 namespace OpenVideoToolbox.Cli.Tests;
@@ -20,7 +21,14 @@ public sealed partial class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffprobe", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("probe <input>", result.StdOut, StringComparison.Ordinal);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("probe", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            Assert.NotNull(payload["error"]);
+            Assert.Contains("missing-ffprobe", payload["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
         }
         finally
         {
@@ -70,7 +78,14 @@ public sealed partial class CommandArtifactsIntegrationTests
 
             Assert.Equal(1, result.ExitCode);
             Assert.Contains("missing-ffprobe", result.StdErr, StringComparison.Ordinal);
-            Assert.Contains("run <input>", result.StdOut, StringComparison.Ordinal);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("run", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            Assert.NotNull(payload["error"]);
+            Assert.Contains("missing-ffprobe", payload["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
         }
         finally
         {

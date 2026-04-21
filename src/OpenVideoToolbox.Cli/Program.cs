@@ -45,8 +45,7 @@ static async Task<int> MainAsync(string[] args)
 
 static int RunPresets()
 {
-    WriteJson(BuiltInPresetCatalog.GetAll());
-    return 0;
+    return WriteCommandEnvelope("presets", preview: false, BuiltInPresetCatalog.GetAll());
 }
 
 static int ShowHelp()
@@ -85,9 +84,9 @@ static void PrintUsage()
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
     Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
-    Console.WriteLine("  probe <input> [--ffprobe <path>]");
-    Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--overwrite]");
-    Console.WriteLine("  run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  probe <input> [--ffprobe <path>] [--json-out <path>]");
+    Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--json-out <path>] [--overwrite]");
+    Console.WriteLine("  run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--json-out <path>] [--overwrite]");
     Console.WriteLine();
     Console.WriteLine("Built-in presets:");
     foreach (var preset in BuiltInPresetCatalog.GetAll())

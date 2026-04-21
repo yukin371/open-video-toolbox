@@ -15,6 +15,7 @@
 - 统一音频增益导出编排
 - 外部依赖探测与 `doctor` 结果模型
 - `whisper-cli` 转写命令构建与执行编排
+- `demucs` 音频分离命令构建与执行编排
 - `ffmpeg silencedetect` 命令构建与执行编排
 - 转码任务执行编排
 - `mix-audio --plan` 音频导出编排

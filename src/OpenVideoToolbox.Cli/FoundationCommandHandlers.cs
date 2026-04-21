@@ -39,7 +39,15 @@ internal static class FoundationCommandHandlers
         }
         catch (Exception ex)
         {
-            return fail(ex.Message);
+            return FailWithCommandEnvelope(
+                "doctor",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "doctor",
+                    new { },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
         }
     }
 
@@ -50,6 +58,7 @@ internal static class FoundationCommandHandlers
             return fail(error!);
         }
 
+        var jsonOutPath = GetOption(options, "--json-out");
         var ffprobePath = GetOption(options, "--ffprobe") ?? "ffprobe";
         var processRunner = new DefaultProcessRunner();
         var probeService = new FfprobeMediaProbeService(processRunner, new FfprobeJsonParser());
@@ -57,12 +66,36 @@ internal static class FoundationCommandHandlers
         try
         {
             var result = await probeService.ProbeAsync(inputPath!, ffprobePath);
-            WriteJson(result);
-            return 0;
+
+            return WriteCommandEnvelope(
+                "probe",
+                preview: false,
+                new
+                {
+                    probe = new
+                    {
+                        inputPath,
+                        ffprobePath
+                    },
+                    result
+                },
+                jsonOutPath);
         }
         catch (Exception ex)
         {
-            return fail(ex.Message);
+            return FailWithCommandEnvelope(
+                "probe",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "probe",
+                    new
+                    {
+                        inputPath,
+                        ffprobePath
+                    },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
         }
     }
 
@@ -133,20 +166,41 @@ internal static class FoundationCommandHandlers
             return Task.FromResult(fail(error!));
         }
 
+        var jsonOutPath = GetOption(options, "--json-out");
+
         try
         {
             var job = FoundationCommandSupport.BuildJob(inputPath!, options, probeSnapshot: null);
             var plan = new FfmpegCommandBuilder().Build(job, GetOption(options, "--ffmpeg") ?? "ffmpeg");
-            WriteJson(new
-            {
-                job,
-                commandPlan = plan
-            });
-            return Task.FromResult(0);
+
+            return Task.FromResult(WriteCommandEnvelope(
+                "plan",
+                preview: false,
+                new
+                {
+                    plan = new
+                    {
+                        inputPath
+                    },
+                    job,
+                    commandPlan = plan
+                },
+                jsonOutPath));
         }
         catch (Exception ex)
         {
-            return Task.FromResult(fail(ex.Message));
+            return Task.FromResult(FailWithCommandEnvelope(
+                "plan",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "plan",
+                    new
+                    {
+                        inputPath
+                    },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath));
         }
     }
 
@@ -162,6 +216,7 @@ internal static class FoundationCommandHandlers
             return fail(error!);
         }
 
+        var jsonOutPath = GetOption(options, "--json-out");
         var ffprobePath = GetOption(options, "--ffprobe") ?? "ffprobe";
         var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
         TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
@@ -178,17 +233,50 @@ internal static class FoundationCommandHandlers
 
             var result = await runner.RunAsync(job, ffmpegPath, timeout);
 
-            WriteJson(new
+            if (result.Status != ExecutionStatus.Succeeded)
             {
-                job,
-                execution = result
-            });
+                var message = BuildExecutionFailureMessage(result);
+                return FailWithCommandEnvelope(
+                    "run",
+                    preview: false,
+                    BuildFailedCommandPayload("run", job, message, result),
+                    message,
+                    jsonOutPath,
+                    exitCode: 2);
+            }
 
-            return result.Status == ExecutionStatus.Succeeded ? 0 : 2;
+            return WriteCommandEnvelope(
+                "run",
+                preview: false,
+                new
+                {
+                    run = new
+                    {
+                        inputPath,
+                        ffprobePath,
+                        ffmpegPath
+                    },
+                    job,
+                    execution = result
+                },
+                jsonOutPath);
         }
         catch (Exception ex)
         {
-            return fail(ex.Message);
+            return FailWithCommandEnvelope(
+                "run",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "run",
+                    new
+                    {
+                        inputPath,
+                        ffprobePath,
+                        ffmpegPath
+                    },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
         }
     }
 }
