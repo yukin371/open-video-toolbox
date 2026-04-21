@@ -2,6 +2,12 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>ovt</AssemblyName>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <PackageId>OpenVideoToolbox.Cli</PackageId>
+    <Description>A CLI media toolbox for external AI agents and scripted workflows.</Description>
+    <RepositoryUrl>https://github.com/yukin371/open-video-toolbox</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
