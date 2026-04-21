@@ -6,9 +6,9 @@ namespace OpenVideoToolbox.Cli.Tests;
 public sealed partial class CommandArtifactsIntegrationTests
 {
     [Fact]
-    public async Task InitPlan_SeedsClipsFromTranscriptSegments()
+    public async Task InitPlan_CanSkipShortTranscriptSegmentsBeforeSeeding()
     {
-        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-transcript-{Guid.NewGuid():N}");
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-transcript-min-{Guid.NewGuid():N}");
         Directory.CreateDirectory(outputDirectory);
         var transcriptPath = Path.Combine(outputDirectory, "transcript.json");
         var planPath = Path.Combine(outputDirectory, "edit.json");
@@ -20,8 +20,9 @@ public sealed partial class CommandArtifactsIntegrationTests
               "schemaVersion": 1,
               "language": "en",
               "segments": [
-                { "id": "seg-001", "start": "00:00:00", "end": "00:00:01.2000000", "text": "Hello" },
-                { "id": "seg-002", "start": "00:00:01.2000000", "end": "00:00:02.4000000", "text": "World" }
+                { "id": "seg-001", "start": "00:00:00", "end": "00:00:00.2500000", "text": "Too short" },
+                { "id": "seg-002", "start": "00:00:00.2500000", "end": "00:00:01", "text": "Keep" },
+                { "id": "seg-003", "start": "00:00:01", "end": "00:00:02", "text": "Keep too" }
               ]
             }
             """);
@@ -39,7 +40,11 @@ public sealed partial class CommandArtifactsIntegrationTests
                 "final.mp4",
                 "--transcript",
                 transcriptPath,
-                "--seed-from-transcript");
+                "--seed-from-transcript",
+                "--transcript-segment-group-size",
+                "2",
+                "--min-transcript-segment-duration-ms",
+                "500");
 
             Assert.Equal(0, result.ExitCode);
 
@@ -47,12 +52,10 @@ public sealed partial class CommandArtifactsIntegrationTests
             var editPlan = payload["editPlan"]!.AsObject();
             var clips = editPlan["clips"]!.AsArray();
 
-            Assert.Equal(2, clips.Count);
-            Assert.Equal("seg-001", clips[0]!["label"]!.GetValue<string>());
-            Assert.Equal("00:00:01.2000000", clips[0]!["out"]!.GetValue<string>());
-            Assert.Equal("seg-002", clips[1]!["label"]!.GetValue<string>());
-            Assert.Equal(Path.GetFullPath(transcriptPath), editPlan["transcript"]!["path"]!.GetValue<string>());
-            Assert.Equal(2, editPlan["transcript"]!["segmentCount"]!.GetValue<int>());
+            var clip = Assert.Single(clips);
+            Assert.Equal("seg-002..seg-003", clip!["label"]!.GetValue<string>());
+            Assert.Equal("00:00:00.2500000", clip["in"]!.GetValue<string>());
+            Assert.Equal("00:00:02", clip["out"]!.GetValue<string>());
             Assert.True(File.Exists(planPath));
         }
         finally
