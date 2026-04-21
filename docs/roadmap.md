@@ -84,6 +84,7 @@
 - `beat-track` 也已从旧的裸 JSON / 退出码分支收进统一 command envelope，并补上 `--json-out`；当波形提取失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
 - `audio-analyze` / `detect-silence` / `separate-audio` 也已从旧的裸结果 JSON 收进统一 command envelope；这几条命令在分析 / 检测 / 分离阶段失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
 - `audio-gain` / `transcribe` 现也已切到统一 command envelope；至此当前 Wave 1 的主要执行/分析类命令都已收进同一套成功/失败输出语义，减少外部 AI 在错误路径上遇到 usage 文本回退。
+- `2026-04-21` 已把 `probe` / `plan` / `run` / `doctor` / `presets` 的成功与失败路径统一收进 command envelope：至此全部 21 条命令都使用同一套 `{ command, preview, payload }` 输出契约，所有命令的 `--json-out` 齐备，所有命令的运行时错误都返回结构化 JSON 而不是退回 usage 文本；W1 envelope 收口已完成，下一步是 W2 CLI smoke 扩展与 W3 测试拆分停止线评估。
 - CLI 可维护性重构已启动，第一批先把共享 command output / failure helper 迁到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，并开始清理 `Program.cs` 里的纯转发 wrapper；当前策略仍是“先做组织性迁移，不改命令行为”。
 - `CommandArtifactsIntegrationTests` 也已开始按命令域拆成 partial files；当前已先分出 `utility`、`execution`、`audio-speech` 三组，主测试文件回收到 template / init / scaffold / validate 主线。
 

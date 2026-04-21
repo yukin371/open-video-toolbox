@@ -18,7 +18,7 @@
 - Phase 2 外部工具抽象、`ffprobe` 解析、`ffmpeg` 命令构建与进程执行器
 - Phase 3 CLI 命令面：`presets`、`probe`、`plan`、`run`
 - Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
-- 当前主干重点已从“继续补命令”切到 `Hardening`：统一 CLI success / failure envelope、补齐 `--json-out`、稳定模板插件来源元数据与 guide / scaffold / commands 输出
+- 当前主干重点已从”继续补命令”切到 `Hardening`：全部 21 条命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON 而非退回 usage 文本；当前重点转向 CLI 真实工具 smoke、测试拆分停止线评估和文档收口
 - CLI 可维护性重构已持续推进：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
 
 ## 当前优先方向
@@ -94,14 +94,14 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- render --plan edit.json --output final.mp4 --preview --json-out render-preview.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- mix-audio --plan edit.json --output mixed.wav
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- render --plan edit.json --output final.mp4
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- probe <input> --ffprobe <path>
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- plan <input> --preset h264-aac-mp4
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- run <input> --preset h264-aac-mp4 --ffprobe <path> --ffmpeg <path>
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- probe <input> --ffprobe <path> --json-out probe.json
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- plan <input> --preset h264-aac-mp4 --json-out plan.json
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- run <input> --preset h264-aac-mp4 --ffprobe <path> --ffmpeg <path> --json-out run.json
 ```
 
 说明：
 
-- `presets` 列出内置预设
+- `presets` 列出内置预设；stdout 现输出统一 command envelope
 - `doctor` 统一检查 `ffmpeg`、`ffprobe`、`whisper-cli`、`demucs` 和 `whisper model` 的依赖状态；stdout 始终输出结构化 JSON，缺失 required 依赖时返回非零退出码，也支持 `--json-out`
 - `templates` 无参时列出内置 `edit.json` 模板；可选用 `--category`、`--seed-mode`、`--output-container`、`--artifact-kind`、`--has-artifacts`、`--has-subtitles` 过滤列表，也可用 `--summary` 返回稳定的机器友好摘要，并额外暴露模板级 transcript 策略推荐与 supporting signals，便于外部 AI 在不读取完整 guide 的前提下先完成首次筛选；传 `--plugin-dir <path>` 时还会显式发现一个插件目录下的模板并把插件清单一起输出，但仍不引入运行时代码插件；用 `--json-out` 可直接写出结果；传模板 id 时返回单模板指南，包含 artifact skeleton、template-params skeleton、推荐 seed 模式、supporting signal 命令、artifact preparation 命令、示例命令，以及按推荐 seed 模式生成的最小 `edit.json` 预览；其中 transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令与 preview，并标出模板 owner 推荐的组合；对带 `stems` supporting signal 的模板，`artifacts.json` skeleton 现在会直接把 `bgm` 示例路径预填成 `stems/htdemucs/input/no_vocals.wav`，减少外部 AI 自己猜 `Demucs` 目录结构；`commands.json` / `commands.*` 现在还会把 supporting signal 的 consumption 说明一并写出，直接提示这些信号下一步该如何接回 `artifacts.json` 或 `edit.json`，其中 transcript signal 会显式使用 `<whisper-model-path>` 占位符，并在脚本里声明 `WhisperModelPath` / `WHISPER_MODEL_PATH`；插件模板的 `init-plan` / seed / `validate-plan` 示例还会显式带上 `<plugin-dir>` 占位符，并在脚本里声明 `PluginDir` / `PLUGIN_DIR`；插件模板 guide 中的 preview plans 也会沿用同一份 `template.source` 元数据，不再把示例 plan 伪装成 built-in；额外传 `--write-examples <dir>` 时会把 `guide.json`、`template.json`、这些 skeleton、preview plan，以及 `commands.json` / `commands.ps1` / `commands.cmd` / `commands.sh` 直接写到目录
 - 当前内置模板已覆盖 `short-form`、`commentary`、`explainer`、`montage` 四类常见套路，并补齐字幕/BGM 组合模板，便于外部 AI 先按工作流类型缩小模板集合
@@ -122,9 +122,9 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `validate-plan` 对手改或 AI 生成后的 `edit.json` 做结构化语义校验；可选 `--check-files` 检查引用文件是否存在，传 `--plugin-dir <path>` 时还会把插件模板目录接回校验链；如果 plan 标记为插件模板但未提供插件目录上下文，会显式报出缺少 plugin catalog context，而不是静默回退到内置模板；stdout 始终输出 JSON，并通过 `payload.isValid` 与 `issues` 返回校验结论
 - `mix-audio` 消费 `edit.json`，只导出混合后的音频文件，供独立检查或后续复用；传 `--preview` 时输出由 `Core.Execution` 生成的统一 `executionPreview`，并额外透出 plan 里的 `templateSource` 以便继续审计模板来源；当 plan 已成功加载但后续 preview / 执行失败时，无论是抛异常还是底层执行返回 failed status，CLI 都会继续输出结构化 failure envelope，把 `mixAudio` 上下文、可用的 `executionPreview`、可用时的 `execution`、`templateSource` 和错误消息一起带回 stdout，并返回非零退出码；传 `--json-out` 时可把同一份 envelope 原样写到文件
 - `render` 消费 `edit.json`，完成片段拼接、额外音轨混入，以及字幕烧录或外挂输出；传 `--preview` 时输出由 `Core.Execution` 生成的统一 `executionPreview`，其中包含 `CommandPlan`、`ProducedPaths` 与 side effect 预览，并额外透出 plan 里的 `templateSource` 以便继续审计模板来源；当 plan 已成功加载但后续 preview / 执行失败时，无论是抛异常还是底层执行返回 failed status，CLI 都会继续输出结构化 failure envelope，把 `render` plan、可用的 `executionPreview`、可用时的 `execution`、`templateSource` 和错误消息一起带回 stdout，并返回非零退出码；传 `--json-out` 时可把同一份 envelope 原样写到文件
-- `probe` 执行真实 `ffprobe` 并输出规范化 JSON
-- `plan` 生成任务定义和 `ffmpeg` 命令计划
-- `run` 先探测再执行真实任务
+- `probe` 执行真实 `ffprobe` 并输出规范化 JSON；stdout 现输出统一 command envelope，传 `--json-out` 时可把同一份 envelope 写到文件；当探测失败时也会优先返回结构化 failure envelope
+- `plan` 生成任务定义和 `ffmpeg` 命令计划；stdout 现输出统一 command envelope，传 `--json-out` 时可把同一份 envelope 写到文件；当计划构建失败时也会优先返回结构化 failure envelope
+- `run` 先探测再执行真实任务；stdout 现输出统一 command envelope，传 `--json-out` 时可把同一份 envelope 写到文件；执行失败时返回结构化 failure envelope（exit code 2），异常时返回 failure envelope（exit code 1）
 
 当前开发机已通过真实 `ffmpeg` / `ffprobe` smoke：
 
