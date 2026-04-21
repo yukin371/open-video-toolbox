@@ -1,0 +1,25 @@
+{
+  "id": "quick-subtitle",
+  "displayName": "Quick Subtitle",
+  "description": "A minimal template that adds subtitle support to a single clip. Good starting point for learning the template plugin system.",
+  "category": "example",
+  "version": "1.0.0",
+  "outputContainer": "mp4",
+  "defaultSubtitleMode": "sidecar",
+  "recommendedSeedModes": [ "manual", "transcript" ],
+  "recommendedTranscriptSeedStrategies": [ "grouped" ],
+  "artifactSlots": [
+    {
+      "id": "subtitles",
+      "kind": "subtitle",
+      "description": "Subtitle sidecar file (.srt)",
+      "required": false
+    }
+  ],
+  "supportingSignals": [
+    {
+      "kind": "transcript",
+      "reason": "Use transcript to generate subtitle artifacts before rendering."
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "id": "example-plugin",
+  "displayName": "Example Plugin",
+  "version": "1.0.0",
+  "description": "A minimal example template plugin for Open Video Toolbox. Use this as a starting point for your own plugins.",
+  "templates": [
+    {
+      "id": "quick-subtitle",
+      "path": "templates/quick-subtitle"
+    }
+  ]
+}

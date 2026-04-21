@@ -90,6 +90,7 @@
 - `2026-04-21` CLI smoke 已扩展到 13 个测试，覆盖 probe / cut / concat / extract-audio / audio-analyze / audio-gain / detect-silence / beat-track / subtitle / render / mix-audio / transcribe / separate-audio，全部验证 stdout envelope + `--json-out` 一致性 + 产物落盘。
 - `2026-04-22` H2+T1 契约冻结与模板稳定已启动：契约快照测试已建立（5 个黄金文件覆盖 presets / templates / templates <id> / validate-plan），CI 已补 ffmpeg 安装，`presets` / `plan` 已补 `--json-out` 测试，presets 已补 `--json-out` 支持；当前 CLI 测试从 105 增至 112，全部 242 测试通过。
 - `2026-04-22` T2 模板插件扩展面评估结论：`--plugin-dir` 显式目录发现、`template.source` 全链路审计、插件模板 schema 校验已在 H1 期间同步完成，8 个测试文件覆盖，`docs/plans/2026-04-19-template-plugin-entry-boundary.md` 验收标准全部满足，T2 无需额外实施即可关闭。
+- `2026-04-22` P1 插件开发者体验已完成：示例插件 `examples/plugin-example/`、插件验证错误路径测试（6 个）、开发指南 `docs/plugin-development-guide.md`；测试 248 全绿。
 - `CommandArtifactsIntegrationTests` 也已开始按命令域拆成 partial files；当前已先分出 `utility`、`execution`、`audio-speech` 三组，主测试文件回收到 template / init / scaffold / validate 主线。
 
 ## 总体路线
