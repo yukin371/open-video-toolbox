@@ -171,6 +171,9 @@ ovt render --plan edit.json --output final.mp4
 - `scaffold-template --validate` 会在生成后立即附带一份 plan 校验结果；加 `--check-files` 时，缺失输入或引用文件会让命令以非零退出码返回。
 - `validate-plan --check-files` 会额外检查 `source`、`audioTracks`、`artifacts`、`transcript`、`beats`、`subtitles` 引用文件是否存在；命令无论成功失败都输出 JSON，失败时返回非零退出码。
 - `doctor` 无论成功失败都输出 JSON envelope；其中 `ffmpeg`、`ffprobe` 属于 required 依赖，`whisper-cli`、`demucs`、`whisper-model` 属于 optional 依赖。
+- 推荐的重依赖验证顺序是 `doctor -> Core real smoke -> CLI real smoke`，先确认环境解析，再验证真实工具链。
+- `transcribe` real smoke 需要 `ffmpeg`、`whisper-cli` 和 `OVT_WHISPER_MODEL_PATH` 同时满足。
+- `separate-audio` real smoke 需要 `demucs` 可执行，且其默认输出目录规则仍与当前 `Core.AudioSeparation` 的路径映射一致。
 - `mix-audio --preview` 与 `render --preview` 会输出统一的 `executionPreview`，不会创建目录、不会启动 `ffmpeg`；适合外部 AI 先审查路径、参数、滤镜图与预期产物。传 `--json-out <path>` 时会把同一份 envelope 原样写到文件，便于把预览结果直接交给后续脚本。
 - `init-plan --artifacts` 读取一个简单 JSON object，例如 `{ "subtitles": "subs/captions.srt", "bgm": "audio/theme.wav" }`，把模板 slot 绑定写进 `edit.json.artifacts`。
 - `init-plan --template-params` 读取一个简单 JSON object，例如 `{ "hookStyle": "match-cut", "captionStyle": "clean-sidecar" }`，把模板默认参数覆盖后写进 `edit.json.template.parameters`。

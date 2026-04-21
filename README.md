@@ -149,6 +149,34 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - 默认环境缺少对应依赖时会自动跳过，不会让整仓测试变红
 - `doctor` 会优先使用命令行参数，其次读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`，最后回退到默认可执行名或 `unset`
 
+推荐的重依赖接入顺序：
+
+1. 先跑 `doctor`，确认当前机器是否已经能解析到 `ffmpeg`、`ffprobe`、`whisper-cli`、`demucs` 和 `whisper model`
+2. 再补环境变量或显式命令参数
+3. 最后再跑 real smoke，避免把“工具没装好”误判成命令实现问题
+
+建议验证命令：
+
+```powershell
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- doctor --json-out doctor.json
+dotnet test src/OpenVideoToolbox.Core.Tests/OpenVideoToolbox.Core.Tests.csproj --filter "FullyQualifiedName~RealMediaSmokeTests"
+dotnet test src/OpenVideoToolbox.Cli.Tests/OpenVideoToolbox.Cli.Tests.csproj --filter "FullyQualifiedName~CliRealMediaSmokeTests"
+```
+
+Windows 环境变量示例：
+
+```powershell
+$env:OVT_WHISPER_CLI_PATH = "C:\tools\whisper.cpp\build\bin\Release\whisper-cli.exe"
+$env:OVT_WHISPER_MODEL_PATH = "C:\models\whisper\ggml-base.bin"
+$env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\Scripts\demucs.exe"
+```
+
+当前 smoke 约束：
+
+- `transcribe` real smoke 需要同时满足 `ffmpeg`、`whisper-cli` 和 `OVT_WHISPER_MODEL_PATH`
+- `separate-audio` real smoke 需要 `demucs`
+- 这两类测试即使被自动跳过，也不代表真实依赖链已经验证通过，只代表测试入口本身可用
+
 ## 下一步
 
 下一阶段建议优先把现有 CLI 媒体工具链做实：

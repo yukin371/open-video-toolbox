@@ -85,7 +85,9 @@
 - `audio-analyze` / `detect-silence` / `separate-audio` 也已从旧的裸结果 JSON 收进统一 command envelope；这几条命令在分析 / 检测 / 分离阶段失败时，现也会优先返回结构化 failure envelope，而不是 usage 文本。
 - `audio-gain` / `transcribe` 现也已切到统一 command envelope；至此当前 Wave 1 的主要执行/分析类命令都已收进同一套成功/失败输出语义，减少外部 AI 在错误路径上遇到 usage 文本回退。
 - `2026-04-21` 已把 `probe` / `plan` / `run` / `doctor` / `presets` 的成功与失败路径统一收进 command envelope：至此全部 21 条命令都使用同一套 `{ command, preview, payload }` 输出契约，所有命令的 `--json-out` 齐备，所有命令的运行时错误都返回结构化 JSON 而不是退回 usage 文本；W1 envelope 收口已完成，下一步是 W2 CLI smoke 扩展与 W3 测试拆分停止线评估。
-- CLI 可维护性重构已启动，第一批先把共享 command output / failure helper 迁到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，并开始清理 `Program.cs` 里的纯转发 wrapper；当前策略仍是“先做组织性迁移，不改命令行为”。
+- CLI 可维护性重构已启动，第一批先把共享 command output / failure helper 迁到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，并开始清理 `Program.cs` 里的纯转发 wrapper；当前策略仍是”先做组织性迁移，不改命令行为”。
+- `2026-04-21` CLI 测试拆分停止线评估结论：53 个 partial 文件已全部达到”单命令 + 单结果路径”粒度（最大 3 facts / 文件），继续拆分的 diff 成本已超过维护收益，CLI 可维护性重构 active track 正式关闭。
+- `2026-04-21` CLI smoke 已扩展到 13 个测试，覆盖 probe / cut / concat / extract-audio / audio-analyze / audio-gain / detect-silence / beat-track / subtitle / render / mix-audio / transcribe / separate-audio，全部验证 stdout envelope + `--json-out` 一致性 + 产物落盘。
 - `CommandArtifactsIntegrationTests` 也已开始按命令域拆成 partial files；当前已先分出 `utility`、`execution`、`audio-speech` 三组，主测试文件回收到 template / init / scaffold / validate 主线。
 
 ## 总体路线
@@ -233,7 +235,7 @@
 - `Repository automation`
   - 维持基础 CI 的可用性，并逐步评估哪些验证适合进入 GitHub Actions
 - `CLI maintainability refactor`
-  - 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续削减 `Program.cs` 与超大测试文件的维护摩擦
+  - ~~按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续削减 `Program.cs` 与超大测试文件的维护摩擦~~ 已关闭（2026-04-21），测试拆分已达单命令+单结果路径粒度
 
 ## 已实现基础
 

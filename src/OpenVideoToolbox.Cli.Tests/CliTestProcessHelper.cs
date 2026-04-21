@@ -147,6 +147,24 @@ internal static class CliTestProcessHelper
         return GetEnvironmentValue(variableName) ?? defaultToolName;
     }
 
+    public static async Task CreateSampleVideoAsync(string outputPath, TimeSpan duration)
+    {
+        await RunProcessAsync(
+            "ffmpeg",
+            [
+                "-y",
+                "-f", "lavfi",
+                "-i", "testsrc=size=320x240:rate=25",
+                "-f", "lavfi",
+                "-i", "sine=frequency=880:sample_rate=48000",
+                "-t", duration.TotalSeconds.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture),
+                "-c:v", "libx264",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac",
+                outputPath
+            ]);
+    }
+
     public static async Task CreateSampleAudioAsync(string outputPath, TimeSpan duration)
     {
         await RunProcessAsync(

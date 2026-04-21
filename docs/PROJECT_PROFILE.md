@@ -85,6 +85,11 @@
 - 插件模板生成的 `edit.json` 现会在 `template.source` 中持久化稳定来源元数据，只保留 `kind` / `pluginId` / `pluginVersion`，不把机器相关的插件目录写进 plan。
 - 详细草案见 `docs/CLI_MVP.md`。
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
+- 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
+- Windows 常用环境变量：
+  - `OVT_WHISPER_CLI_PATH`
+  - `OVT_WHISPER_MODEL_PATH`
+  - `OVT_DEMUCS_PATH`
 
 ## 仓库拓扑
 
