@@ -37,15 +37,17 @@ static async Task<int> MainAsync(string[] args)
         "plan" => await FoundationCommandHandlers.RunPlanAsync(remaining, Fail),
         "run" => await FoundationCommandHandlers.RunTranscodeAsync(remaining, Fail),
         "templates" => TemplateCommandHandlers.RunTemplates(remaining, Fail),
-        "presets" => RunPresets(),
+        "presets" => RunPresets(remaining),
         "help" or "--help" or "-h" => ShowHelp(),
         _ => Fail($"Unknown command '{args[0]}'.")
     };
 }
 
-static int RunPresets()
+static int RunPresets(string[] args)
 {
-    return WriteCommandEnvelope("presets", preview: false, BuiltInPresetCatalog.GetAll());
+    CliOptionParsing.TryParseOptions(args, out var options, out _);
+    var jsonOutPath = CliOptionParsing.GetOption(options, "--json-out");
+    return WriteCommandEnvelope("presets", preview: false, BuiltInPresetCatalog.GetAll(), jsonOutPath);
 }
 
 static int ShowHelp()
@@ -66,7 +68,7 @@ static void PrintUsage()
 {
     Console.WriteLine("Open Video Toolbox CLI");
     Console.WriteLine("Commands:");
-    Console.WriteLine("  presets");
+    Console.WriteLine("  presets [--json-out <path>]");
     Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--plugin-dir <path>] [--json-out <path>] [--write-examples <dir>]");
     Console.WriteLine("  doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]");

@@ -1,0 +1,11 @@
+{
+  "command": "validate-plan",
+  "preview": false,
+  "payload": {
+    "planPath": "C:\\Users\\yukin\\AppData\\Local\\Temp\\tmp.gs8i87omdZ\\edit.json",
+    "resolvedBaseDirectory": "C:\\Users\\yukin\\AppData\\Local\\Temp\\tmp.gs8i87omdZ",
+    "checkFiles": false,
+    "isValid": true,
+    "issues": []
+  }
+}

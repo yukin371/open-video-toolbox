@@ -1,0 +1,240 @@
+{
+  "source": {
+    "kind": "builtIn"
+  },
+  "template": {
+    "id": "beat-montage",
+    "displayName": "Beat Montage",
+    "description": "Rhythm-first montage template tuned for beat-group seeding and optional music replacement.",
+    "category": "montage",
+    "version": "1.0.0",
+    "outputContainer": "mp4",
+    "defaultSubtitleMode": null,
+    "parameterDefaults": {
+      "pace": "sync-cut",
+      "bgmTargetGainDb": "-10"
+    },
+    "recommendedSeedModes": [
+      "manual",
+      "beats"
+    ],
+    "recommendedTranscriptSeedStrategies": [],
+    "artifactSlots": [
+      {
+        "id": "bgm",
+        "kind": "audio",
+        "description": "Optional music bed used to drive montage energy or replace source backing audio.",
+        "required": false
+      }
+    ],
+    "supportingSignals": [
+      {
+        "kind": "beats",
+        "reason": "Use beat markers as the primary cut scaffold for rhythm-first montage timing."
+      },
+      {
+        "kind": "stems",
+        "reason": "Use separated stems when the source music bed needs cleanup or replacement before montage mixing."
+      }
+    ]
+  },
+  "examples": {
+    "outputDirectory": null,
+    "writtenFiles": null,
+    "artifactsFileName": "artifacts.json",
+    "artifacts": {
+      "bgm": "stems/htdemucs/input/no_vocals.wav"
+    },
+    "templateParamsFileName": "template-params.json",
+    "templateParams": {
+      "pace": "sync-cut",
+      "bgmTargetGainDb": "-10"
+    },
+    "seedModes": [
+      "manual",
+      "beats"
+    ],
+    "supportingSignals": [
+      {
+        "kind": "beats",
+        "reason": "Use beat markers as the primary cut scaffold for rhythm-first montage timing.",
+        "outputPath": "beats.json",
+        "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+      },
+      {
+        "kind": "stems",
+        "reason": "Use separated stems when the source music bed needs cleanup or replacement before montage mixing.",
+        "outputPath": "stems/",
+        "command": "ovt separate-audio \u003Cinput\u003E --output-dir stems",
+        "consumption": "After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav when the accompaniment stem should drive the mix; keep vocals.wav as a cleanup or reference stem."
+      }
+    ],
+    "commandFiles": [
+      "commands.json",
+      "commands.ps1",
+      "commands.cmd",
+      "commands.sh"
+    ],
+    "commands": [
+      "ovt init-plan \u003Cinput\u003E --template beat-montage --output edit.json --render-output final.mp4",
+      "ovt init-plan \u003Cinput\u003E --template beat-montage --output edit.json --render-output final.mp4 --artifacts artifacts.json",
+      "ovt init-plan \u003Cinput\u003E --template beat-montage --output edit.json --render-output final.mp4 --template-params template-params.json"
+    ],
+    "signalInstructions": [
+      {
+        "kind": "beats",
+        "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+      },
+      {
+        "kind": "stems",
+        "command": "ovt separate-audio \u003Cinput\u003E --output-dir stems",
+        "consumption": "After scaffold-template writes artifacts.json, point the bgm slot at stems/htdemucs/input/no_vocals.wav when the accompaniment stem should drive the mix; keep vocals.wav as a cleanup or reference stem."
+      }
+    ],
+    "signalCommands": [
+      "ovt beat-track \u003Cinput\u003E --output beats.json",
+      "ovt separate-audio \u003Cinput\u003E --output-dir stems"
+    ],
+    "artifactCommands": [],
+    "seedCommands": [
+      {
+        "mode": "manual",
+        "command": "ovt init-plan \u003Cinput\u003E --template beat-montage --output edit.json --render-output final.mp4",
+        "variants": null
+      },
+      {
+        "mode": "beats",
+        "command": "ovt init-plan \u003Cinput\u003E --template beat-montage --output edit.json --render-output final.mp4 --beats beats.json --seed-from-beats --beat-group-size 4",
+        "variants": null
+      }
+    ],
+    "previewPlans": [
+      {
+        "mode": "manual",
+        "editPlan": {
+          "schemaVersion": 1,
+          "source": {
+            "inputPath": "input.mp4"
+          },
+          "template": {
+            "id": "beat-montage",
+            "version": "1.0.0",
+            "source": {
+              "kind": "builtIn",
+              "pluginId": null,
+              "pluginVersion": null
+            },
+            "parameters": {
+              "pace": "sync-cut",
+              "bgmTargetGainDb": "-10"
+            }
+          },
+          "clips": [],
+          "audioTracks": [
+            {
+              "id": "bgm-01",
+              "role": "bgm",
+              "path": "stems/htdemucs/input/no_vocals.wav",
+              "start": "00:00:00",
+              "gainDb": -12
+            }
+          ],
+          "artifacts": [
+            {
+              "slotId": "bgm",
+              "kind": "audio",
+              "path": "stems/htdemucs/input/no_vocals.wav"
+            }
+          ],
+          "transcript": null,
+          "beats": null,
+          "subtitles": null,
+          "output": {
+            "path": "final.mp4",
+            "container": "mp4"
+          },
+          "x-template": {
+            "slots": [
+              {
+                "id": "bgm",
+                "kind": "audio",
+                "description": "Optional music bed used to drive montage energy or replace source backing audio.",
+                "required": false
+              }
+            ]
+          }
+        },
+        "strategyVariants": []
+      },
+      {
+        "mode": "beats",
+        "editPlan": {
+          "schemaVersion": 1,
+          "source": {
+            "inputPath": "input.mp4"
+          },
+          "template": {
+            "id": "beat-montage",
+            "version": "1.0.0",
+            "source": {
+              "kind": "builtIn",
+              "pluginId": null,
+              "pluginVersion": null
+            },
+            "parameters": {
+              "pace": "sync-cut",
+              "bgmTargetGainDb": "-10"
+            }
+          },
+          "clips": [
+            {
+              "id": "clip-001",
+              "in": "00:00:00",
+              "out": "00:00:04",
+              "label": "beat-group-001"
+            }
+          ],
+          "audioTracks": [
+            {
+              "id": "bgm-01",
+              "role": "bgm",
+              "path": "stems/htdemucs/input/no_vocals.wav",
+              "start": "00:00:00",
+              "gainDb": -12
+            }
+          ],
+          "artifacts": [
+            {
+              "slotId": "bgm",
+              "kind": "audio",
+              "path": "stems/htdemucs/input/no_vocals.wav"
+            }
+          ],
+          "transcript": null,
+          "beats": {
+            "path": "beats.json",
+            "estimatedBpm": 120
+          },
+          "subtitles": null,
+          "output": {
+            "path": "final.mp4",
+            "container": "mp4"
+          },
+          "x-template": {
+            "slots": [
+              {
+                "id": "bgm",
+                "kind": "audio",
+                "description": "Optional music bed used to drive montage energy or replace source backing audio.",
+                "required": false
+              }
+            ]
+          }
+        },
+        "strategyVariants": []
+      }
+    ]
+  }
+}

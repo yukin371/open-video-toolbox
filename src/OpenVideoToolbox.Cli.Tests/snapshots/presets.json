@@ -1,0 +1,96 @@
+{
+  "command": "presets",
+  "preview": false,
+  "payload": [
+    {
+      "schemaVersion": 1,
+      "id": "h264-aac-mp4",
+      "displayName": "H.264 \u002B AAC / MP4",
+      "kind": "transcode",
+      "video": {
+        "encoder": "libx264",
+        "preset": "medium",
+        "crf": 23,
+        "pixelFormat": "yuv420p",
+        "extraArguments": []
+      },
+      "audio": {
+        "encoder": "aac",
+        "bitrateKbps": 192,
+        "channels": 2,
+        "sampleRate": 48000,
+        "extraArguments": []
+      },
+      "output": {
+        "containerExtension": ".mp4",
+        "fastStart": true,
+        "overwriteExisting": false
+      },
+      "metadataTags": {},
+      "extraArguments": [
+        "-map_metadata",
+        "-1"
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "h265-aac-mp4",
+      "displayName": "H.265 \u002B AAC / MP4",
+      "kind": "transcode",
+      "video": {
+        "encoder": "libx265",
+        "preset": "medium",
+        "crf": 26,
+        "pixelFormat": "yuv420p",
+        "extraArguments": []
+      },
+      "audio": {
+        "encoder": "aac",
+        "bitrateKbps": 192,
+        "channels": 2,
+        "sampleRate": 48000,
+        "extraArguments": []
+      },
+      "output": {
+        "containerExtension": ".mp4",
+        "fastStart": true,
+        "overwriteExisting": false
+      },
+      "metadataTags": {},
+      "extraArguments": [
+        "-map_metadata",
+        "-1"
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "id": "copy-aac-mkv",
+      "displayName": "Copy Video \u002B AAC / MKV",
+      "kind": "transcode",
+      "video": {
+        "encoder": "copy",
+        "preset": null,
+        "crf": null,
+        "pixelFormat": null,
+        "extraArguments": []
+      },
+      "audio": {
+        "encoder": "aac",
+        "bitrateKbps": 192,
+        "channels": 2,
+        "sampleRate": 48000,
+        "extraArguments": []
+      },
+      "output": {
+        "containerExtension": ".mkv",
+        "fastStart": false,
+        "overwriteExisting": false
+      },
+      "metadataTags": {},
+      "extraArguments": [
+        "-map_metadata",
+        "-1"
+      ]
+    }
+  ]
+}

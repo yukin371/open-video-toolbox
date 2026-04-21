@@ -88,6 +88,7 @@
 - CLI 可维护性重构已启动，第一批先把共享 command output / failure helper 迁到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，并开始清理 `Program.cs` 里的纯转发 wrapper；当前策略仍是”先做组织性迁移，不改命令行为”。
 - `2026-04-21` CLI 测试拆分停止线评估结论：53 个 partial 文件已全部达到”单命令 + 单结果路径”粒度（最大 3 facts / 文件），继续拆分的 diff 成本已超过维护收益，CLI 可维护性重构 active track 正式关闭。
 - `2026-04-21` CLI smoke 已扩展到 13 个测试，覆盖 probe / cut / concat / extract-audio / audio-analyze / audio-gain / detect-silence / beat-track / subtitle / render / mix-audio / transcribe / separate-audio，全部验证 stdout envelope + `--json-out` 一致性 + 产物落盘。
+- `2026-04-22` H2+T1 契约冻结与模板稳定已启动：契约快照测试已建立（5 个黄金文件覆盖 presets / templates / templates <id> / validate-plan），CI 已补 ffmpeg 安装，`presets` / `plan` 已补 `--json-out` 测试，presets 已补 `--json-out` 支持；当前 CLI 测试从 105 增至 112，全部 242 测试通过。
 - `CommandArtifactsIntegrationTests` 也已开始按命令域拆成 partial files；当前已先分出 `utility`、`execution`、`audio-speech` 三组，主测试文件回收到 template / init / scaffold / validate 主线。
 
 ## 总体路线

@@ -1,0 +1,555 @@
+{
+  "source": {
+    "kind": "builtIn"
+  },
+  "template": {
+    "id": "shorts-captioned",
+    "displayName": "Shorts Captioned",
+    "description": "Short-form cut with subtitle slot prepared for caption-driven publishing.",
+    "category": "short-form",
+    "version": "1.0.0",
+    "outputContainer": "mp4",
+    "defaultSubtitleMode": "sidecar",
+    "parameterDefaults": {
+      "hookStyle": "hard-cut",
+      "captionStyle": "burn-later"
+    },
+    "recommendedSeedModes": [
+      "manual",
+      "transcript",
+      "beats"
+    ],
+    "recommendedTranscriptSeedStrategies": [
+      "grouped",
+      "maxGap"
+    ],
+    "artifactSlots": [
+      {
+        "id": "subtitles",
+        "kind": "subtitle",
+        "description": "Optional subtitle file to attach or burn in later.",
+        "required": false
+      }
+    ],
+    "supportingSignals": [
+      {
+        "kind": "transcript",
+        "reason": "Use transcript segments to line up caption-first hooks with spoken lines."
+      },
+      {
+        "kind": "beats",
+        "reason": "Use beat markers when the short needs rhythm-first pacing but should still keep caption outputs ready."
+      },
+      {
+        "kind": "silence",
+        "reason": "Use silence markers to catch long pauses before locking subtitle timing and clip boundaries."
+      }
+    ]
+  },
+  "examples": {
+    "outputDirectory": null,
+    "writtenFiles": null,
+    "artifactsFileName": "artifacts.json",
+    "artifacts": {
+      "subtitles": "subtitles.srt"
+    },
+    "templateParamsFileName": "template-params.json",
+    "templateParams": {
+      "hookStyle": "hard-cut",
+      "captionStyle": "burn-later"
+    },
+    "seedModes": [
+      "manual",
+      "transcript",
+      "beats"
+    ],
+    "supportingSignals": [
+      {
+        "kind": "transcript",
+        "reason": "Use transcript segments to line up caption-first hooks with spoken lines.",
+        "outputPath": "transcript.json",
+        "command": "ovt transcribe \u003Cinput\u003E --model \u003Cwhisper-model-path\u003E --output transcript.json",
+        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
+      },
+      {
+        "kind": "beats",
+        "reason": "Use beat markers when the short needs rhythm-first pacing but should still keep caption outputs ready.",
+        "outputPath": "beats.json",
+        "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+      },
+      {
+        "kind": "silence",
+        "reason": "Use silence markers to catch long pauses before locking subtitle timing and clip boundaries.",
+        "outputPath": "silence.json",
+        "command": "ovt detect-silence \u003Cinput\u003E --output silence.json",
+        "consumption": "Review silence.json before hand-tuning edit.json clip boundaries or transcript seed settings so long pauses do not survive into the first cut."
+      }
+    ],
+    "commandFiles": [
+      "commands.json",
+      "commands.ps1",
+      "commands.cmd",
+      "commands.sh"
+    ],
+    "commands": [
+      "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4",
+      "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --artifacts artifacts.json",
+      "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --template-params template-params.json"
+    ],
+    "signalInstructions": [
+      {
+        "kind": "transcript",
+        "command": "ovt transcribe \u003Cinput\u003E --model \u003Cwhisper-model-path\u003E --output transcript.json",
+        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
+      },
+      {
+        "kind": "beats",
+        "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+      },
+      {
+        "kind": "silence",
+        "command": "ovt detect-silence \u003Cinput\u003E --output silence.json",
+        "consumption": "Review silence.json before hand-tuning edit.json clip boundaries or transcript seed settings so long pauses do not survive into the first cut."
+      }
+    ],
+    "signalCommands": [
+      "ovt transcribe \u003Cinput\u003E --model \u003Cwhisper-model-path\u003E --output transcript.json",
+      "ovt beat-track \u003Cinput\u003E --output beats.json",
+      "ovt detect-silence \u003Cinput\u003E --output silence.json"
+    ],
+    "artifactCommands": [
+      "ovt subtitle \u003Cinput\u003E --transcript transcript.json --format srt --output subtitles.srt"
+    ],
+    "seedCommands": [
+      {
+        "mode": "manual",
+        "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4",
+        "variants": null
+      },
+      {
+        "mode": "transcript",
+        "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript",
+        "variants": [
+          {
+            "key": "grouped",
+            "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 2",
+            "recommended": true,
+            "strategy": "grouped"
+          },
+          {
+            "key": "max-gap",
+            "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --transcript-segment-group-size 3 --max-transcript-gap-ms 200",
+            "recommended": true,
+            "strategy": "maxgap"
+          },
+          {
+            "key": "min-duration",
+            "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript --min-transcript-segment-duration-ms 500",
+            "recommended": false,
+            "strategy": "minduration"
+          }
+        ]
+      },
+      {
+        "mode": "beats",
+        "command": "ovt init-plan \u003Cinput\u003E --template shorts-captioned --output edit.json --render-output final.mp4 --beats beats.json --seed-from-beats --beat-group-size 4",
+        "variants": null
+      }
+    ],
+    "previewPlans": [
+      {
+        "mode": "manual",
+        "editPlan": {
+          "schemaVersion": 1,
+          "source": {
+            "inputPath": "input.mp4"
+          },
+          "template": {
+            "id": "shorts-captioned",
+            "version": "1.0.0",
+            "source": {
+              "kind": "builtIn",
+              "pluginId": null,
+              "pluginVersion": null
+            },
+            "parameters": {
+              "hookStyle": "hard-cut",
+              "captionStyle": "burn-later"
+            }
+          },
+          "clips": [],
+          "audioTracks": [],
+          "artifacts": [
+            {
+              "slotId": "subtitles",
+              "kind": "subtitle",
+              "path": "subtitles.srt"
+            }
+          ],
+          "transcript": null,
+          "beats": null,
+          "subtitles": {
+            "path": "subtitles.srt",
+            "mode": "sidecar"
+          },
+          "output": {
+            "path": "final.mp4",
+            "container": "mp4"
+          },
+          "x-template": {
+            "slots": [
+              {
+                "id": "subtitles",
+                "kind": "subtitle",
+                "description": "Optional subtitle file to attach or burn in later.",
+                "required": false
+              }
+            ]
+          }
+        },
+        "strategyVariants": []
+      },
+      {
+        "mode": "transcript",
+        "editPlan": {
+          "schemaVersion": 1,
+          "source": {
+            "inputPath": "input.mp4"
+          },
+          "template": {
+            "id": "shorts-captioned",
+            "version": "1.0.0",
+            "source": {
+              "kind": "builtIn",
+              "pluginId": null,
+              "pluginVersion": null
+            },
+            "parameters": {
+              "hookStyle": "hard-cut",
+              "captionStyle": "burn-later"
+            }
+          },
+          "clips": [
+            {
+              "id": "clip-001",
+              "in": "00:00:00",
+              "out": "00:00:01.5000000",
+              "label": "seg-001"
+            },
+            {
+              "id": "clip-002",
+              "in": "00:00:01.5000000",
+              "out": "00:00:03",
+              "label": "seg-002"
+            }
+          ],
+          "audioTracks": [],
+          "artifacts": [
+            {
+              "slotId": "subtitles",
+              "kind": "subtitle",
+              "path": "subtitles.srt"
+            }
+          ],
+          "transcript": {
+            "path": "transcript.json",
+            "language": "en",
+            "segmentCount": 2
+          },
+          "beats": null,
+          "subtitles": {
+            "path": "subtitles.srt",
+            "mode": "sidecar"
+          },
+          "output": {
+            "path": "final.mp4",
+            "container": "mp4"
+          },
+          "x-template": {
+            "slots": [
+              {
+                "id": "subtitles",
+                "kind": "subtitle",
+                "description": "Optional subtitle file to attach or burn in later.",
+                "required": false
+              }
+            ]
+          }
+        },
+        "strategyVariants": [
+          {
+            "key": "grouped",
+            "description": "Use a fixed transcript segment group size to merge adjacent lines into fewer seed clips.",
+            "strategy": "grouped",
+            "isRecommended": true,
+            "editPlan": {
+              "schemaVersion": 1,
+              "source": {
+                "inputPath": "input.mp4"
+              },
+              "template": {
+                "id": "shorts-captioned",
+                "version": "1.0.0",
+                "source": {
+                  "kind": "builtIn",
+                  "pluginId": null,
+                  "pluginVersion": null
+                },
+                "parameters": {
+                  "hookStyle": "hard-cut",
+                  "captionStyle": "burn-later"
+                }
+              },
+              "clips": [
+                {
+                  "id": "clip-001",
+                  "in": "00:00:00",
+                  "out": "00:00:02.5000000",
+                  "label": "seg-001..seg-002"
+                },
+                {
+                  "id": "clip-002",
+                  "in": "00:00:02.5000000",
+                  "out": "00:00:04",
+                  "label": "seg-003"
+                }
+              ],
+              "audioTracks": [],
+              "artifacts": [
+                {
+                  "slotId": "subtitles",
+                  "kind": "subtitle",
+                  "path": "subtitles.srt"
+                }
+              ],
+              "transcript": {
+                "path": "transcript.json",
+                "language": "en",
+                "segmentCount": 3
+              },
+              "beats": null,
+              "subtitles": {
+                "path": "subtitles.srt",
+                "mode": "sidecar"
+              },
+              "output": {
+                "path": "final.mp4",
+                "container": "mp4"
+              },
+              "x-template": {
+                "slots": [
+                  {
+                    "id": "subtitles",
+                    "kind": "subtitle",
+                    "description": "Optional subtitle file to attach or burn in later.",
+                    "required": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "max-gap",
+            "description": "Split transcript seed clips when adjacent segments have a large silence gap.",
+            "strategy": "maxGap",
+            "isRecommended": true,
+            "editPlan": {
+              "schemaVersion": 1,
+              "source": {
+                "inputPath": "input.mp4"
+              },
+              "template": {
+                "id": "shorts-captioned",
+                "version": "1.0.0",
+                "source": {
+                  "kind": "builtIn",
+                  "pluginId": null,
+                  "pluginVersion": null
+                },
+                "parameters": {
+                  "hookStyle": "hard-cut",
+                  "captionStyle": "burn-later"
+                }
+              },
+              "clips": [
+                {
+                  "id": "clip-001",
+                  "in": "00:00:00",
+                  "out": "00:00:01.3000000",
+                  "label": "seg-001..seg-002"
+                },
+                {
+                  "id": "clip-002",
+                  "in": "00:00:02",
+                  "out": "00:00:02.8000000",
+                  "label": "seg-003"
+                }
+              ],
+              "audioTracks": [],
+              "artifacts": [
+                {
+                  "slotId": "subtitles",
+                  "kind": "subtitle",
+                  "path": "subtitles.srt"
+                }
+              ],
+              "transcript": {
+                "path": "transcript.json",
+                "language": "en",
+                "segmentCount": 3
+              },
+              "beats": null,
+              "subtitles": {
+                "path": "subtitles.srt",
+                "mode": "sidecar"
+              },
+              "output": {
+                "path": "final.mp4",
+                "container": "mp4"
+              },
+              "x-template": {
+                "slots": [
+                  {
+                    "id": "subtitles",
+                    "kind": "subtitle",
+                    "description": "Optional subtitle file to attach or burn in later.",
+                    "required": false
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "key": "min-duration",
+            "description": "Filter out very short transcript segments before clip seeding to avoid noisy micro-cuts.",
+            "strategy": "minDuration",
+            "isRecommended": false,
+            "editPlan": {
+              "schemaVersion": 1,
+              "source": {
+                "inputPath": "input.mp4"
+              },
+              "template": {
+                "id": "shorts-captioned",
+                "version": "1.0.0",
+                "source": {
+                  "kind": "builtIn",
+                  "pluginId": null,
+                  "pluginVersion": null
+                },
+                "parameters": {
+                  "hookStyle": "hard-cut",
+                  "captionStyle": "burn-later"
+                }
+              },
+              "clips": [
+                {
+                  "id": "clip-001",
+                  "in": "00:00:00.2500000",
+                  "out": "00:00:02",
+                  "label": "seg-002..seg-003"
+                }
+              ],
+              "audioTracks": [],
+              "artifacts": [
+                {
+                  "slotId": "subtitles",
+                  "kind": "subtitle",
+                  "path": "subtitles.srt"
+                }
+              ],
+              "transcript": {
+                "path": "transcript.json",
+                "language": "en",
+                "segmentCount": 3
+              },
+              "beats": null,
+              "subtitles": {
+                "path": "subtitles.srt",
+                "mode": "sidecar"
+              },
+              "output": {
+                "path": "final.mp4",
+                "container": "mp4"
+              },
+              "x-template": {
+                "slots": [
+                  {
+                    "id": "subtitles",
+                    "kind": "subtitle",
+                    "description": "Optional subtitle file to attach or burn in later.",
+                    "required": false
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "mode": "beats",
+        "editPlan": {
+          "schemaVersion": 1,
+          "source": {
+            "inputPath": "input.mp4"
+          },
+          "template": {
+            "id": "shorts-captioned",
+            "version": "1.0.0",
+            "source": {
+              "kind": "builtIn",
+              "pluginId": null,
+              "pluginVersion": null
+            },
+            "parameters": {
+              "hookStyle": "hard-cut",
+              "captionStyle": "burn-later"
+            }
+          },
+          "clips": [
+            {
+              "id": "clip-001",
+              "in": "00:00:00",
+              "out": "00:00:04",
+              "label": "beat-group-001"
+            }
+          ],
+          "audioTracks": [],
+          "artifacts": [
+            {
+              "slotId": "subtitles",
+              "kind": "subtitle",
+              "path": "subtitles.srt"
+            }
+          ],
+          "transcript": null,
+          "beats": {
+            "path": "beats.json",
+            "estimatedBpm": 120
+          },
+          "subtitles": {
+            "path": "subtitles.srt",
+            "mode": "sidecar"
+          },
+          "output": {
+            "path": "final.mp4",
+            "container": "mp4"
+          },
+          "x-template": {
+            "slots": [
+              {
+                "id": "subtitles",
+                "kind": "subtitle",
+                "description": "Optional subtitle file to attach or burn in later.",
+                "required": false
+              }
+            ]
+          }
+        },
+        "strategyVariants": []
+      }
+    ]
+  }
+}
