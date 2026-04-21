@@ -18,7 +18,8 @@
 - Phase 2 外部工具抽象、`ffprobe` 解析、`ffmpeg` 命令构建与进程执行器
 - Phase 3 CLI 命令面：`presets`、`probe`、`plan`、`run`
 - Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
-- 当前主干重点已从”继续补命令”切到 `Hardening`：全部 21 条命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON 而非退回 usage 文本；当前重点转向 CLI 真实工具 smoke、测试拆分停止线评估和文档收口
+- 当前主干重点已从”继续补命令”切到 `Hardening`：全部 21 条命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON 而非退回 usage 文本；契约快照测试已建立，插件开发者体验已落地，跨平台发布流程已就绪
+- 首次发版：`git tag v0.1.0 && git push origin v0.1.0`，CI 自动发布 win-x64 / linux-x64 / osx-x64 single-file
 - CLI 可维护性重构已持续推进：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
 
 ## 当前优先方向

@@ -26,22 +26,10 @@
 
 ## 当前版本目标
 
-- 交付可供外部 AI 代理稳定调用的 CLI 媒体工具链：
-  - 文件探测
-  - 任务规划
-  - 剪辑计划
-  - 执行
-  - 结构化 JSON 输出
-- 把项目收敛为“基础能力层 + 模板层 + 插件扩展层”的结构，而不是继续堆离散命令。
-- 保持 `Core` 作为唯一业务 owner，避免在 `Cli` 或未来 Desktop 重复实现命令构建和外部工具调用。
-- 当前实施计划：`docs/plans/2026-04-15-cli-mvp-implementation.md`
-- 当前里程碑计划：`docs/plans/2026-04-20-cli-ai-ready-milestone.md`
-- 相关专项计划：`docs/plans/2026-04-16-audio-speech-foundation.md`
-- CLI 可维护性重构计划：`docs/plans/2026-04-19-cli-maintainability-refactor-plan.md`
-- 模板插件入口草案：`docs/plans/2026-04-19-template-plugin-entry-boundary.md`
-- 长期演化路线（H1~E2）：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
-- H1 收口任务清单：`docs/plans/2026-04-21-h1-hardening-checklist.md`
-- 最近一次功能/里程碑盘点：`docs/plans/2026-04-17-feature-design-milestone-check.md`
+- 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
+- 当前状态（2026-04-22）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪。
+- 下一步：D1 Desktop MVP 或 E2 生态与可持续演进，视需求启动。
+- 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 阶段检查（2026-04-20）
 
