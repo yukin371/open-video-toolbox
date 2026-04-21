@@ -59,6 +59,7 @@
 - `2026-04-21` 已继续把几组仍混合“参数校验 / 执行失败 / 结构化输出 / plugin 验证”的测试 partial 再拆细一轮：`mix-audio --preview` 已拆成 preview / output / validation，`beat-track` 已拆成 validation / execution，`transcribe` 已拆成 validation / execution，`validate-plan` 已拆成 success / failure / plugin；当前大部分命令测试已经接近“单命令 + 单关注点”边界。
 - `2026-04-21` 已继续把最后一批明显混合“validate 结果断言 / 输入校验”或“多命令共享 execution”语义的 partial 再收口一层：`audio-analyze` 已拆成 validation / execution，`scaffold-template` validate 测试已拆成 result / input validation，`MediaExecutionCommands` 也已回收到单纯 `cut` 参数校验，并把 `cut` / `concat` 执行路径迁到独立 partial。到这一轮为止，绝大多数较大的测试文件已经是单命令或单一 execution 主题。
 - `2026-04-21` 已继续把三组仍混合“dependency/process failure”与“json-out 成功路径”的 execution partial 再拆开：`audio-gain`、`audio-analyze`、`beat-track` 都已拆成 failure 与 output 两层，`detect-silence` 也已拆成 validation / execution / execution-output 三层。到这一轮后，CLI 集成测试里大部分命令已经接近“单命令 + 单结果路径”的维护粒度。
+- `2026-04-21` 已继续把最后两组仍明显混合 validation / failure / output 的命令测试收口：`separate-audio` 已拆成 validation / execution / execution-output，`transcribe` 也已拆成 failure / output。到这一轮后，除少数仍偏长但主题单一的 execution partial 外，CLI 集成测试基本都已达到“单命令 + 单结果路径”的维护边界。
 - `2026-04-20` 已继续把 `templates <id>` 相关测试再按真实关注点拆开：原 `TemplateGuideCommands` 已拆成 `TemplateGuideExamplesCommands` 与 `TemplateGuidePreviewCommands`，分别承接 `--write-examples` 脚手架产物验证，以及 guide / preview 响应形状验证，避免模板脚手架调整时再牵动 guide 预览断言。
 - 当前仓库已经完成 Wave 1 命令面的主要铺设，工作重心正式转入 `Hardening`。
 - 最近一轮小提交主要完成了两类收敛：
@@ -342,7 +343,7 @@
 ## 下一步
 
 1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
-2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构；在当前这一轮收口后，下一步重点进一步收敛为评估 `SeparateAudioCommands`、`TranscribeExecutionCommands`、`MixAudioExecutionCommands`、`RenderExecutionCommands`、`DoctorEnvironmentResolutionCommands` 这些仍偏大的 partial 是否还值得继续细分，或是否已经达到“单命令 / 单结果路径即可停止”的边界。
+2. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 继续推进 CLI 维护性重构；当前下一步已经从“继续拆”转为“评估是否停止”：`MixAudioExecutionCommands`、`RenderExecutionCommands`、`DoctorEnvironmentResolutionCommands`、`SeparateAudioExecutionOutputCommands`、`TranscribeExecutionOutputCommands` 这些文件虽然仍不算小，但主题已经较单一，下一轮应先判断是否真的还有维护收益，再决定是否继续细分。
 3. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
 4. 基于 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`，继续评估 `render` / `mix-audio` / 未来诊断命令是否还需要显式消费 `template.source` 做更清晰的插件来源提示，但仍不引入运行时代码加载。
 
