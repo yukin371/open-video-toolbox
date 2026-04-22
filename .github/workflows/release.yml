@@ -40,12 +40,12 @@ jobs:
 
       - name: Publish
         run: |
+          # Trimming stays disabled until the CLI/Core JSON contract is source-generated end-to-end.
           dotnet publish src/OpenVideoToolbox.Cli \
             -c Release \
             -r ${{ matrix.rid }} \
             --self-contained true \
             -p:PublishSingleFile=true \
-            -p:PublishTrimmed=true \
             -o publish/${{ matrix.rid }}
 
       - name: Create archive
