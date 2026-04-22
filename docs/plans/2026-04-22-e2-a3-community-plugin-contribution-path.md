@@ -83,11 +83,13 @@
 ### 1. 发现插件
 
 ```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plugin --plugin-dir <plugin-root>
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates --plugin-dir <plugin-root> --summary
 ```
 
 通过标准：
 
+- `validate-plugin` 返回 `payload.isValid = true`
 - 命令退出码为 `0`
 - 输出中能看到插件 `id`
 - 输出中能看到模板 `id`
@@ -128,6 +130,16 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - `edit.json` 写出成功
 - `edit.json.template.source.kind` 为 `plugin`
 - `validate-plan` 返回 `payload.isValid = true`
+
+如果模板目录额外附带 `artifacts.json` / `template-params.json` skeleton，可再补跑：
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4 --artifacts templates/<template-id>/artifacts.json --template-params templates/<template-id>/template-params.json
+```
+
+附加通过标准：
+
+- 如模板目录自带 skeleton，`--artifacts` / `--template-params` 也能直接接回这两份示例文件
 
 ## 审核清单
 
@@ -186,6 +198,13 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 2. 用仓库现有 CLI 命令跑通 `examples/plugin-example/`
 3. 把 `validate-plugin`、`templates --summary`、`templates <id> --write-examples`、`init-plan`、`validate-plan` 收成同一条维护入口
 4. 让 CI 直接回归示例插件是否仍代表一个真实可提交的最小闭环
+
+当前仓库内的 `examples/plugin-example/` 也已补齐可复制 skeleton：
+
+- `templates/quick-subtitle/artifacts.json`
+- `templates/quick-subtitle/template-params.json`
+
+这样新贡献者复制示例目录时，不需要再自己猜 `init-plan --artifacts` / `--template-params` 的最小输入形状。
 
 边界：
 

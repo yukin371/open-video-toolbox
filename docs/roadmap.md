@@ -81,9 +81,10 @@
     - `v0.1.0` GitHub Release 与 `ovt-win-x64.exe` / `ovt-win-x64.zip` 资产已发布
     - 仓库内 `packaging/winget/Export-WinGetSubmissionBundle.ps1` 已落地，可直接导出 `winget-pkgs` 目录结构
     - 当前剩余工作已从“仓库 blocker”收敛到“render manifest + 目标环境复核 + 向 winget-pkgs 提交 PR”
-  - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件 + 仓库内固定提交入口 + 一键闭环自检”补成可自助提交的闭环
+  - `E2-A3` 首轮已收口，社区模板 / 插件贡献路径已具备最小闭环
     - 仓库内已新增社区插件 submission issue form，maintainer 可按固定字段收插件摘要、自测结果和边界确认
     - 仓库内已新增示例插件一键验证脚本，CI 可直接回归 `examples/plugin-example/` 是否仍闭环可用
+    - 示例插件模板目录现已附带可直接照抄的 `artifacts.json` / `template-params.json` skeleton，减少贡献者自己猜最小输入形状
   - `E2-A4` 已补固定脚本入口：
     - `scripts/Measure-RuntimeBaseline.ps1`
     - `scripts/Test-RuntimeBaselineThresholds.ps1`
@@ -110,14 +111,14 @@
 
 ### E2: 生态与可持续演进
 
-- 如果继续走 `E2`，优先级应放在：
-  - CLI 契约兼容性检测自动化
-  - 包管理器或其他分发渠道扩展
-    - 当前已完成首轮评估，推荐先做 `winget`；`NuGet global tool` 与 `Homebrew` 暂不作为第一优先
-  - 社区模板 / 插件贡献路径
-    - 当前已进入 `E2-A3`，正在补最小提交物、自测命令与示例 README
-  - 外部依赖兼容性、性能与安全基线
-    - 当前已进入 `E2-A4`，并已补依赖验证脚本、性能观测脚本、GitHub Actions 观测 workflow 与 review 级安全检查项
+  - 如果继续走 `E2`，优先级应放在：
+    - CLI 契约兼容性检测自动化
+    - 包管理器或其他分发渠道扩展
+      - 当前已完成首轮评估，推荐先做 `winget`；`NuGet global tool` 与 `Homebrew` 暂不作为第一优先
+    - 社区模板 / 插件贡献路径
+      - `E2-A3` 首轮已完成；后续只在真实外部提交流程暴露缺口时再补二轮
+    - 外部依赖兼容性、性能与安全基线
+      - 当前已进入 `E2-A4`，并已补依赖验证脚本、性能观测脚本、GitHub Actions 观测 workflow 与 review 级安全检查项
 - 执行草案：`docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md`
 
 ## 已验证
@@ -137,7 +138,7 @@
 - `edit.json schema v1` 是否在后续一段时间内保持低频变更，从而真正满足 `D1` 的启动门槛。
 - `whisper.cpp` / `demucs` 重依赖 real smoke 仍以本机条件满足时的可选验证为主。
 - `winget portable` 是否作为 `E2-A2` 的实际落地切口继续推进，以及何时提交首个 `winget-pkgs` manifest。
-- 社区模板 / 插件贡献路径是否已在不增加新产品边界的前提下达到“新贡献者可自助提交、maintainer 可低摩擦初审、示例插件可持续回归”标准。
+- 社区模板 / 插件贡献路径在真实外部试投后，是否还暴露需要进入 `E2-A3` 第二轮的问题。
 - `E2-A4` 的首轮阈值是否需要在更多 CI 样本后继续收紧，或扩展到更多代表性命令。
 
 ## 文档保鲜方式

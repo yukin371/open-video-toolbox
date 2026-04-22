@@ -133,6 +133,7 @@ New-Item -ItemType Directory -Path $workingDirectory | Out-Null
 
 try {
     $resolvedPluginDirectory = (Resolve-Path $PluginDirectory).Path
+    $templateDirectory = Join-Path $resolvedPluginDirectory ("templates/" + $TemplateId)
     $inputPath = Join-Path $workingDirectory "input.mp4"
     $guideDirectory = Join-Path $workingDirectory ".plugin-guide"
     $planPath = Join-Path $workingDirectory "edit.json"
@@ -198,6 +199,15 @@ try {
     $plan = Read-JsonFile -Path $planPath
     $validatePlan = Read-JsonFile -Path $validatePlanJsonPath
 
+    foreach ($pluginSkeletonFile in @(
+        (Join-Path $templateDirectory "artifacts.json"),
+        (Join-Path $templateDirectory "template-params.json")
+    )) {
+        if (-not (Test-Path $pluginSkeletonFile)) {
+            throw "Expected example plugin skeleton file was not found: $pluginSkeletonFile"
+        }
+    }
+
     if (-not $validatePlugin.payload.isValid) {
         throw "validate-plugin did not return payload.isValid = true."
     }
@@ -216,6 +226,8 @@ try {
 
     foreach ($requiredFile in @(
         (Join-Path $guideDirectory "guide.json"),
+        (Join-Path $guideDirectory "artifacts.json"),
+        (Join-Path $guideDirectory "template-params.json"),
         (Join-Path $guideDirectory "commands.json"),
         (Join-Path $guideDirectory "commands.ps1"),
         (Join-Path $guideDirectory "commands.cmd"),

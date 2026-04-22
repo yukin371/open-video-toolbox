@@ -72,14 +72,39 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Verify-ExamplePlugin.ps1
       template.json
 ```
 
+推荐同时附带：
+
+```text
+<plugin-root>/
+  README.md
+  plugin.json
+  templates/
+    <template-id>/
+      template.json
+      artifacts.json
+      template-params.json
+```
+
+说明：
+
+- `artifacts.json`、`template-params.json` 只是示例 skeleton，不是新 schema
+- 示例内容应尽量和 `templates <id>` / `--write-examples` 写出的 guide 保持一致
+
 提交前至少跑完这组本地自测：
 
 ```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plugin --plugin-dir <plugin-root>
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates --plugin-dir <plugin-root> --summary
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates <template-id> --plugin-dir <plugin-root>
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates <template-id> --plugin-dir <plugin-root> --write-examples .plugin-guide
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plan --plan edit.json --plugin-dir <plugin-root>
+```
+
+如果模板目录额外附带了 `artifacts.json` / `template-params.json` skeleton，再补跑：
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4 --artifacts templates/<template-id>/artifacts.json --template-params templates/<template-id>/template-params.json
 ```
 
 提交说明里至少写清楚：

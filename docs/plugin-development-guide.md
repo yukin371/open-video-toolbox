@@ -18,6 +18,25 @@ my-plugin/
       template.json                    # 模板定义（必需）
 ```
 
+推荐在模板目录里同时放一份可复制的 skeleton：
+
+```
+my-plugin/
+  README.md
+  plugin.json
+  templates/
+    my-template/
+      template.json
+      artifacts.json                   # 可选示例骨架
+      template-params.json             # 可选示例骨架
+```
+
+说明：
+
+- `artifacts.json` 与 `template-params.json` 只是示例输入文件，不是新的插件 schema。
+- 它们的价值是让贡献者复制目录后，直接知道 `init-plan --artifacts` 和 `--template-params` 该接什么。
+- 示例内容应尽量与 `templates <id>` guide 输出保持一致，避免文档和 CLI guide 各写一套格式。
+
 ## plugin.json 清单
 
 ```json
@@ -194,6 +213,7 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- tem
 
 - 成功写出 `guide.json`
 - 成功写出 `commands.json`
+- 成功写出 `artifacts.json` 与 `template-params.json`
 - `commands.ps1`、`commands.cmd`、`commands.sh` 都保留 `pluginDir` 变量或占位符
 
 ### 4. 生成与校验计划
@@ -208,6 +228,16 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - `edit.json` 写出成功
 - `edit.json.template.source.kind` 为 `plugin`
 - `validate-plan` 返回 `payload.isValid = true`
+
+如果模板目录额外附带 `artifacts.json` / `template-params.json` skeleton，再补跑：
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-plan input.mp4 --template my-template --plugin-dir my-plugin --output edit.json --render-output final.mp4 --artifacts templates/my-template/artifacts.json --template-params templates/my-template/template-params.json
+```
+
+附加确认：
+
+- 如模板目录自带 skeleton，`--artifacts` / `--template-params` 也能直接接回这两份示例文件
 
 如果你的模板依赖字幕、beats、transcript 或 stems，再补跑对应命令链，但仍应保持全部依赖都是显式文件输入，而不是隐式脚本逻辑。
 
@@ -259,6 +289,7 @@ ovt render --plan edit.json --output output.mp4
 - 模板适用场景说明
 - 推荐 seed 模式
 - 需要的 supporting signal 与理由
+- 可直接照抄的 `artifacts.json` / `template-params.json` skeleton
 - 一组最小可运行的本地自测命令
 
 更完整的贡献路径与审核视角，见 `docs/plans/2026-04-22-e2-a3-community-plugin-contribution-path.md`。

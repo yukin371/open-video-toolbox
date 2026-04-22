@@ -17,7 +17,7 @@ body:
         - `examples/plugin-example/README.md`
 
         当前只接受基于既有 template schema 的静态模板插件：
-        - 只包含 `plugin.json`、`template.json` 和说明文件
+        - 只包含 `plugin.json`、`template.json`、说明文件，以及可选的 `artifacts.json` / `template-params.json` skeleton
         - 不包含脚本、二进制、下载逻辑或安装钩子
         - 不要求 `Core` 新增私有执行语义
 
@@ -76,21 +76,28 @@ body:
     id: self_test
     attributes:
       label: Local Self-Test Results
-      description: 粘贴关键命令和结果摘要；至少覆盖发现、guide、write-examples、init-plan、validate-plan
+      description: 粘贴关键命令和结果摘要；至少覆盖 validate-plugin、发现、guide、write-examples、init-plan、validate-plan
       value: |
-        1. templates --plugin-dir <plugin-root> --summary
+        1. validate-plugin --plugin-dir <plugin-root>
            - result:
 
-        2. templates <template-id> --plugin-dir <plugin-root>
+        2. templates --plugin-dir <plugin-root> --summary
            - result:
 
-        3. templates <template-id> --plugin-dir <plugin-root> --write-examples .plugin-guide
+        3. templates <template-id> --plugin-dir <plugin-root>
            - result:
 
-        4. init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4
+        4. templates <template-id> --plugin-dir <plugin-root> --write-examples .plugin-guide
            - result:
 
-        5. validate-plan --plan edit.json --plugin-dir <plugin-root>
+        5. init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4
+           - result:
+
+        6. validate-plan --plan edit.json --plugin-dir <plugin-root>
+           - result:
+
+        Optional. If the plugin includes artifacts.json / template-params.json skeleton:
+        init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4 --artifacts templates/<template-id>/artifacts.json --template-params templates/<template-id>/template-params.json
            - result:
     validations:
       required: true
@@ -108,6 +115,8 @@ body:
           required: true
         - label: The plugin documents recommended seed modes and supporting signals explicitly
           required: true
+        - label: If the plugin includes `artifacts.json` or `template-params.json`, they are example skeletons aligned with the current template guide output
+          required: true
 
   - type: textarea
     id: maintainer_notes
@@ -115,4 +124,3 @@ body:
       label: Maintainer Notes
       description: 任何你希望 maintainer 在审核时重点关注的地方
       placeholder: 例如某个 artifact slot 命名、某个 supporting signal 的适配前提等
-
