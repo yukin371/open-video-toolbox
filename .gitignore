@@ -14,3 +14,5 @@ TestResults/
 .DS_Store
 Thumbs.db
 publish/
+packaging/winget/out/
+packaging/winget/submissions/

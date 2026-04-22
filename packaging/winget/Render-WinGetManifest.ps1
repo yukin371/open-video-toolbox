@@ -24,7 +24,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
-$resolvedOutputDirectory = [System.IO.Path]::GetFullPath((Join-Path $scriptDirectory $OutputDirectory))
+$resolvedOutputDirectory = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
+    [System.IO.Path]::GetFullPath($OutputDirectory)
+}
+else {
+    [System.IO.Path]::GetFullPath((Join-Path $scriptDirectory $OutputDirectory))
+}
 
 $templateFiles = @(
     "OpenVideoToolbox.Cli.yaml.template",

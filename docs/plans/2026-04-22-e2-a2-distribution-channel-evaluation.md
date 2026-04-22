@@ -128,6 +128,7 @@
 - 第 0.5 步“同时暴露 raw `ovt-win-x64.exe` 资产以支撑 `portable` manifest”也已在当前仓库落地。
 - 第 0.75 步“把 manifest 渲染收敛成仓库内确定性脚本”也已落地。
 - 第 0.8 步“把提交前 readiness 检查收敛成仓库内确定性脚本”也已落地：`packaging/winget/Test-WinGetSubmissionReadiness.ps1` 会显式检查 LICENSE 来源、tag、GitHub Release 与 Windows 资产是否齐备。
+- 第 0.9 步“把 `winget-pkgs` 目录结构导出收敛成仓库内确定性脚本”也已落地：`packaging/winget/Export-WinGetSubmissionBundle.ps1` 会直接导出 `manifests/<letter>/<publisher>/<application>/<version>/` 结构与提交说明。
 - 仓库内 MIT 许可证来源与 readiness 检查现已补齐。
 - `v0.1.0` 真实 tag、GitHub Release，以及对应的 Windows `portable` 资产现已发布。
 - 当前剩余动作已收敛到：

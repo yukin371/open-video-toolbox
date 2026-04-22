@@ -34,6 +34,7 @@
 6. 已确认 release notes URL 可公开访问。
 7. 已确认许可证元数据有真实来源。
 8. 已用 `Prepare-WinGetSubmission.ps1` 或 `Render-WinGetManifest.ps1` 生成三份 manifest。
+   - 如需直接生成 `winget-pkgs` 目录结构，可改用 `Export-WinGetSubmissionBundle.ps1`
 9. 已本地执行：
    - `winget validate <manifest-folder>`
    - `winget install --manifest <manifest-folder>`
@@ -55,6 +56,7 @@
 
 - 模板与说明：`packaging/winget/`
 - 准备、渲染与 readiness 脚本：`packaging/winget/Prepare-WinGetSubmission.ps1`、`packaging/winget/Render-WinGetManifest.ps1`、`packaging/winget/Test-WinGetSubmissionReadiness.ps1`
+- 导出提交目录脚本：`packaging/winget/Export-WinGetSubmissionBundle.ps1`
 - 渠道决策：`docs/plans/2026-04-22-e2-a2-distribution-channel-evaluation.md`
 
 ## 备注

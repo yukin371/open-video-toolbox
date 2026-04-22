@@ -76,6 +76,7 @@
   - `E2-A2` 已完成首轮分发渠道评估，当前首选方向已收敛到 `winget portable`
     - 仓库内 `packaging/winget/Test-WinGetSubmissionReadiness.ps1` 已落地，并已对 `v0.1.0` 实际通过
     - `v0.1.0` GitHub Release 与 `ovt-win-x64.exe` / `ovt-win-x64.zip` 资产已发布
+    - 仓库内 `packaging/winget/Export-WinGetSubmissionBundle.ps1` 已落地，可直接导出 `winget-pkgs` 目录结构
     - 当前剩余工作已从“仓库 blocker”收敛到“render manifest + 目标环境复核 + 向 winget-pkgs 提交 PR”
   - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件”补成可自助提交的闭环
   - `E2-A4` 已补固定脚本入口：

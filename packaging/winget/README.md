@@ -54,6 +54,17 @@ winget install --manifest <path-to-manifest-folder>
 
 7. If local validation passes, submit the manifest PR to `microsoft/winget-pkgs`.
 
+If you want the repository to prepare a `winget-pkgs`-shaped folder for you directly, run:
+
+```powershell
+.\Export-WinGetSubmissionBundle.ps1 -PackageVersion 0.1.0 -ReleaseTag v0.1.0
+```
+
+This exports:
+
+- `submissions/manifests/o/OpenVideoToolbox/Cli/0.1.0/`
+- `submissions/submission-notes-0.1.0.md`
+
 Before rendering manifests, you can run a repository-local readiness check:
 
 ```powershell
@@ -105,6 +116,8 @@ Current `v0.1.0` example:
   - deterministic local renderer for the three template files
 - `Prepare-WinGetSubmission.ps1`
   - downloads the release asset, computes SHA256, and invokes the renderer
+- `Export-WinGetSubmissionBundle.ps1`
+  - renders the current release and writes a `winget-pkgs`-shaped submission folder
 - `Test-WinGetSubmissionReadiness.ps1`
   - checks release/tag/license readiness before manifest rendering or submission
 - `SUBMISSION_CHECKLIST.md`
