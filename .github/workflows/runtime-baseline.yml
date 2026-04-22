@@ -50,4 +50,5 @@ jobs:
         with:
           name: runtime-baseline
           path: .artifacts/*.json
+          include-hidden-files: true
           retention-days: 14
