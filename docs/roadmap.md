@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-22
+最后更新：2026-04-23
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -84,10 +84,14 @@
   - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件”补成可自助提交的闭环
   - `E2-A4` 已补固定脚本入口：
     - `scripts/Measure-RuntimeBaseline.ps1`
+    - `scripts/Test-RuntimeBaselineThresholds.ps1`
     - `scripts/Verify-DependencyBaseline.ps1`
     - `scripts/Write-RuntimeBaselineSummary.ps1`
     - `.github/workflows/runtime-baseline.yml`
     - 外部工具安全清单也已接入 PR 模板
+  - `E2-A4` 的轻量性能样本已不再只是观察值：
+    - 仓库内已新增 runtime 阈值配置与显式判定脚本
+    - `runtime-baseline` workflow 现会在超阈值时显式失败
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 
@@ -132,7 +136,7 @@
 - `whisper.cpp` / `demucs` 重依赖 real smoke 仍以本机条件满足时的可选验证为主。
 - `winget portable` 是否作为 `E2-A2` 的实际落地切口继续推进，以及何时提交首个 `winget-pkgs` manifest。
 - 社区模板 / 插件贡献路径是否已在不增加新产品边界的前提下达到“新贡献者可自助提交”标准。
-- `E2-A4` 的轻量性能样本是否需要在后续固定为更正式的回归观察入口。
+- `E2-A4` 的首轮阈值是否需要在更多 CI 样本后继续收紧，或扩展到更多代表性命令。
 
 ## 文档保鲜方式
 

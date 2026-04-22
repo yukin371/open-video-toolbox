@@ -1,6 +1,6 @@
 # E2-A4 依赖 / 性能 / 安全最小基线
 
-最后更新：2026-04-22
+最后更新：2026-04-23
 
 ## 背景
 
@@ -114,6 +114,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DependencyBaseline.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\Measure-RuntimeBaseline.ps1
 ```
 
+如需把观测结果和仓库内阈值做一次显式比对，可继续运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Test-RuntimeBaselineThresholds.ps1 -RuntimeBaselinePath .artifacts\runtime-baseline.json -OutputJsonPath .artifacts\runtime-threshold-check.json
+```
+
 仓库内也已补独立维护 workflow：
 
 - `.github/workflows/runtime-baseline.yml`
@@ -122,7 +128,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Measure-RuntimeBaseline.ps1
   - 支持 `workflow_dispatch`
   - 每周定时跑一次
   - 直接把关键结果写进 GitHub Actions job summary
-  - 上传 `runtime-baseline.json` 与 `dependency-baseline.json` 产物
+  - 当前也会把 `runtime-baseline.json` 与仓库内阈值做对比
+  - 若 `doctor` / `probe` / `render --preview` 超出仓库阈值，workflow 会显式失败
+  - 上传 `runtime-baseline.json`、`runtime-threshold-check.json` 与 `dependency-baseline.json` 产物
 
 如已安装 PowerShell 7，也可执行：
 
@@ -171,7 +179,8 @@ dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.cs
 
 - 这些数字只用于后续回归对照，不是发布承诺。
 - 同一台机器多次运行也会有波动；更适合关注是否出现数量级退化，而不是追求毫秒级完全一致。
-- 如果后续同机型、同命令、同输入下持续出现数量级退化，再考虑把它升级成更正式的基线。
+- 当前仓库已补第一层阈值检查，但阈值仍只用于维护告警，不代表正式 SLA。
+- 如果后续同机型、同命令、同输入下持续出现数量级退化，再考虑把阈值收紧或升级成更正式的基线。
 
 ## 外部工具调用安全清单
 
@@ -231,4 +240,5 @@ dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.cs
 
 1. 新环境知道先用什么命令判断依赖是否可用
 2. maintainer 至少有一组可复跑的性能观察样本
-3. 外部工具调用的 overwrite / timeout / logging / produced-paths 边界已写成清单，而不是只藏在代码里
+3. 轻量性能样本已能接到仓库内阈值判定，而不只是纯观察
+4. 外部工具调用的 overwrite / timeout / logging / produced-paths 边界已写成清单，而不是只藏在代码里

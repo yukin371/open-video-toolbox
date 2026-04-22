@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "commands": {
+    "doctor": {
+      "maxDurationMs": 5000
+    },
+    "probe": {
+      "maxDurationMs": 5000
+    },
+    "renderPreview": {
+      "maxDurationMs": 5000
+    }
+  }
+}

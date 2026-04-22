@@ -25,6 +25,7 @@ param(
     [string]$RuntimeBaselinePath,
     [Parameter(Mandatory = $true)]
     [string]$DependencyBaselinePath,
+    [string]$ThresholdCheckPath,
     [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY
 )
 
@@ -61,6 +62,15 @@ if (-not (Test-Path $DependencyBaselinePath)) {
 
 $runtimeBaseline = Get-Content -Raw $RuntimeBaselinePath | ConvertFrom-Json
 $dependencyBaseline = Get-Content -Raw $DependencyBaselinePath | ConvertFrom-Json
+$thresholdCheck = $null
+
+if (-not [string]::IsNullOrWhiteSpace($ThresholdCheckPath)) {
+    if (-not (Test-Path $ThresholdCheckPath)) {
+        throw "Runtime threshold check JSON not found: $ThresholdCheckPath"
+    }
+
+    $thresholdCheck = Get-Content -Raw $ThresholdCheckPath | ConvertFrom-Json
+}
 
 $summaryLines = New-Object System.Collections.Generic.List[string]
 $summaryLines.Add("# Runtime Baseline Summary")
@@ -70,6 +80,9 @@ $summaryLines.Add("- Dependency observed at: $(Get-MarkdownCellValue $dependency
 $summaryLines.Add("- Doctor healthy: $(if ($dependencyBaseline.doctor.isHealthy) { "true" } else { "false" })")
 $summaryLines.Add("- Missing required dependencies: $(Get-MarkdownCellValue $dependencyBaseline.doctor.missingRequiredCount)")
 $summaryLines.Add("- Missing optional dependencies: $(Get-MarkdownCellValue $dependencyBaseline.doctor.missingOptionalCount)")
+if ($null -ne $thresholdCheck) {
+    $summaryLines.Add("- Runtime thresholds healthy: $(if ($thresholdCheck.isWithinThresholds) { "true" } else { "false" })")
+}
 $summaryLines.Add("")
 $summaryLines.Add("## Command Durations")
 $summaryLines.Add("")
@@ -79,6 +92,29 @@ $summaryLines.Add("| doctor | $(Get-MarkdownCellValue $runtimeBaseline.commands.
 $summaryLines.Add("| probe | $(Get-MarkdownCellValue $runtimeBaseline.commands.probe.durationMs) |")
 $summaryLines.Add("| render --preview | $(Get-MarkdownCellValue $runtimeBaseline.commands.renderPreview.durationMs) |")
 $summaryLines.Add("")
+
+if ($null -ne $thresholdCheck) {
+    $summaryLines.Add("## Runtime Threshold Check")
+    $summaryLines.Add("")
+    $summaryLines.Add("| Command | Duration (ms) | Max (ms) | Within Threshold |")
+    $summaryLines.Add("| --- | ---: | ---: | --- |")
+
+    foreach ($command in $thresholdCheck.commands.PSObject.Properties) {
+        $summaryLines.Add(
+            "| $(Get-MarkdownCellValue $command.Name) | $(Get-MarkdownCellValue $command.Value.durationMs) | $(Get-MarkdownCellValue $command.Value.maxDurationMs) | $(Get-MarkdownCellValue $command.Value.isWithinThreshold) |"
+        )
+    }
+
+    if ($thresholdCheck.exceededCommands.Count -gt 0) {
+        $summaryLines.Add("")
+        $summaryLines.Add("Exceeded commands:")
+        foreach ($command in $thresholdCheck.exceededCommands) {
+            $summaryLines.Add("- `$(Get-MarkdownCellValue $command.id)`: $(Get-MarkdownCellValue $command.durationMs) ms > $(Get-MarkdownCellValue $command.maxDurationMs) ms")
+        }
+    }
+
+    $summaryLines.Add("")
+}
 $summaryLines.Add("## Dependency Status")
 $summaryLines.Add("")
 $summaryLines.Add("| Dependency | Required | Available | Source | Resolved |")
@@ -101,6 +137,9 @@ $summaryLines.Add("")
 $summaryLines.Add("Artifacts:")
 $summaryLines.Add(('- runtime baseline JSON: `' + (Get-MarkdownCellValue $RuntimeBaselinePath) + '`'))
 $summaryLines.Add(('- dependency baseline JSON: `' + (Get-MarkdownCellValue $DependencyBaselinePath) + '`'))
+if ($null -ne $thresholdCheck) {
+    $summaryLines.Add(('- runtime threshold check JSON: `' + (Get-MarkdownCellValue $ThresholdCheckPath) + '`'))
+}
 
 $outputDirectory = Split-Path -Parent $SummaryPath
 if ($outputDirectory) {
