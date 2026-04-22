@@ -24,6 +24,7 @@ static async Task<int> MainAsync(string[] args)
         "extract-audio" => await MediaCommandHandlers.RunExtractAudioAsync(remaining, Fail),
         "audio-analyze" => await AudioCommandHandlers.RunAudioAnalyzeAsync(remaining, Fail),
         "audio-gain" => await AudioCommandHandlers.RunAudioGainAsync(remaining, Fail),
+        "audio-normalize" => await AudioCommandHandlers.RunAudioNormalizeAsync(remaining, Fail),
         "transcribe" => await AudioCommandHandlers.RunTranscribeAsync(remaining, Fail),
         "detect-silence" => await AudioCommandHandlers.RunDetectSilenceAsync(remaining, Fail),
         "separate-audio" => await AudioCommandHandlers.RunSeparateAudioAsync(remaining, Fail),
@@ -76,6 +77,7 @@ static void PrintUsage()
     Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  audio-normalize <input> --output <path> [--target-lufs <n>] [--lra <n>] [--true-peak-db <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");

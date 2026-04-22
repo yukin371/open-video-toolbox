@@ -47,6 +47,8 @@
   - 已实现输出 `audio.json`
 - `audio-gain`
   - 已实现最小显式增益命令
+- `audio-normalize`
+  - 已实现独立响度归一化命令
 - `transcribe`
   - 已实现从外部 `whisper.cpp` 生成 `transcript.json`
 - `detect-silence`
@@ -74,7 +76,7 @@
   - 根据 `edit.json` 执行最终导出
 
 说明：
-- `templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已进入当前实现。
+- `templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已进入当前实现。
 
 ### 第二批常用增强
 
@@ -148,6 +150,7 @@ ovt subtitle <input> --transcript transcript.json --format srt --output subtitle
 ovt beat-track <input> --output beats.json
 ovt audio-analyze <input> --output audio.json --json-out audio-analyze.json
 ovt audio-gain <input> --gain-db -6 --output leveled.wav --json-out audio-gain.json
+ovt audio-normalize <input> --output normalized.wav --json-out audio-normalize.json
 ovt transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 ovt detect-silence <input> --output silence.json --json-out detect-silence.json
 ovt validate-plan --plan edit.json --check-files
@@ -158,7 +161,7 @@ ovt render --plan edit.json --output final.mp4
 ```
 
 说明：
-- `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
+- `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
 - `separate-audio` 已实现，用于以确定性 CLI 方式接入外部分离工具并返回结构化 stem 结果。
 - `separate-audio --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 stem 路径继续接给模板、混音或人工修订流程。
 - 本节主要保留 MVP 期定义的命令边界与典型调用方式；当前已实现范围以 `README.md`、`docs/PROJECT_PROFILE.md` 与 CLI 实际帮助输出为准。
@@ -245,6 +248,17 @@ ovt audio-gain <input> --gain-db <n> --output <path> [--json-out <path>]
 - `audio-gain` 当前复用 `ffmpeg volume`，提供显式 `dB` 增益控制。
 - `audio-gain --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把输出路径与执行结果继续传给混音、模板或人工修订流程。
 - 第一版只做“按指定增益值导出音频”，不把 `loudnorm` 归一化和显式 gain 混成同一个模糊命令。
+
+## `audio-normalize` 命令草案
+
+```text
+ovt audio-normalize <input> --output <path> [--target-lufs <n>] [--lra <n>] [--true-peak-db <n>] [--json-out <path>]
+```
+
+说明：
+- `audio-normalize` 当前复用 `ffmpeg loudnorm`，提供独立的响度归一化入口。
+- 默认目标为 `-16 LUFS / 11 LRA / -1.5 dBTP`，也可按命令行显式覆盖。
+- `audio-normalize --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把输出路径与执行结果继续传给混音、模板或人工修订流程。
 
 ## `transcribe` 命令草案
 

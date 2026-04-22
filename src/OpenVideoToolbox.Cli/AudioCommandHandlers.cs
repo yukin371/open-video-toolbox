@@ -155,6 +155,92 @@ internal static class AudioCommandHandlers
         }
     }
 
+    public static async Task<int> RunAudioNormalizeAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetDoubleOption(options, "--target-lufs", out var targetLufs, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetDoubleOption(options, "--lra", out var loudnessRangeTarget, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetDoubleOption(options, "--true-peak-db", out var truePeakDb, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetIntOption(options, "--timeout-seconds", out var timeoutSeconds, out error))
+        {
+            return fail(error!);
+        }
+
+        var ffmpegPath = GetOption(options, "--ffmpeg") ?? "ffmpeg";
+        var jsonOutPath = GetOption(options, "--json-out");
+        TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
+        var request = new AudioNormalizeRequest
+        {
+            InputPath = inputPath!,
+            OutputPath = outputPath!,
+            TargetLufs = targetLufs ?? AudioNormalizeRequest.DefaultTargetLufs,
+            LoudnessRangeTarget = loudnessRangeTarget ?? AudioNormalizeRequest.DefaultLoudnessRangeTarget,
+            TruePeakDb = truePeakDb ?? AudioNormalizeRequest.DefaultTruePeakDb,
+            OverwriteExisting = GetOption(options, "--overwrite") == "true"
+        };
+
+        var processRunner = new DefaultProcessRunner();
+        var runner = new AudioNormalizeRunner(new FfmpegAudioNormalizeCommandBuilder(), processRunner);
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(request.OutputPath))!);
+
+            var result = await runner.RunAsync(request, ffmpegPath, timeout);
+            if (result.Status != ExecutionStatus.Succeeded)
+            {
+                var message = BuildExecutionFailureMessage(result);
+                return FailWithCommandEnvelope(
+                    "audio-normalize",
+                    preview: false,
+                    BuildFailedCommandPayload("audioNormalize", request, message, result),
+                    message,
+                    jsonOutPath,
+                    exitCode: 2);
+            }
+
+            return WriteCommandEnvelope(
+                "audio-normalize",
+                preview: false,
+                new
+                {
+                    audioNormalize = request,
+                    execution = result
+                },
+                jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            return FailWithCommandEnvelope(
+                "audio-normalize",
+                preview: false,
+                BuildFailedCommandPayload("audioNormalize", request, ex.Message),
+                ex.Message,
+                jsonOutPath);
+        }
+    }
+
     public static async Task<int> RunTranscribeAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))

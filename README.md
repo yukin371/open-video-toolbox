@@ -24,7 +24,7 @@
 - Phase 1 领域模型与序列化结构
 - Phase 2 外部工具抽象、`ffprobe` 解析、`ffmpeg` 命令构建与进程执行器
 - Phase 3 CLI 命令面：`presets`、`probe`、`plan`、`run`
-- Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
+- Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
 - `H1 -> H2+T1 -> T2 -> P1 -> E1` 已全部完成：当前高频 CLI 命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON；契约快照测试已建立，插件开发者体验已落地，核心跨平台发布链已就绪
 - 首次发版：`git tag v0.1.0 && git push origin v0.1.0`，CI 自动发布 win-x64 / linux-x64 / osx-x64 single-file
 - CLI 可维护性重构已完成当前收口：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
@@ -132,6 +132,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- beat-track <input> --output beats.json --json-out beat-track.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-analyze <input> --output audio.json --json-out audio-analyze.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-gain <input> --gain-db -6 --output leveled.wav --json-out audio-gain.json
+dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- audio-normalize <input> --output normalized.wav --json-out audio-normalize.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- transcribe <input> --model ggml-base.bin --output transcript.json --json-out transcribe.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- detect-silence <input> --output silence.json --json-out detect-silence.json
 dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj -- separate-audio <input> --output-dir stems --json-out separate-audio.json
@@ -162,6 +163,7 @@ dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenV
 - `beat-track` 把输入媒体解成统一波形并输出 `beats.json`，供节奏参考、模板填充和 clip 种子生成使用；stdout 现统一输出 command envelope，传 `--json-out` 时可把同一份 envelope 落盘；当波形提取阶段失败或进程启动抛错时，也会优先返回结构化 failure envelope，而不是退回纯 usage
 - `audio-analyze` 通过 `ffmpeg loudnorm` 输出 `audio.json`，提供集成响度、响度范围、真峰值和门限等基础响度分析数据，供后续音量标准化、配乐 ducking 和模板决策复用；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当分析阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage
 - `audio-gain` 通过 `ffmpeg volume` 做显式分贝增益处理，先提供最简单、最可解释的音量控制原语，后续再单独扩归一化模式；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当执行阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage
+- `audio-normalize` 通过 `ffmpeg loudnorm` 做独立响度归一化导出，默认目标为 `-16 LUFS / 11 LRA / -1.5 dBTP`，避免把归一化和显式 gain 混进同一个模糊命令；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当执行阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage
 - `transcribe` 通过 `ffmpeg` 预抽取统一 WAV，再调用 `whisper.cpp` 官方 `whisper-cli` 输出 JSON，并映射成仓库标准 `transcript.json`；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当音频预处理或转写阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage
 - `detect-silence` 通过 `ffmpeg silencedetect` 输出 `silence.json`，提供模板和后续编辑辅助可复用的停顿段信号；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当检测阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage
 - `separate-audio` 通过 `Demucs` 输出结构化 stem 结果，先收敛高频的人声 / 伴奏双 stem 场景；stdout 现统一输出 command envelope，传 `--json-out` 时会把同一份 envelope 写到文件；当分离阶段失败时，也会优先返回结构化 failure envelope，而不是退回纯 usage

@@ -163,6 +163,16 @@ audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <
 
 - 做显式增益导出
 
+### `audio-normalize`
+
+```text
+audio-normalize <input> --output <path> [--target-lufs <n>] [--lra <n>] [--true-peak-db <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]
+```
+
+用途：
+
+- 做独立响度归一化导出
+
 ### `transcribe`
 
 ```text

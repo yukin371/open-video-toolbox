@@ -33,7 +33,7 @@
 
 - 基础媒体：`probe`、`plan`、`run`
 - 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`validate-plan`
-- 音频 / speech / signals：`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`
+- 音频 / speech / signals：`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`
 - 编辑基元：`cut`、`concat`、`extract-audio`、`subtitle`
 - 执行导出：`mix-audio`、`render`
 - 查询：`presets`
@@ -139,6 +139,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - `beat-track`
 - `audio-analyze`
 - `audio-gain`
+- `audio-normalize`
 - `cut`
 - `concat`
 - `extract-audio`
@@ -181,6 +182,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | supporting signals | `beat-track` | 节拍分析 | `beats.json` |
 | supporting signals | `audio-analyze` | 响度分析 | `audio.json` |
 | supporting signals | `audio-gain` | 显式音量增益 | 输出音频文件 |
+| supporting signals | `audio-normalize` | 响度归一化导出 | 输出音频文件 |
 | supporting signals | `transcribe` | 语音转写 | `transcript.json` |
 | supporting signals | `detect-silence` | 停顿段检测 | `silence.json` |
 | supporting signals | `separate-audio` | stem 分离 | `stems/` |
@@ -408,6 +410,18 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 
 ```powershell
 <ovt> audio-gain input.wav --gain-db -6 --output leveled.wav --json-out audio-gain.json
+```
+
+### `audio-normalize`
+
+用途：
+
+- 做独立响度归一化导出
+
+示例：
+
+```powershell
+<ovt> audio-normalize input.wav --output normalized.wav --json-out audio-normalize.json
 ```
 
 ### `transcribe`

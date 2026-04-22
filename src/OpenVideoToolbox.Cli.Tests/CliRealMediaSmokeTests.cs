@@ -385,6 +385,42 @@ public sealed class CliRealMediaSmokeTests
     }
 
     [Fact]
+    public async Task AudioNormalizeCommand_ProducesStructuredEnvelope()
+    {
+        if (!CliTestProcessHelper.IsToolAvailable("ffmpeg"))
+        {
+            return;
+        }
+
+        var dir = CreateTempDir();
+
+        try
+        {
+            var inputPath = Path.Combine(dir, "input.wav");
+            var outputPath = Path.Combine(dir, "normalized.wav");
+            var jsonOutPath = Path.Combine(dir, "audio-normalize.json");
+
+            await CliTestProcessHelper.CreateSampleAudioAsync(inputPath, TimeSpan.FromSeconds(2));
+
+            var result = await CliTestProcessHelper.RunCliAsync(
+                "audio-normalize", inputPath,
+                "--output", outputPath,
+                "--ffmpeg", "ffmpeg",
+                "--json-out", jsonOutPath,
+                "--overwrite");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(outputPath));
+            AssertEnvelopeValid(result.StdOut, "audio-normalize", out _);
+            AssertJsonOutMatches(jsonOutPath, result.StdOut);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task DetectSilenceCommand_ProducesStructuredEnvelope()
     {
         if (!CliTestProcessHelper.IsToolAvailable("ffmpeg"))

@@ -46,6 +46,7 @@
 - `beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]`
 - `audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]`
+- `audio-normalize <input> --output <path> [--target-lufs <n>] [--lra <n>] [--true-peak-db <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]`
 - `transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]`
@@ -61,7 +62,7 @@
 - `run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 
 说明：
-- `templates`、`doctor`、`validate-plugin`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现；其余命令当前仍是产品规划，不是仓库现状。
+- `templates`、`doctor`、`validate-plugin`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现；其余命令当前仍是产品规划，不是仓库现状。
 - `doctor` 已实现，用于把 required / optional 外部依赖状态收敛为稳定 JSON；命令会优先读取 CLI 参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`。
 - `doctor` 的 CLI 测试现已覆盖依赖 envelope、`--json-out`、environment fallback、option 优先级，以及 `default` / `unset` / `resolvedValue` / `detail` 等关键输出语义，进一步锁住外部依赖边界。
 - `validate-plugin` 已实现，用于显式校验插件目录、`plugin.json` 和模板定义是否合规，并输出插件/模板清单与结构化失败原因；传 `--json-out` 时会把同一份 envelope 直接写到文件。
@@ -73,6 +74,7 @@
 - `beat-track` 现也已切到统一 command envelope，并补上 `--json-out`；当波形提取失败时，无论是底层返回 failed status 还是进程启动抛错，CLI 都会继续输出结构化 failure envelope，而不是退回 usage 文本。
 - `audio-analyze` 现也已切到统一 command envelope；当响度分析阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `audio-gain` 现也已切到统一 command envelope；当执行阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
+- `audio-normalize` 现也已切到统一 command envelope；当执行阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `transcribe` 现也已切到统一 command envelope；当音频预处理或转写阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `detect-silence` 现也已切到统一 command envelope；当检测阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `separate-audio` 现也已切到统一 command envelope；当分离阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
