@@ -91,6 +91,16 @@ doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-mo
 
 - 统一检查外部依赖状态
 
+### `validate-plugin`
+
+```text
+validate-plugin --plugin-dir <path> [--json-out <path>]
+```
+
+用途：
+
+- 显式校验模板插件目录、manifest 与模板定义是否合规
+
 ### `init-plan`
 
 ```text

@@ -52,7 +52,7 @@ my-plugin/
 | 字段 | 必需 | 说明 |
 |------|------|------|
 | `id` | 是 | 模板 ID，必须与 template.json 中的 `id` 一致 |
-| `path` | 是 | 模板目录相对于 plugin.json 的路径 |
+| `path` | 是 | 模板目录相对于 plugin.json 的路径，且解析后必须仍位于插件根目录内 |
 
 ## template.json 模板定义
 
@@ -109,6 +109,11 @@ my-plugin/
 | `description` | 是 | 用途说明 |
 | `required` | 否 | 是否必需，默认 `false` |
 
+约束：
+
+- 同一模板内的 `artifactSlots.id` 必须唯一
+- 同一模板内的 `supportingSignals.kind` 不应重复声明
+
 ### supportingSignals 条目
 
 | 字段 | 必需 | 说明 |
@@ -118,13 +123,20 @@ my-plugin/
 
 ## 验证插件
 
-用 `templates --plugin-dir <path>` 验证插件是否能被正确加载：
+优先使用 `validate-plugin` 做显式插件校验：
 
 ```sh
-# 成功时返回 0
-dotnet run --project src/OpenVideoToolbox.Cli -- templates --plugin-dir my-plugin --summary
+# 成功时返回 0，并输出结构化校验结果
+dotnet run --project src/OpenVideoToolbox.Cli -- validate-plugin --plugin-dir my-plugin
 
-# 失败时返回非零，stderr 包含具体错误
+# 也可把同一份结果写到文件
+dotnet run --project src/OpenVideoToolbox.Cli -- validate-plugin --plugin-dir my-plugin --json-out validate-plugin.json
+```
+
+如果你还想同时确认模板发现结果，再补跑 `templates --plugin-dir <path> --summary`：
+
+```sh
+dotnet run --project src/OpenVideoToolbox.Cli -- templates --plugin-dir my-plugin --summary
 ```
 
 ### 常见验证错误
@@ -139,6 +151,8 @@ dotnet run --project src/OpenVideoToolbox.Cli -- templates --plugin-dir my-plugi
 | `template.json ... was not found` | 模板目录中缺少 template.json |
 | `does not match template id` | 清单中声明的 id 与 template.json 中的 id 不一致 |
 | `Duplicate edit plan template id` | 模板 ID 与内置模板冲突 |
+| `resolves outside plugin root` | `templates[*].path` 解析后越出了插件根目录 |
+| `duplicate artifact slot id` | 模板里声明了重复的 artifact slot |
 
 ## 本地自测清单
 
@@ -147,11 +161,13 @@ dotnet run --project src/OpenVideoToolbox.Cli -- templates --plugin-dir my-plugi
 ### 1. 插件发现
 
 ```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plugin --plugin-dir my-plugin
 dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates --plugin-dir my-plugin --summary
 ```
 
 确认：
 
+- `validate-plugin` 返回 `payload.isValid = true`
 - 命令退出码为 `0`
 - 输出里包含你的插件 `id`
 - 输出里包含你的模板 `id`
@@ -198,6 +214,9 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 ## 使用插件
 
 ```sh
+# 校验插件目录
+ovt validate-plugin --plugin-dir my-plugin
+
 # 列出插件模板
 ovt templates --plugin-dir my-plugin --summary
 

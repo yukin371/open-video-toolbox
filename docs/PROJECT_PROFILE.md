@@ -40,6 +40,7 @@
 - `presets`
 - `templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--plugin-dir <path>] [--json-out <path>] [--write-examples <dir>]`
 - `doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]`
+- `validate-plugin --plugin-dir <path> [--json-out <path>]`
 - `init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
 - `scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
 - `beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]`
@@ -60,9 +61,10 @@
 - `run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 
 说明：
-- `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现；其余命令当前仍是产品规划，不是仓库现状。
+- `templates`、`doctor`、`validate-plugin`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现；其余命令当前仍是产品规划，不是仓库现状。
 - `doctor` 已实现，用于把 required / optional 外部依赖状态收敛为稳定 JSON；命令会优先读取 CLI 参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`。
 - `doctor` 的 CLI 测试现已覆盖依赖 envelope、`--json-out`、environment fallback、option 优先级，以及 `default` / `unset` / `resolvedValue` / `detail` 等关键输出语义，进一步锁住外部依赖边界。
+- `validate-plugin` 已实现，用于显式校验插件目录、`plugin.json` 和模板定义是否合规，并输出插件/模板清单与结构化失败原因；传 `--json-out` 时会把同一份 envelope 直接写到文件。
 - `validate-plan` 已实现，用于在真正执行前校验外部 AI 或人工修改后的 `edit.json` 是否仍满足当前 schema v1 与基础语义约束；当 plan 来自插件模板时，可通过 `--plugin-dir` 把插件模板目录显式接回校验链。
 - `mix-audio --preview` 与 `render --preview` 已实现，用于在真实执行前输出稳定的 `executionPreview`；传 `--json-out` 时会把统一 envelope 原样写到文件。
 - `mix-audio` / `render` 的 preview 与执行 envelope 现会额外透出 `templateSource`，直接复用 plan 中已有的 `template.source` 元数据，便于后续执行阶段继续审计插件来源。
@@ -93,7 +95,7 @@
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
 - 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
-- 当前测试基线：`OpenVideoToolbox.Core.Tests` 130，`OpenVideoToolbox.Cli.Tests` 118，总计 248。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 130，`OpenVideoToolbox.Cli.Tests` 123，总计 253。
 - 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`

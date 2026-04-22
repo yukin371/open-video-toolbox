@@ -18,6 +18,7 @@ static async Task<int> MainAsync(string[] args)
     return command switch
     {
         "doctor" => await FoundationCommandHandlers.RunDoctorAsync(remaining, Fail),
+        "validate-plugin" => FoundationCommandHandlers.RunValidatePlugin(remaining, Fail),
         "init-plan" => await TemplateCommandHandlers.RunInitPlanAsync(remaining, Fail),
         "scaffold-template" => await TemplateCommandHandlers.RunScaffoldTemplateAsync(remaining, Fail),
         "extract-audio" => await MediaCommandHandlers.RunExtractAudioAsync(remaining, Fail),
@@ -71,6 +72,7 @@ static void PrintUsage()
     Console.WriteLine("  presets [--json-out <path>]");
     Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--plugin-dir <path>] [--json-out <path>] [--write-examples <dir>]");
     Console.WriteLine("  doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  validate-plugin --plugin-dir <path> [--json-out <path>]");
     Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
@@ -96,4 +98,3 @@ static void PrintUsage()
         Console.WriteLine($"  {preset.Id} - {preset.DisplayName}");
     }
 }
-

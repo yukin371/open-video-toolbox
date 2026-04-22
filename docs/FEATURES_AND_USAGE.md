@@ -29,7 +29,7 @@
 
 ## 当前已交付能力
 
-当前 CLI 已完成 `H1 -> H2+T1 -> T2 -> P1 -> E1`，可直接使用的命令共 21 条：
+当前 CLI 已完成 `H1 -> H2+T1 -> T2 -> P1 -> E1`，并已形成一组可直接使用的高频命令面：
 
 - 基础媒体：`probe`、`plan`、`run`
 - 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`validate-plan`

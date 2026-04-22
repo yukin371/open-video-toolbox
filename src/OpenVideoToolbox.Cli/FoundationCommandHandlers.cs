@@ -8,6 +8,69 @@ namespace OpenVideoToolbox.Cli;
 
 internal static class FoundationCommandHandlers
 {
+    public static int RunValidatePlugin(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plugin-dir", out var pluginDirectory, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var fullPluginDirectory = Path.GetFullPath(pluginDirectory!);
+
+        try
+        {
+            var pluginCatalog = TemplatePluginCatalogLoader.Load(pluginDirectory);
+            var availableTemplates = TemplateCommandPresentation.BuildAvailableTemplates(pluginCatalog);
+            var pluginTemplates = pluginCatalog.LoadedTemplates
+                .Select(item => item.Template)
+                .ToArray();
+
+            var report = new
+            {
+                pluginDirectory = fullPluginDirectory,
+                isValid = true,
+                issues = Array.Empty<object>(),
+                plugins = pluginCatalog.Plugins,
+                templates = EditPlanTemplateCatalog.GetSummaries(
+                    availableTemplates,
+                    new EditPlanTemplateCatalogQuery()).Where(summary =>
+                        pluginTemplates.Any(template =>
+                            string.Equals(template.Id, summary.Id, StringComparison.OrdinalIgnoreCase)))
+                    .ToArray()
+            };
+
+            return WriteCommandEnvelope("validate-plugin", preview: false, report, jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            var report = new
+            {
+                pluginDirectory = fullPluginDirectory,
+                isValid = false,
+                issues = new[]
+                {
+                    new
+                    {
+                        severity = "error",
+                        path = "$",
+                        code = "plugin.validation.failed",
+                        message = ex.Message
+                    }
+                },
+                plugins = Array.Empty<object>(),
+                templates = Array.Empty<object>()
+            };
+
+            return WriteCommandEnvelope("validate-plugin", preview: false, report, jsonOutPath, exitCode: 1);
+        }
+    }
+
     public static async Task<int> RunDoctorAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseOptions(args, out var options, out var error))

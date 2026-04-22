@@ -68,6 +68,7 @@ internal static class TemplatePluginCatalogLoader
         }
 
         var templateDirectory = Path.GetFullPath(Path.Combine(pluginDirectory, entry.Path));
+        EnsurePathIsWithinPluginRoot(pluginDirectory, templateDirectory, plugin.Id, entry.Id!);
         var templatePath = Path.Combine(templateDirectory, "template.json");
         if (!File.Exists(templatePath))
         {
@@ -84,6 +85,8 @@ internal static class TemplatePluginCatalogLoader
             throw new InvalidOperationException(
                 $"Template plugin '{plugin.Id}' entry '{entry.Id}' does not match template id '{template.Id}' in '{templatePath}'.");
         }
+
+        ValidateTemplateDefinition(plugin, template, templatePath);
 
         return new TemplatePluginLoadedTemplate
         {
@@ -124,6 +127,69 @@ internal static class TemplatePluginCatalogLoader
         if (manifest.Templates is null || manifest.Templates.Count == 0)
         {
             throw new InvalidOperationException($"Template plugin manifest '{manifestPath}' must declare at least one template.");
+        }
+
+        var duplicateTemplateId = manifest.Templates
+            .Where(template => !string.IsNullOrWhiteSpace(template.Id))
+            .GroupBy(template => template.Id, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateTemplateId is not null)
+        {
+            throw new InvalidOperationException(
+                $"Template plugin manifest '{manifestPath}' contains duplicate template id '{duplicateTemplateId.Key}'.");
+        }
+    }
+
+    private static void ValidateTemplateDefinition(
+        TemplatePluginDescriptor plugin,
+        EditPlanTemplateDefinition template,
+        string templatePath)
+    {
+        if (string.IsNullOrWhiteSpace(template.OutputContainer))
+        {
+            throw new InvalidOperationException($"Template definition '{templatePath}' is missing 'outputContainer'.");
+        }
+
+        if (template.RecommendedTranscriptSeedStrategies.Count > 0
+            && !template.RecommendedSeedModes.Contains(EditPlanSeedMode.Transcript))
+        {
+            throw new InvalidOperationException(
+                $"Template definition '{templatePath}' declares transcript seed strategies but does not include transcript in 'recommendedSeedModes'.");
+        }
+
+        var duplicateArtifactSlot = template.ArtifactSlots
+            .GroupBy(slot => slot.Id, StringComparer.OrdinalIgnoreCase)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateArtifactSlot is not null)
+        {
+            throw new InvalidOperationException(
+                $"Template definition '{templatePath}' contains duplicate artifact slot id '{duplicateArtifactSlot.Key}'.");
+        }
+
+        var duplicateSignal = template.SupportingSignals
+            .GroupBy(signal => signal.Kind)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateSignal is not null)
+        {
+            throw new InvalidOperationException(
+                $"Template definition '{templatePath}' declares supporting signal '{duplicateSignal.Key}' more than once.");
+        }
+    }
+
+    private static void EnsurePathIsWithinPluginRoot(
+        string pluginDirectory,
+        string candidatePath,
+        string pluginId,
+        string templateId)
+    {
+        var normalizedPluginDirectory = Path.EndsInDirectorySeparator(pluginDirectory)
+            ? pluginDirectory
+            : pluginDirectory + Path.DirectorySeparatorChar;
+
+        if (!candidatePath.StartsWith(normalizedPluginDirectory, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Template plugin '{pluginId}' template '{templateId}' resolves outside plugin root.");
         }
     }
 }
