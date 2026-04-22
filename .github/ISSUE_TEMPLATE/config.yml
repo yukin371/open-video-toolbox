@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Plugin Development Guide
+    url: https://github.com/yukin371/open-video-toolbox/blob/main/docs/plugin-development-guide.md
+    about: Read the static plugin schema, validation flow, and local self-test loop before opening a submission.
+  - name: Example Plugin
+    url: https://github.com/yukin371/open-video-toolbox/tree/main/examples/plugin-example
+    about: Copy the minimal working example if you need a starting point for a community template plugin.
+  - name: Contribution Guide
+    url: https://github.com/yukin371/open-video-toolbox/blob/main/CONTRIBUTING.md
+    about: Check repository-wide contribution rules, validation expectations, and plugin submission constraints.

@@ -98,6 +98,13 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - 是否与内置模板 ID 冲突
 - `templates --plugin-dir` 到 `validate-plan --plugin-dir` 是否闭环通过
 
+如果你希望先走仓库内固定提交入口，再补 PR，可直接使用：
+
+- `.github/ISSUE_TEMPLATE/community-plugin-submission.yml`
+  - 用于提交社区插件摘要、链接、本地自测结果和边界确认
+  - maintainer 可以直接按其中的字段和清单做第一轮审核
+  - 它不是新的插件市场或审核系统，只是把现有 `E2-A3` 清单固定成仓库入口
+
 更细的边界与审核标准见：
 
 - `docs/plugin-development-guide.md`

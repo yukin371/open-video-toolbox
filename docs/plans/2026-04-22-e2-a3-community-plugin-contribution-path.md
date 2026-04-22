@@ -1,6 +1,6 @@
 # E2-A3 社区模板 / 插件贡献路径
 
-最后更新：2026-04-22
+最后更新：2026-04-23
 
 ## 背景
 
@@ -148,8 +148,29 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
   - 写 schema、目录结构、开发与自测
 - `examples/plugin-example/README.md`
   - 写可照抄的最小示例与本地演示步骤
+- `.github/ISSUE_TEMPLATE/community-plugin-submission.yml`
+  - 写仓库内固定提交入口，收集插件摘要、链接、自测结果与边界确认
 - 本文档
   - 写 `E2-A3` 为什么做、做到什么程度算完成
+
+## 仓库内固定提交入口
+
+当前仓库已补一个 maintainer 入口：
+
+- `.github/ISSUE_TEMPLATE/community-plugin-submission.yml`
+
+用途：
+
+1. 收集插件 `id`、模板 `id`、适用场景和推荐 signal
+2. 收集最小本地自测结果，而不是只收一句“本地可用”
+3. 让 maintainer 直接按静态边界、私有语义、模板冲突等清单做第一轮筛查
+
+边界：
+
+- 它不是新的插件市场
+- 它不替代 PR
+- 它不引入自动审核或远程目录发现
+- 它只把当前文档里的提交与审核清单固定成仓库入口
 
 ## 完成判定
 

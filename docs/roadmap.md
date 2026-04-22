@@ -81,7 +81,8 @@
     - `v0.1.0` GitHub Release 与 `ovt-win-x64.exe` / `ovt-win-x64.zip` 资产已发布
     - 仓库内 `packaging/winget/Export-WinGetSubmissionBundle.ps1` 已落地，可直接导出 `winget-pkgs` 目录结构
     - 当前剩余工作已从“仓库 blocker”收敛到“render manifest + 目标环境复核 + 向 winget-pkgs 提交 PR”
-  - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件”补成可自助提交的闭环
+  - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件 + 仓库内固定提交入口”补成可自助提交的闭环
+    - 仓库内已新增社区插件 submission issue form，maintainer 可按固定字段收插件摘要、自测结果和边界确认
   - `E2-A4` 已补固定脚本入口：
     - `scripts/Measure-RuntimeBaseline.ps1`
     - `scripts/Test-RuntimeBaselineThresholds.ps1`
@@ -135,7 +136,7 @@
 - `edit.json schema v1` 是否在后续一段时间内保持低频变更，从而真正满足 `D1` 的启动门槛。
 - `whisper.cpp` / `demucs` 重依赖 real smoke 仍以本机条件满足时的可选验证为主。
 - `winget portable` 是否作为 `E2-A2` 的实际落地切口继续推进，以及何时提交首个 `winget-pkgs` manifest。
-- 社区模板 / 插件贡献路径是否已在不增加新产品边界的前提下达到“新贡献者可自助提交”标准。
+- 社区模板 / 插件贡献路径是否已在不增加新产品边界的前提下达到“新贡献者可自助提交、maintainer 可低摩擦初审”标准。
 - `E2-A4` 的首轮阈值是否需要在更多 CI 样本后继续收紧，或扩展到更多代表性命令。
 
 ## 文档保鲜方式

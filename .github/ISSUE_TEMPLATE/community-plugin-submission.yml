@@ -1,0 +1,118 @@
+name: Community Plugin Submission
+description: Submit a static template plugin for maintainer review before or alongside a PR.
+title: "[Plugin] "
+labels:
+  - plugin
+  - community
+body:
+  - type: markdown
+    attributes:
+      value: |
+        用这个入口提交社区模板插件。
+
+        提交前先读：
+        - `CONTRIBUTING.md`
+        - `docs/plugin-development-guide.md`
+        - `docs/plans/2026-04-22-e2-a3-community-plugin-contribution-path.md`
+        - `examples/plugin-example/README.md`
+
+        当前只接受基于既有 template schema 的静态模板插件：
+        - 只包含 `plugin.json`、`template.json` 和说明文件
+        - 不包含脚本、二进制、下载逻辑或安装钩子
+        - 不要求 `Core` 新增私有执行语义
+
+  - type: input
+    id: plugin_id
+    attributes:
+      label: Plugin ID
+      description: `plugin.json.id`
+      placeholder: my-plugin
+    validations:
+      required: true
+
+  - type: input
+    id: template_ids
+    attributes:
+      label: Template IDs
+      description: 逗号分隔，填写这个插件包含的模板 ID
+      placeholder: quick-subtitle, shorts-batch
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: 说明插件适用场景、目标工作流和不适用场景
+      placeholder: 面向口播短视频，快速生成带字幕的可修改草稿……
+    validations:
+      required: true
+
+  - type: textarea
+    id: signals
+    attributes:
+      label: Recommended Seed Modes And Supporting Signals
+      description: 写清推荐 seed 模式，以及是否依赖 transcript / beats / silence / stems / subtitles 等显式输入
+      placeholder: |
+        推荐 seed 模式：
+        - transcript
+
+        supporting signals：
+        - transcript：用于字幕与切段
+        - subtitle artifact：可选 sidecar 输入
+    validations:
+      required: true
+
+  - type: textarea
+    id: repo_or_pr
+    attributes:
+      label: Submission Link
+      description: 填插件目录仓库地址、分支地址或关联 PR；如果已经有 PR，请直接贴链接
+      placeholder: https://github.com/<user>/<repo>/tree/<branch>/plugins/my-plugin
+    validations:
+      required: true
+
+  - type: textarea
+    id: self_test
+    attributes:
+      label: Local Self-Test Results
+      description: 粘贴关键命令和结果摘要；至少覆盖发现、guide、write-examples、init-plan、validate-plan
+      value: |
+        1. templates --plugin-dir <plugin-root> --summary
+           - result:
+
+        2. templates <template-id> --plugin-dir <plugin-root>
+           - result:
+
+        3. templates <template-id> --plugin-dir <plugin-root> --write-examples .plugin-guide
+           - result:
+
+        4. init-plan <input> --template <template-id> --plugin-dir <plugin-root> --output edit.json --render-output final.mp4
+           - result:
+
+        5. validate-plan --plan edit.json --plugin-dir <plugin-root>
+           - result:
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: boundary_checks
+    attributes:
+      label: Boundary Checks
+      options:
+        - label: The plugin is static-only (`plugin.json` / `template.json` / docs) with no scripts, binaries, download logic, or install hooks
+          required: true
+        - label: The plugin does not require new private execution semantics, Core-only fields, or new `ffmpeg` command semantics
+          required: true
+        - label: The template IDs do not conflict with built-in templates
+          required: true
+        - label: The plugin documents recommended seed modes and supporting signals explicitly
+          required: true
+
+  - type: textarea
+    id: maintainer_notes
+    attributes:
+      label: Maintainer Notes
+      description: 任何你希望 maintainer 在审核时重点关注的地方
+      placeholder: 例如某个 artifact slot 命名、某个 supporting signal 的适配前提等
+
