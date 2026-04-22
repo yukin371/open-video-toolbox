@@ -72,6 +72,26 @@
 - 想知道现在到底能做什么、怎么排障：看 `docs/FEATURES_AND_USAGE.md`
 - 想查精确命令签名：看 `docs/COMMAND_REFERENCE.md`
 
+## 仓库协作初始化
+
+如果你要在本仓库里提交代码，先启用仓库内 Git hooks：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Enable-GitHooks.ps1
+```
+
+验证命令：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Enable-GitHooks.ps1 -VerifyOnly
+```
+
+说明：
+
+- 仓库内 hook 脚本位于 `.githooks/`
+- 这一步会把本地仓库的 `core.hooksPath` 指向 `.githooks`
+- 如果不做这一步，`pre-commit` 与 `commit-msg` 检查不会生效
+
 ## CLI
 
 ```powershell

@@ -32,8 +32,17 @@
 通用验证：
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Enable-GitHooks.ps1
 dotnet build OpenVideoToolbox.sln
 dotnet test OpenVideoToolbox.sln
+```
+
+首次 clone 后建议先运行 `scripts/Enable-GitHooks.ps1`，把仓库内 `.githooks/` 接到本地 `core.hooksPath`。只要没启用这一步，`pre-commit` 和 `commit-msg` 都不会生效。
+
+可用下面这条命令检查是否已启用：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Enable-GitHooks.ps1 -VerifyOnly
 ```
 
 如果改动影响 CLI 契约、文档或发布链，请同步更新对应文档与测试，而不是只改代码。
