@@ -47,6 +47,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Enable-GitHooks.ps1 -VerifyOn
 
 如果改动影响 CLI 契约、文档或发布链，请同步更新对应文档与测试，而不是只改代码。
 
+如果你改动了示例插件、插件贡献路径文档或相关模板入口，建议再补跑：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Verify-ExamplePlugin.ps1
+```
+
 ## 模板插件贡献
 
 当前允许的社区模板插件必须满足：
@@ -82,6 +88,7 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - 推荐 seed 模式
 - 需要的 supporting signals
 - 本地自测结果
+- 如果改动了 `examples/plugin-example/` 或插件提交流程，是否跑过 `scripts/Verify-ExamplePlugin.ps1`
 
 ## PR 要求
 

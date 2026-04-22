@@ -31,3 +31,7 @@ jobs:
 
       - name: Run tests
         run: dotnet test OpenVideoToolbox.sln --configuration Release --no-build
+
+      - name: Verify example plugin flow
+        shell: powershell
+        run: ./scripts/Verify-ExamplePlugin.ps1 -NoBuild $true

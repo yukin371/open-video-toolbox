@@ -54,6 +54,20 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - 第 4 步需要你自己提供一个真实的 `input.mp4`
 - 如果你还没有输入文件，先完成前 3 步即可验证插件目录、guide 和命令脚手架是否闭环
 
+如果你想一次性跑完整示例插件闭环，也可以直接运行仓库脚本：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Verify-ExamplePlugin.ps1
+```
+
+这个脚本会自动生成样例输入，并串起来执行：
+
+- `validate-plugin`
+- `templates --summary`
+- `templates quick-subtitle --write-examples`
+- `init-plan`
+- `validate-plan`
+
 ## 复制这个示例时要改什么
 
 至少修改这些字段：

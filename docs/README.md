@@ -20,6 +20,7 @@
 
 - [Plugin Development Guide](plugin-development-guide.md) — How to create a template plugin
 - [Example Plugin](../examples/plugin-example/) — Minimal working plugin
+- [`scripts/Verify-ExamplePlugin.ps1`](../scripts/Verify-ExamplePlugin.ps1) — One-shot repository script that verifies the example plugin flow end-to-end
 - [E2-A3 Community Plugin Contribution Path](plans/2026-04-22-e2-a3-community-plugin-contribution-path.md) — Submission expectations, local validation loop, and review checklist for community plugins
 - [Community Plugin Submission Issue Form](../.github/ISSUE_TEMPLATE/community-plugin-submission.yml) — Repository-local submission entry for plugin summary, self-test evidence, and maintainer review context
 

@@ -148,6 +148,8 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
   - 写 schema、目录结构、开发与自测
 - `examples/plugin-example/README.md`
   - 写可照抄的最小示例与本地演示步骤
+- `scripts/Verify-ExamplePlugin.ps1`
+  - 写仓库内的一键闭环验证，确保示例插件、guide、write-examples 与 plan 校验仍能一起工作
 - `.github/ISSUE_TEMPLATE/community-plugin-submission.yml`
   - 写仓库内固定提交入口，收集插件摘要、链接、自测结果与边界确认
 - 本文档
@@ -171,6 +173,25 @@ dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- val
 - 它不替代 PR
 - 它不引入自动审核或远程目录发现
 - 它只把当前文档里的提交与审核清单固定成仓库入口
+
+## 仓库内示例插件闭环验证
+
+当前仓库也已补一个维护脚本：
+
+- `scripts/Verify-ExamplePlugin.ps1`
+
+用途：
+
+1. 自动生成样例输入，不要求贡献者手工准备 `input.mp4`
+2. 用仓库现有 CLI 命令跑通 `examples/plugin-example/`
+3. 把 `validate-plugin`、`templates --summary`、`templates <id> --write-examples`、`init-plan`、`validate-plan` 收成同一条维护入口
+4. 让 CI 直接回归示例插件是否仍代表一个真实可提交的最小闭环
+
+边界：
+
+- 它不替代插件作者自己的本地自测
+- 它只验证仓库内示例插件，不自动扫描任意社区插件目录
+- 它复用现有 CLI 契约，不引入新的插件测试协议
 
 ## 完成判定
 
