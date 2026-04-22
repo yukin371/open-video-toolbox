@@ -18,6 +18,17 @@ Reason:
 - `portable` matches the CLI shape more closely than pretending it is a traditional setup installer.
 - The repository still keeps a `.zip` asset for manual download, but winget should target the raw `ovt-win-x64.exe` asset.
 
+## Current State
+
+As of `v0.1.0`:
+
+- the repository now has a canonical MIT license source at the repo root
+- GitHub detects the repository license as `MIT`
+- the `v0.1.0` GitHub Release now exists
+- the release includes both `ovt-win-x64.zip` and `ovt-win-x64.exe`
+- `Test-WinGetSubmissionReadiness.ps1` now passes for the current version
+- the manifest set can be rendered locally from the release asset URL
+
 ## Expected Release Assets
 
 For the Windows release path, the repository now aims to publish both:
@@ -56,6 +67,12 @@ This check is intended to fail fast when the repository is not actually ready ye
 - the matching GitHub Release does not exist
 - the expected Windows release assets are incomplete
 
+For the current `v0.1.0` release, the readiness check now passes:
+
+```powershell
+.\Test-WinGetSubmissionReadiness.ps1 -PackageVersion 0.1.0 -ReleaseTag v0.1.0
+```
+
 You can render the template set locally with:
 
 ```powershell
@@ -64,6 +81,16 @@ You can render the template set locally with:
   -License <license> `
   -LicenseUrl <license-url> `
   -OutputDirectory .\out
+```
+
+Current `v0.1.0` example:
+
+```powershell
+.\Prepare-WinGetSubmission.ps1 `
+  -PackageVersion 0.1.0 `
+  -License MIT `
+  -LicenseUrl https://github.com/yukin371/open-video-toolbox/blob/v0.1.0/LICENSE `
+  -OutputDirectory .\out\v0.1.0
 ```
 
 ## Template Files
@@ -100,3 +127,4 @@ Replace these values before validation or submission:
 - Keep one version per submission.
 - Fill license metadata from the repository's real license source; do not guess it in the manifest.
 - If the winget manifest schema version changes, update the template files before submission.
+- Repository-local `winget validate` currently succeeds, but still prints schema-header warnings on this machine even after adding schema comments to the templates; treat that as a local tooling quirk to re-check in the target submission environment.
