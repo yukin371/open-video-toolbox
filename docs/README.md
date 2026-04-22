@@ -24,6 +24,7 @@
 
 ### Contributors & Maintainers
 
+- [Contribution Guide](../CONTRIBUTING.md) — Repository contribution entry point, validation expectations, and plugin submission basics
 - [Architecture](architecture.md) — System architecture and module boundaries
 - [Architecture Guardrails](ARCHITECTURE_GUARDRAILS.md) — Owner rules, dependency directions, stage gates
 - [Development Principles](development-principles.md) — Coding and review principles
