@@ -1,0 +1,112 @@
+<#
+.SYNOPSIS
+Writes a concise markdown summary for runtime and dependency baseline results.
+
+.DESCRIPTION
+Consumes the JSON outputs from Measure-RuntimeBaseline.ps1 and
+Verify-DependencyBaseline.ps1 and renders a maintainer-friendly markdown summary.
+When GITHUB_STEP_SUMMARY is available, the script writes directly to the GitHub
+Actions job summary file.
+
+.EXAMPLE
+powershell -ExecutionPolicy Bypass -File .\scripts\Write-RuntimeBaselineSummary.ps1 `
+    -RuntimeBaselinePath .artifacts\runtime-baseline.json `
+    -DependencyBaselinePath .artifacts\dependency-baseline.json
+
+.EXAMPLE
+powershell -ExecutionPolicy Bypass -File .\scripts\Write-RuntimeBaselineSummary.ps1 `
+    -RuntimeBaselinePath .artifacts\runtime-baseline.json `
+    -DependencyBaselinePath .artifacts\dependency-baseline.json `
+    -SummaryPath .artifacts\runtime-baseline-summary.md
+#>
+
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$RuntimeBaselinePath,
+    [Parameter(Mandatory = $true)]
+    [string]$DependencyBaselinePath,
+    [string]$SummaryPath = $env:GITHUB_STEP_SUMMARY
+)
+
+$ErrorActionPreference = "Stop"
+
+function Get-MarkdownCellValue {
+    param(
+        $Value
+    )
+
+    if ($null -eq $Value) {
+        return "-"
+    }
+
+    $stringValue = [string]$Value
+    if ([string]::IsNullOrWhiteSpace($stringValue)) {
+        return "-"
+    }
+
+    return $stringValue.Replace("|", "\|").Replace("`r", " ").Replace("`n", " ")
+}
+
+if ([string]::IsNullOrWhiteSpace($SummaryPath)) {
+    throw "SummaryPath is required when GITHUB_STEP_SUMMARY is not set."
+}
+
+if (-not (Test-Path $RuntimeBaselinePath)) {
+    throw "Runtime baseline JSON not found: $RuntimeBaselinePath"
+}
+
+if (-not (Test-Path $DependencyBaselinePath)) {
+    throw "Dependency baseline JSON not found: $DependencyBaselinePath"
+}
+
+$runtimeBaseline = Get-Content -Raw $RuntimeBaselinePath | ConvertFrom-Json
+$dependencyBaseline = Get-Content -Raw $DependencyBaselinePath | ConvertFrom-Json
+
+$summaryLines = New-Object System.Collections.Generic.List[string]
+$summaryLines.Add("# Runtime Baseline Summary")
+$summaryLines.Add("")
+$summaryLines.Add("- Runtime observed at: $(Get-MarkdownCellValue $runtimeBaseline.observedAtUtc)")
+$summaryLines.Add("- Dependency observed at: $(Get-MarkdownCellValue $dependencyBaseline.observedAtUtc)")
+$summaryLines.Add("- Doctor healthy: $(if ($dependencyBaseline.doctor.isHealthy) { "true" } else { "false" })")
+$summaryLines.Add("- Missing required dependencies: $(Get-MarkdownCellValue $dependencyBaseline.doctor.missingRequiredCount)")
+$summaryLines.Add("- Missing optional dependencies: $(Get-MarkdownCellValue $dependencyBaseline.doctor.missingOptionalCount)")
+$summaryLines.Add("")
+$summaryLines.Add("## Command Durations")
+$summaryLines.Add("")
+$summaryLines.Add("| Command | Duration (ms) |")
+$summaryLines.Add("| --- | ---: |")
+$summaryLines.Add("| doctor | $(Get-MarkdownCellValue $runtimeBaseline.commands.doctor.durationMs) |")
+$summaryLines.Add("| probe | $(Get-MarkdownCellValue $runtimeBaseline.commands.probe.durationMs) |")
+$summaryLines.Add("| render --preview | $(Get-MarkdownCellValue $runtimeBaseline.commands.renderPreview.durationMs) |")
+$summaryLines.Add("")
+$summaryLines.Add("## Dependency Status")
+$summaryLines.Add("")
+$summaryLines.Add("| Dependency | Required | Available | Source | Resolved |")
+$summaryLines.Add("| --- | --- | --- | --- | --- |")
+
+foreach ($dependency in $dependencyBaseline.doctor.dependencies) {
+    $summaryLines.Add(
+        "| $(Get-MarkdownCellValue $dependency.id) | $(Get-MarkdownCellValue $dependency.required) | $(Get-MarkdownCellValue $dependency.isAvailable) | $(Get-MarkdownCellValue $dependency.source) | $(Get-MarkdownCellValue $dependency.resolvedValue) |"
+    )
+}
+
+$summaryLines.Add("")
+$summaryLines.Add("## Real Smoke Durations")
+$summaryLines.Add("")
+$summaryLines.Add("| Check | Duration (ms) | Filter |")
+$summaryLines.Add("| --- | ---: | --- |")
+$summaryLines.Add("| Core real-media smoke | $(Get-MarkdownCellValue $dependencyBaseline.tests.coreRealMediaSmoke.durationMs) | $(Get-MarkdownCellValue $dependencyBaseline.tests.coreRealMediaSmoke.filter) |")
+$summaryLines.Add("| CLI real-media smoke | $(Get-MarkdownCellValue $dependencyBaseline.tests.cliRealMediaSmoke.durationMs) | $(Get-MarkdownCellValue $dependencyBaseline.tests.cliRealMediaSmoke.filter) |")
+$summaryLines.Add("")
+$summaryLines.Add("Artifacts:")
+$summaryLines.Add(('- runtime baseline JSON: `' + (Get-MarkdownCellValue $RuntimeBaselinePath) + '`'))
+$summaryLines.Add(('- dependency baseline JSON: `' + (Get-MarkdownCellValue $DependencyBaselinePath) + '`'))
+
+$outputDirectory = Split-Path -Parent $SummaryPath
+if ($outputDirectory) {
+    New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
+}
+
+$summaryLines -join [Environment]::NewLine | Set-Content -Path $SummaryPath -Encoding utf8
+
+Get-Content -Raw $SummaryPath

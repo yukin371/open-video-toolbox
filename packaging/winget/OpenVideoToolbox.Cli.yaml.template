@@ -1,0 +1,5 @@
+PackageIdentifier: OpenVideoToolbox.Cli
+PackageVersion: <PACKAGE_VERSION>
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.12.0

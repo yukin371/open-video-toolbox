@@ -1,6 +1,6 @@
 # Project Profile
 
-最后更新：2026-04-19
+最后更新：2026-04-22
 
 ## 项目类型
 
@@ -11,7 +11,7 @@
 
 - 语言与运行时：`.NET 8`、`C#`
 - 解决方案：`OpenVideoToolbox.sln`
-- 测试：`xUnit`、`Microsoft.NET.Test.Sdk`、`coverlet.collector`
+- 测试：`xUnit`、`Microsoft.NET.Test.Sdk`、`coverlet.collector`、契约快照黄金文件
 - 外部工具边界：`ffmpeg`、`ffprobe`
 - AI 集成策略：软件内不内置 AI，外部代理通过 CLI 编排
 - 代码风格：全局启用 `Nullable`、`ImplicitUsings`，`LangVersion=latest`
@@ -21,6 +21,12 @@
 - CLI 入口：`src/OpenVideoToolbox.Cli/Program.cs`
 - Desktop 入口：`src/OpenVideoToolbox.Desktop/Program.cs`
   - 当前状态：占位入口，只输出 `Desktop bootstrap placeholder`
+
+## 用户文档入口
+
+- 最短上手路径：`docs/QUICK_START.md`
+- 完整功能与使用说明：`docs/FEATURES_AND_USAGE.md`
+- 精确命令签名速查：`docs/COMMAND_REFERENCE.md`
 
 ## 已确认的验证命令
 
@@ -79,13 +85,16 @@
 - 这些模板目录产物现在还会附带 `commands.json`、`commands.ps1`、`commands.cmd`、`commands.sh`，用于直接驱动后续 CLI 流程。
 - 对插件模板，这些 `commands.json` / `commands.*` 示例现会显式带上 `<plugin-dir>` 占位符和对应变量声明，保证示例目录里的 `init-plan` / `validate-plan` 工作流可以闭环复用插件上下文。
 - 插件模板的 preview plan 示例现也会沿用同一份 `template.source` 元数据，避免 guide 顶层标记为 plugin、但示例 `edit.json` 仍像 built-in 的断层。
-- 模板插件扩展面当前只有文档级草案，方向是“显式目录发现 + 静态 manifest + 复用现有模板 schema”，不引入运行时代码插件；见 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`。
+- 模板插件扩展面已完成第一阶段收口：`--plugin-dir` 显式目录发现、静态 manifest、`template.source` 全链路审计、插件模板 schema 校验均已落地；仍不引入运行时代码插件；见 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`。
 - `templates` 现已支持 `--plugin-dir <path>` 做显式目录发现，并在结构化输出里附带插件清单。
 - `init-plan` / `scaffold-template` 现也支持 `--plugin-dir <path>`；插件模板只要继续满足既有模板 schema，就可以直接复用 `Core.Editing` 的 plan 生成、preview 和脚手架输出，不需要额外引入运行时代码插件。
 - 插件模板生成的 `edit.json` 现会在 `template.source` 中持久化稳定来源元数据，只保留 `kind` / `pluginId` / `pluginVersion`，不把机器相关的插件目录写进 plan。
 - 详细草案见 `docs/CLI_MVP.md`。
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
+- 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 130，`OpenVideoToolbox.Cli.Tests` 118，总计 248。
+- 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`
   - `OVT_WHISPER_MODEL_PATH`
@@ -155,9 +164,11 @@
 
 - CI / workflow 文件：已落地基础 GitHub Actions
   - 当前已有 `.github/workflows/ci.yml`
-  - 覆盖范围：`push main` 与 `pull_request` 上的 `dotnet restore`、`dotnet build`、`dotnet test`
-  - 当前未纳入：依赖 `ffmpeg` / `whisper.cpp` / `demucs` 的可选 smoke
+  - 覆盖范围：`push main` 与 `pull_request` 上的 `dotnet restore`、`dotnet build`、`dotnet test`，并在 CI 中补 ffmpeg 安装
+  - 另有 `.github/workflows/release.yml` 承接 tag 触发的 release 发布
+  - 当前未纳入：依赖 `whisper.cpp` / `demucs` 的可选 smoke
 - Desktop 实际 UI 框架接入状态：`TBD`
   - 确认路径：当 `OpenVideoToolbox.Desktop` 引入 Avalonia 或其他桌面框架时更新
-- 打包 / 发布流程：`TBD`
-  - 确认路径：新增发布脚本、安装包流程或发行说明后更新
+- 打包 / 发布流程：已落地核心发布链
+  - 当前已有 tag 触发的 GitHub Release 和跨平台 single-file 发布
+  - 尚未落地：包管理器渠道；如继续推进，转入 `E2`

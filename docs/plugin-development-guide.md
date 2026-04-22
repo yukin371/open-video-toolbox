@@ -140,6 +140,61 @@ dotnet run --project src/OpenVideoToolbox.Cli -- templates --plugin-dir my-plugi
 | `does not match template id` | 清单中声明的 id 与 template.json 中的 id 不一致 |
 | `Duplicate edit plan template id` | 模板 ID 与内置模板冲突 |
 
+## 本地自测清单
+
+在准备提交社区模板插件前，至少跑完下面这组命令。
+
+### 1. 插件发现
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates --plugin-dir my-plugin --summary
+```
+
+确认：
+
+- 命令退出码为 `0`
+- 输出里包含你的插件 `id`
+- 输出里包含你的模板 `id`
+
+### 2. 单模板 guide
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates my-template --plugin-dir my-plugin
+```
+
+确认：
+
+- `payload.source.kind` 为 `plugin`
+- guide / commands 输出里显式带有 `--plugin-dir <plugin-dir>`
+- preview plan 里的 `template.source.kind` 为 `plugin`
+
+### 3. 写出示例目录
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- templates my-template --plugin-dir my-plugin --write-examples .plugin-guide
+```
+
+确认：
+
+- 成功写出 `guide.json`
+- 成功写出 `commands.json`
+- `commands.ps1`、`commands.cmd`、`commands.sh` 都保留 `pluginDir` 变量或占位符
+
+### 4. 生成与校验计划
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-plan input.mp4 --template my-template --plugin-dir my-plugin --output edit.json --render-output final.mp4
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plan --plan edit.json --plugin-dir my-plugin
+```
+
+确认：
+
+- `edit.json` 写出成功
+- `edit.json.template.source.kind` 为 `plugin`
+- `validate-plan` 返回 `payload.isValid = true`
+
+如果你的模板依赖字幕、beats、transcript 或 stems，再补跑对应命令链，但仍应保持全部依赖都是显式文件输入，而不是隐式脚本逻辑。
+
 ## 使用插件
 
 ```sh
@@ -176,3 +231,15 @@ ovt render --plan edit.json --output output.mp4
 - 插件不能定义新的执行语义
 - 模板 ID 不能与内置模板冲突
 - `template.json` 不能包含 Core schema 未声明的字段
+
+## 社区贡献建议
+
+如果你准备把插件作为社区模板贡献出来，建议至少补上这些内容：
+
+- 插件根目录 `README.md`
+- 模板适用场景说明
+- 推荐 seed 模式
+- 需要的 supporting signal 与理由
+- 一组最小可运行的本地自测命令
+
+更完整的贡献路径与审核视角，见 `docs/plans/2026-04-22-e2-a3-community-plugin-contribution-path.md`。

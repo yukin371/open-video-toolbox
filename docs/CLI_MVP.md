@@ -1,6 +1,12 @@
 # CLI MVP
 
-最后更新：2026-04-17
+最后更新：2026-04-22
+
+## 当前状态说明
+
+- 本文档保留为 CLI 范围与命令边界参考，不再承担“当前阶段状态”同步职责。
+- `H1 -> H2+T1 -> T2 -> P1 -> E1` 已完成；当前仓库真实阶段状态以 `docs/roadmap.md` 和 `docs/plans/2026-04-21-long-term-evolution-roadmap.md` 为准。
+- 下文中的“最小结构草案”与命令示例主要用于说明 schema 与工作流边界，不代表这些能力仍处于未实现状态。
 
 ## 目标
 
@@ -114,7 +120,7 @@
 - 复杂关键帧动画
 - 多人协作编辑系统
 
-## 计划中的命令草案
+## 命令参考与示例
 
 ```text
 ovt probe <input> --json-out media.json
@@ -155,7 +161,7 @@ ovt render --plan edit.json --output final.mp4
 - `templates`、`doctor`、`init-plan`、`scaffold-template`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`validate-plan`、`mix-audio`、`render` 已实现。
 - `separate-audio` 已实现，用于以确定性 CLI 方式接入外部分离工具并返回结构化 stem 结果。
 - `separate-audio --json-out <path>` 会把 stdout 的同一份结构化结果原样写到文件，便于后续脚本把 stem 路径继续接给模板、混音或人工修订流程。
-- 其余命令仍是 MVP 草案，不代表当前仓库已经实现。
+- 本节主要保留 MVP 期定义的命令边界与典型调用方式；当前已实现范围以 `README.md`、`docs/PROJECT_PROFILE.md` 与 CLI 实际帮助输出为准。
 - `doctor` 会优先读取 CLI 显式参数，再读取 `OVT_WHISPER_CLI_PATH`、`OVT_DEMUCS_PATH`、`OVT_WHISPER_MODEL_PATH`，最后回退到默认可执行名或 `unset` 状态。
 - `templates <id>` 会返回单模板详情，以及适合直接保存的 `artifacts.json` / `template-params.json` skeleton；对带 `stems` supporting signal 的模板，`bgm` 示例会直接预填 `stems/htdemucs/input/no_vocals.wav`。
 - `templates <id>` 还会返回 `recommendedSeedModes` 与对应 `seedCommands`，明确这个模板更适合手工 plan、transcript seed 还是 beat seed；transcript 模式还会额外挂出 grouped / min-duration / max-gap 三类显式策略变体命令，并带 `recommended` 标记。

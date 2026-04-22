@@ -25,6 +25,34 @@ Breaking changes **must**:
 2. Include migration notes in this changelog
 3. Update contract snapshot golden files
 
+### Contract Change Decision Table
+
+| Change type | Breaking | Update golden files | Migration notes | Version impact |
+|-------------|----------|---------------------|-----------------|----------------|
+| Top-level envelope field removal / rename (`command`, `preview`, `payload`) | Yes | Yes | Required | Major |
+| Existing payload field removal / rename / type change | Yes | Yes | Required | Major |
+| Exit code semantic change | Yes | Yes if affected output expectations exist | Required | Major |
+| `stdout` and `--json-out` content diverge | Yes | Yes after fixing behavior | Required if released behavior changes | Major |
+| New optional payload field added without changing existing semantics | No | Yes | Usually not required | Minor |
+| Field order change only | No | No unless snapshot intentionally stores ordered text | No | Patch |
+| Machine-specific path / temp directory variance with unchanged semantic shape | No | Prefer test normalization, not golden file churn | No | Patch |
+
+### Contract Snapshot Rules
+
+- Golden files may be updated only when:
+  - a backward-compatible field is intentionally added
+  - an incorrect output is intentionally corrected and downstream impact has been reviewed
+  - a breaking change has been explicitly accepted
+- Updating golden files alone is not a sufficient fix when:
+  - a field was removed or renamed without an explicit compatibility decision
+  - the top-level envelope changed
+  - `stdout` and `--json-out` no longer match
+  - exit code semantics changed without migration notes
+- Prefer machine-independent structural comparison over volatile full-text snapshots when output includes:
+  - absolute paths
+  - temp directories
+  - other environment-specific values
+
 ## [Unreleased]
 
 ### Added

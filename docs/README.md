@@ -4,6 +4,9 @@
 
 ### CLI Users
 
+- [Quick Start](QUICK_START.md) — Shortest path from dependency check to template render
+- [Features & Usage Guide](FEATURES_AND_USAGE.md) — Complete feature overview, installation notes, command groups, workflows, and troubleshooting
+- [Command Reference](COMMAND_REFERENCE.md) — Exact CLI signatures grouped by command family
 - [External Dependencies](external-dependencies.md) — How to install ffmpeg, whisper-cli, demucs
 - [CLI MVP & Command Reference](CLI_MVP.md) — Command design and usage patterns
 
@@ -17,12 +20,17 @@
 
 - [Plugin Development Guide](plugin-development-guide.md) — How to create a template plugin
 - [Example Plugin](../examples/plugin-example/) — Minimal working plugin
+- [E2-A3 Community Plugin Contribution Path](plans/2026-04-22-e2-a3-community-plugin-contribution-path.md) — Submission expectations, local validation loop, and review checklist for community plugins
 
 ### Contributors & Maintainers
 
 - [Architecture](architecture.md) — System architecture and module boundaries
 - [Architecture Guardrails](ARCHITECTURE_GUARDRAILS.md) — Owner rules, dependency directions, stage gates
 - [Development Principles](development-principles.md) — Coding and review principles
+- [`scripts/Measure-RuntimeBaseline.ps1`](../scripts/Measure-RuntimeBaseline.ps1) — Lightweight runtime baseline observation for doctor / probe / render preview
+- [`scripts/Verify-DependencyBaseline.ps1`](../scripts/Verify-DependencyBaseline.ps1) — One-shot dependency baseline verification for doctor + Core/CLI real-media smoke tests
+- [`scripts/Write-RuntimeBaselineSummary.ps1`](../scripts/Write-RuntimeBaselineSummary.ps1) — Renders runtime/dependency baseline JSON into maintainer-friendly markdown or GitHub Actions job summary
+- [`runtime-baseline.yml`](../.github/workflows/runtime-baseline.yml) — Manual/weekly GitHub Actions workflow that runs both baseline scripts, writes a job summary, and uploads JSON artifacts
 - [Roadmap](roadmap.md) — Current priorities and stage checks
 - [Project Profile](PROJECT_PROFILE.md) — Project scope and constraints
 - [Tech Stack](tech-stack.md) — Technology choices and rationale
@@ -32,10 +40,16 @@
 - [ADR-0002: CLI AI Editor Positioning](decisions/ADR-0002-cli-ai-editor-positioning.md)
 - [ADR-0003: Edit Plan Manual Pass](decisions/ADR-0003-edit-plan-manual-pass.md)
 
-### Active Plans
+### Current Planning References
 
-- [H1 Hardening Checklist](plans/2026-04-21-h1-hardening-checklist.md)
-- [H2+T1 Contract Freeze](plans/2026-04-22-h2-t1-contract-freeze-checklist.md)
-- [Long-term Evolution Roadmap](plans/2026-04-21-long-term-evolution-roadmap.md)
-- [Template Plugin Entry Boundary](plans/2026-04-19-template-plugin-entry-boundary.md)
-- [CLI Maintainability Refactor](plans/2026-04-19-cli-maintainability-refactor-plan.md)
+- [Long-term Evolution Roadmap](plans/2026-04-21-long-term-evolution-roadmap.md) — Current stage mapping and next-stage decision point
+- [D1 Desktop MVP Start Checklist](plans/2026-04-22-d1-desktop-mvp-start-checklist.md) — Start gate checklist and current blocker assessment
+- [E2 Ecosystem Sustainability Plan](plans/2026-04-22-e2-ecosystem-sustainability-plan.md) — Execution draft for ecosystem, compatibility, distribution, and sustainability work
+- [E2-A1 Contract Compatibility Guardrails](plans/2026-04-22-e2-a1-contract-compatibility-guardrails.md) — Detailed checklist for snapshot, breaking change, and review guardrails
+- [E2-A2 Distribution Channel Evaluation](plans/2026-04-22-e2-a2-distribution-channel-evaluation.md) — Channel evaluation and first-choice recommendation for package-manager distribution
+- [E2-A3 Community Plugin Contribution Path](plans/2026-04-22-e2-a3-community-plugin-contribution-path.md) — Community template/plugin contribution expectations and self-test path
+- [E2-A4 Runtime Baseline](plans/2026-04-22-e2-a4-runtime-baseline.md) — Dependency validation contract, lightweight performance observations, and external-tool safety checklist
+- [WinGet Packaging Draft](../packaging/winget/README.md) — Repository-local draft manifests and submission notes for the preferred winget path
+- [H2+T1 Contract Freeze](plans/2026-04-22-h2-t1-contract-freeze-checklist.md) — Latest contract freeze and template stability closure
+- [Template Plugin Entry Boundary](plans/2026-04-19-template-plugin-entry-boundary.md) — Stable plugin boundary and constraints reference
+- [CLI Maintainability Refactor](plans/2026-04-19-cli-maintainability-refactor-plan.md) — Closed refactor track kept as historical execution reference

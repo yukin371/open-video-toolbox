@@ -18,16 +18,16 @@
 - Phase 2 外部工具抽象、`ffprobe` 解析、`ffmpeg` 命令构建与进程执行器
 - Phase 3 CLI 命令面：`presets`、`probe`、`plan`、`run`
 - Wave 1 与常用增强命令已落地：`templates`、`doctor`、`init-plan`、`beat-track`、`audio-analyze`、`audio-gain`、`transcribe`、`detect-silence`、`separate-audio`、`cut`、`concat`、`extract-audio`、`subtitle`、`mix-audio`、`render` 已可运行，`edit.json schema v1` 已接入执行链
-- 当前主干重点已从”继续补命令”切到 `Hardening`：全部 21 条命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON 而非退回 usage 文本；契约快照测试已建立，插件开发者体验已落地，跨平台发布流程已就绪
+- `H1 -> H2+T1 -> T2 -> P1 -> E1` 已全部完成：全部 21 条命令已统一到同一套 command envelope，`--json-out` 齐备，运行时错误均返回结构化 JSON；契约快照测试已建立，插件开发者体验已落地，核心跨平台发布链已就绪
 - 首次发版：`git tag v0.1.0 && git push origin v0.1.0`，CI 自动发布 win-x64 / linux-x64 / osx-x64 single-file
-- CLI 可维护性重构已持续推进：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
+- CLI 可维护性重构已完成当前收口：共享 command output helper 已抽到 `src/OpenVideoToolbox.Cli/CliCommandOutput.cs`，通用 option parsing 已抽到 `src/OpenVideoToolbox.Cli/CliOptionParsing.cs`，模板 / foundation / media / audio / render 命令 wrapper 也已按命令族迁出 `Program.cs`；当前入口文件已回收到顶层分发与帮助输出，但现有命令行为保持不变
 
 ## 当前优先方向
 
-1. 继续优先做 `Hardening`，把 `ffmpeg` / `ffprobe` / `whisper.cpp` / `demucs` 真实工具 smoke、失败路径和依赖说明补扎实，而不是先继续扩命令数量。
-2. 继续收敛模板工作流，把 transcript / silence / stems 等 supporting signals 稳定接入 `guide.json`、`commands.json` / `commands.*`、脚手架目录和命令快照测试。
-3. 按 `docs/plans/2026-04-19-cli-maintainability-refactor-plan.md` 推进 CLI 可维护性重构，逐步缩小 `Program.cs` 与超大测试文件的维护摩擦，但保持输出契约和退出码语义不变。
-4. 模板插件边界继续限定在“显式目录发现 + 静态 manifest + 复用现有 template schema”，不引入运行时代码加载；Desktop 仍在 CLI / 模板工作流稳定后再评估。
+1. 在 `D1 Desktop MVP` 与 `E2 生态与可持续演进` 之间做下一阶段决策，而不是继续重复已经完成的 hardening 收口。
+2. 继续观察 `edit.json schema v1` 是否进入低频变更窗口，确认是否满足 Desktop 启动门槛。
+3. 如果优先走 `E2`，重点应放在契约兼容性检测自动化、分发渠道扩展、社区模板/插件贡献路径，以及外部依赖兼容性与安全基线。
+4. 模板插件边界继续限定在“显式目录发现 + 静态 manifest + 复用现有 template schema”，不引入运行时代码加载；Desktop 若启动，也只应是交互壳，不得成为新的业务 owner。
 
 ## 仓库结构
 
@@ -57,6 +57,20 @@
 - 软件内不内置 AI provider；AI 由外部代理通过 CLI 编排。
 - 内核层不依赖 GUI。
 - 复杂行为先建模型与测试，再接 UI。
+
+## 上手入口
+
+如果你是第一次使用当前 CLI，建议按这个顺序读：
+
+1. `docs/QUICK_START.md`
+2. `docs/FEATURES_AND_USAGE.md`
+3. `docs/COMMAND_REFERENCE.md`
+
+对应关系：
+
+- 想最快跑通一条模板工作流：看 `docs/QUICK_START.md`
+- 想知道现在到底能做什么、怎么排障：看 `docs/FEATURES_AND_USAGE.md`
+- 想查精确命令签名：看 `docs/COMMAND_REFERENCE.md`
 
 ## CLI
 
@@ -180,15 +194,18 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 
 ## 下一步
 
-下一阶段建议优先把现有 CLI 媒体工具链做实：
+下一阶段只剩两个候选方向：
 
-1. 优先补 `whisper.cpp` / `demucs` 的真实工具 smoke、安装前提说明和失败路径沉淀，先把重依赖链路做实。
-2. 继续把 `transcript` / `silence` / `stems` 信号稳定接进模板 guide、脚手架目录产物和命令快照测试，减少外部 AI 自己猜接线方式。
-3. 继续推进 CLI 可维护性重构，在已完成 `Program.cs` 命令族抽取后，继续收敛剩余超大测试文件与命令域文档，让 command-family owner、测试分组和 roadmap 保持同步。
-4. 基于模板插件入口草案继续收敛插件来源提示与校验链，但仍不引入运行时代码加载，也暂不提前拉起 Desktop 复杂度。
+1. `D1 Desktop MVP`
+   - 前提是 `edit.json schema v1` 进入稳定低频变更窗口，且确认确有交互壳需求。
+2. `E2 生态与可持续演进`
+   - 如果近期更高价值的是兼容性测试、安装渠道、社区贡献路径与外部依赖基线，就优先进入这一阶段。
 
 ## 设计文档
 
+- 快速开始：`docs/QUICK_START.md`
+- 命令速查：`docs/COMMAND_REFERENCE.md`
+- 完整功能与使用：`docs/FEATURES_AND_USAGE.md`
 - CLI MVP 与命令草案：`docs/CLI_MVP.md`
 - 外部 AI 边界：`docs/decisions/ADR-0002-cli-ai-editor-positioning.md`
 - 二次手动剪辑边界：`docs/decisions/ADR-0003-edit-plan-manual-pass.md`

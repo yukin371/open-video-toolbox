@@ -98,3 +98,40 @@ dotnet run --project src/OpenVideoToolbox.Cli -- doctor --json-out doctor.json
 4. `unset`（未配置）
 
 输出中 `required: true` 的依赖缺失时返回非零退出码；`required: false` 的缺失只影响对应命令可用性。
+
+## 最小兼容性基线
+
+当前仓库不维护一份“所有平台 / 所有版本”的完整兼容矩阵，先维护一份更可执行的验证约定。
+
+| 依赖 | 当前分类 | 最低通过标准 |
+|------|----------|--------------|
+| `ffmpeg` | required | `doctor` 可用 + ffmpeg 相关 real smoke 可通过 |
+| `ffprobe` | required | `doctor` 可用 + probe 相关 real smoke 可通过 |
+| `whisper-cli` | optional | `doctor` 能解析状态；需要 `transcribe` 时再补 optional real smoke |
+| `whisper-model` | optional | `doctor` 能解析状态；需要 `transcribe` 时与 `whisper-cli` 一起验证 |
+| `demucs` | optional | `doctor` 能解析状态；需要 `separate-audio` 时再补 optional real smoke |
+
+推荐验证顺序：
+
+1. 先跑 `doctor`
+2. 再跑整仓测试或 real smoke
+3. 如果只缺 optional 依赖，不应阻塞默认 CLI 主链验证
+
+如果想把这组检查收成一条维护命令，可直接运行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DependencyBaseline.ps1
+```
+
+## 推荐验证命令
+
+```powershell
+dotnet run --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- doctor --json-out doctor.json
+dotnet test src/OpenVideoToolbox.Core.Tests/OpenVideoToolbox.Core.Tests.csproj --filter "FullyQualifiedName~RealMediaSmokeTests"
+dotnet test src/OpenVideoToolbox.Cli.Tests/OpenVideoToolbox.Cli.Tests.csproj --filter "FullyQualifiedName~CliRealMediaSmokeTests"
+```
+
+说明：
+
+- 默认环境缺少 `whisper-cli` / `demucs` / `whisper model` 时，对应 optional smoke 允许跳过。
+- 这套约定的更多背景和当前观测样本，见 `docs/plans/2026-04-22-e2-a4-runtime-baseline.md`。

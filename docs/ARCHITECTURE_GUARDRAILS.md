@@ -85,6 +85,19 @@
 - 不要在多个命令里各自定义不同的 `edit.json` 变体
 - 任意模块不得引入“万能工具类”来跨越既有 owner
 
+## 外部工具安全基线
+
+凡是调用 `ffmpeg`、`ffprobe`、`whisper-cli`、`demucs` 等外部工具时，默认遵守以下基线：
+
+1. 只能通过 `OpenVideoToolbox.Core/Execution` 发起进程调用
+2. 必须使用参数列表而不是拼接 shell 字符串
+3. 必须保留 stdout / stderr / exit code / timeout / cancellation 上下文
+4. 写盘产物必须在执行前通过 `ProducedPaths` 或等价显式规则声明
+5. 覆盖已有文件必须走显式 overwrite 语义，不允许默认静默覆盖
+6. CLI 与未来 Desktop 只能映射错误，不得吞掉底层执行线索
+
+如果后续要扩展新的外部工具，至少也要满足这同一套基线，而不是为某个命令发明例外流程。
+
 ## 新增共享能力前的强制检查
 
 在新增 shared helper / service / adapter 前，必须回答：

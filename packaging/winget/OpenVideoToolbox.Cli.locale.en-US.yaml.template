@@ -1,0 +1,22 @@
+PackageIdentifier: OpenVideoToolbox.Cli
+PackageVersion: <PACKAGE_VERSION>
+PackageLocale: en-US
+Publisher: yukin371
+PublisherUrl: https://github.com/yukin371
+PublisherSupportUrl: https://github.com/yukin371/open-video-toolbox/issues
+Author: yukin371
+PackageName: Open Video Toolbox CLI
+PackageUrl: https://github.com/yukin371/open-video-toolbox
+License: <LICENSE>
+LicenseUrl: <LICENSE_URL>
+ShortDescription: Deterministic CLI media toolbox for external AI agents and scripted workflows.
+ReleaseNotesUrl: <RELEASE_NOTES_URL>
+Tags:
+  - ai
+  - audio
+  - cli
+  - ffmpeg
+  - media
+  - video
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0
