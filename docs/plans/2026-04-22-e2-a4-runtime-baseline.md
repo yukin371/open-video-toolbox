@@ -127,10 +127,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Test-RuntimeBaselineThreshold
   - 当前脚本步骤使用 `powershell`，与本地验证宿主保持一致
   - 支持 `workflow_dispatch`
   - 每周定时跑一次
-  - 直接把关键结果写进 GitHub Actions job summary
-  - 当前也会把 `runtime-baseline.json` 与仓库内阈值做对比
+  - 直接写出 `.artifacts/runtime-baseline-summary.md`，便于后续下载或离线比较
+  - 当前也会把关键结果写进 GitHub Actions job summary
+  - 当前会用仓库内 `Test-RuntimeBaselineThresholds.ps1 -FailOnExceeded` 做阈值判定，不再在 workflow 内重复维护一套失败逻辑
   - 若 `doctor` / `probe` / `render --preview` 超出仓库阈值，workflow 会显式失败
-  - 上传 `runtime-baseline.json`、`runtime-threshold-check.json` 与 `dependency-baseline.json` 产物
+  - 上传 `runtime-baseline.json`、`runtime-threshold-check.json`、`dependency-baseline.json` 与 `runtime-baseline-summary.md` 产物
 
 如已安装 PowerShell 7，也可执行：
 

@@ -43,27 +43,18 @@ jobs:
 
       - name: Check runtime thresholds
         shell: powershell
-        run: ./scripts/Test-RuntimeBaselineThresholds.ps1 -RuntimeBaselinePath .artifacts/runtime-baseline.json -OutputJsonPath .artifacts/runtime-threshold-check.json
+        run: ./scripts/Test-RuntimeBaselineThresholds.ps1 -RuntimeBaselinePath .artifacts/runtime-baseline.json -OutputJsonPath .artifacts/runtime-threshold-check.json -FailOnExceeded
 
       - name: Write workflow summary
         shell: powershell
-        run: ./scripts/Write-RuntimeBaselineSummary.ps1 -RuntimeBaselinePath .artifacts/runtime-baseline.json -DependencyBaselinePath .artifacts/dependency-baseline.json -ThresholdCheckPath .artifacts/runtime-threshold-check.json
-
-      - name: Fail when runtime thresholds are exceeded
-        shell: powershell
-        run: |
-          $result = Get-Content -Raw .artifacts/runtime-threshold-check.json | ConvertFrom-Json
-          if (-not $result.isWithinThresholds) {
-            $messages = $result.exceededCommands | ForEach-Object {
-              "$($_.id): $($_.durationMs)ms > $($_.maxDurationMs)ms"
-            }
-            throw "Runtime baseline exceeded thresholds: $($messages -join '; ')"
-          }
+        run: ./scripts/Write-RuntimeBaselineSummary.ps1 -RuntimeBaselinePath .artifacts/runtime-baseline.json -DependencyBaselinePath .artifacts/dependency-baseline.json -ThresholdCheckPath .artifacts/runtime-threshold-check.json -SummaryPath .artifacts/runtime-baseline-summary.md
 
       - name: Upload runtime baseline artifacts
         uses: actions/upload-artifact@v7
         with:
           name: runtime-baseline
-          path: .artifacts/*.json
+          path: |
+            .artifacts/*.json
+            .artifacts/*.md
           include-hidden-files: true
           retention-days: 14

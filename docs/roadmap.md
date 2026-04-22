@@ -95,6 +95,7 @@
   - `E2-A4` 的轻量性能样本已不再只是观察值：
     - 仓库内已新增 runtime 阈值配置与显式判定脚本
     - `runtime-baseline` workflow 现会在超阈值时显式失败
+    - workflow 现会同时上传 markdown summary artifact，便于 maintainer 下载和离线对照
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 

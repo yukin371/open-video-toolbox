@@ -35,7 +35,7 @@
 - [`scripts/Verify-DependencyBaseline.ps1`](../scripts/Verify-DependencyBaseline.ps1) — One-shot dependency baseline verification for doctor + Core/CLI real-media smoke tests
 - [`scripts/Test-RuntimeBaselineThresholds.ps1`](../scripts/Test-RuntimeBaselineThresholds.ps1) — Compares observed runtime baseline JSON against repository thresholds and reports exceeded commands
 - [`scripts/Write-RuntimeBaselineSummary.ps1`](../scripts/Write-RuntimeBaselineSummary.ps1) — Renders runtime/dependency baseline JSON into maintainer-friendly markdown or GitHub Actions job summary
-- [`runtime-baseline.yml`](../.github/workflows/runtime-baseline.yml) — Manual/weekly GitHub Actions workflow that runs baseline checks, evaluates runtime thresholds, writes a job summary, and uploads JSON artifacts
+- [`runtime-baseline.yml`](../.github/workflows/runtime-baseline.yml) — Manual/weekly GitHub Actions workflow that runs baseline checks, evaluates runtime thresholds, writes job/artifact summaries, and uploads runtime baseline artifacts
 - [Roadmap](roadmap.md) — Current priorities and stage checks
 - [Project Profile](PROJECT_PROFILE.md) — Project scope and constraints
 - [Tech Stack](tech-stack.md) — Technology choices and rationale
