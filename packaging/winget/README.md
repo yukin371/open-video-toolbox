@@ -43,6 +43,19 @@ winget install --manifest <path-to-manifest-folder>
 
 7. If local validation passes, submit the manifest PR to `microsoft/winget-pkgs`.
 
+Before rendering manifests, you can run a repository-local readiness check:
+
+```powershell
+.\Test-WinGetSubmissionReadiness.ps1
+```
+
+This check is intended to fail fast when the repository is not actually ready yet, for example:
+
+- no stable `LICENSE*` source exists at the repo root
+- the target git tag is missing
+- the matching GitHub Release does not exist
+- the expected Windows release assets are incomplete
+
 You can render the template set locally with:
 
 ```powershell
@@ -65,6 +78,8 @@ You can render the template set locally with:
   - deterministic local renderer for the three template files
 - `Prepare-WinGetSubmission.ps1`
   - downloads the release asset, computes SHA256, and invokes the renderer
+- `Test-WinGetSubmissionReadiness.ps1`
+  - checks release/tag/license readiness before manifest rendering or submission
 - `SUBMISSION_CHECKLIST.md`
   - repository-local pre-submit checklist and current blockers
 

@@ -73,7 +73,8 @@
 
 - 当前已转入 `E2` 的连续推进：
   - `E2-A1` 契约兼容性护栏已落地到 changelog / PR 模板 / snapshot README / development principles
-  - `E2-A2` 已完成首轮分发渠道评估，当前首选方向已收敛到 `winget portable`，但正式提交仍受许可证元数据 blocker 约束
+  - `E2-A2` 已完成首轮分发渠道评估，当前首选方向已收敛到 `winget portable`；仓库内许可证来源与 readiness 检查已补齐，剩余 blocker 已收敛到实际 tag release 与对应 Windows 资产
+    - 仓库内 `packaging/winget/Test-WinGetSubmissionReadiness.ps1` 已落地，用于把 tag / release / asset / license source 前置条件收成确定性检查
   - `E2-A3` 已开始补社区模板 / 插件贡献路径，当前重点是把“开发指南 + 示例插件”补成可自助提交的闭环
   - `E2-A4` 已补固定脚本入口：
     - `scripts/Measure-RuntimeBaseline.ps1`

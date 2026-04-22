@@ -16,6 +16,14 @@
 
 ## 提交前检查
 
+建议先运行：
+
+```powershell
+.\Test-WinGetSubmissionReadiness.ps1
+```
+
+再继续人工检查与 manifest 渲染。
+
 1. 已发布一个新的 tag release。
 2. Windows release 资产同时包含：
    - `ovt-win-x64.zip`
@@ -35,12 +43,12 @@
 
 ### P0
 
-- 仓库当前未发现稳定的许可证来源文件；在该问题解决前，不应提交正式 manifest。
+- 当前仍缺可提交的 tag release 与对应 Windows 资产；在该问题解决前，不应提交正式 manifest。
 
 ## 交付物位置
 
 - 模板与说明：`packaging/winget/`
-- 准备与渲染脚本：`packaging/winget/Prepare-WinGetSubmission.ps1`、`packaging/winget/Render-WinGetManifest.ps1`
+- 准备、渲染与 readiness 脚本：`packaging/winget/Prepare-WinGetSubmission.ps1`、`packaging/winget/Render-WinGetManifest.ps1`、`packaging/winget/Test-WinGetSubmissionReadiness.ps1`
 - 渠道决策：`docs/plans/2026-04-22-e2-a2-distribution-channel-evaluation.md`
 
 ## 备注

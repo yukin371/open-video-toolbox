@@ -49,7 +49,7 @@
 - [E2-A2 Distribution Channel Evaluation](plans/2026-04-22-e2-a2-distribution-channel-evaluation.md) — Channel evaluation and first-choice recommendation for package-manager distribution
 - [E2-A3 Community Plugin Contribution Path](plans/2026-04-22-e2-a3-community-plugin-contribution-path.md) — Community template/plugin contribution expectations and self-test path
 - [E2-A4 Runtime Baseline](plans/2026-04-22-e2-a4-runtime-baseline.md) — Dependency validation contract, lightweight performance observations, and external-tool safety checklist
-- [WinGet Packaging Draft](../packaging/winget/README.md) — Repository-local draft manifests and submission notes for the preferred winget path
+- [WinGet Packaging Draft](../packaging/winget/README.md) — Repository-local draft manifests, readiness checks, and submission notes for the preferred winget path
 - [H2+T1 Contract Freeze](plans/2026-04-22-h2-t1-contract-freeze-checklist.md) — Latest contract freeze and template stability closure
 - [Template Plugin Entry Boundary](plans/2026-04-19-template-plugin-entry-boundary.md) — Stable plugin boundary and constraints reference
 - [CLI Maintainability Refactor](plans/2026-04-19-cli-maintainability-refactor-plan.md) — Closed refactor track kept as historical execution reference

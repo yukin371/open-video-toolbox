@@ -80,7 +80,7 @@ Windows 发布资产当前同时包含：
 
 说明：
 
-- `winget portable` 提交草稿已准备，但正式提交仍受许可证元数据 blocker 约束。
+- `winget portable` 提交草稿已准备；仓库内许可证来源与 readiness 检查已补齐，但正式提交仍需实际 tag release 与对应 Windows 资产。
 - 当前最稳妥的安装方式仍是直接使用 GitHub Release 资产或源码运行。
 
 ### 必需依赖

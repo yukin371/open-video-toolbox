@@ -21,7 +21,7 @@
 ### 当前缺口
 
 - 还没有任何包管理器所需的独立 manifest / formula / package metadata
-- 发布元数据仍未完全收口到可直接提交状态，例如许可证元数据尚未在仓库内形成稳定来源
+- 发布元数据仍未完全收口到可直接提交状态，例如正式提交仍依赖真实 tag release 与对应资产
 - macOS 当前仅发布 `osx-x64`，尚未覆盖 Apple Silicon
 - `OpenVideoToolbox.Cli.csproj` 还没有 `PackAsTool` / `ToolCommandName` 等 `dotnet tool` 打包配置
 
@@ -126,7 +126,10 @@
 
 - 第 0 步“补 Windows `zip` 资产”已在 release workflow 中落地。
 - 第 0.5 步“同时暴露 raw `ovt-win-x64.exe` 资产以支撑 `portable` manifest”也已在当前仓库落地。
-- 第 0.75 步“把 manifest 渲染收敛成仓库内确定性脚本”也已落地，但许可证元数据仍是提交前 blocker。
+- 第 0.75 步“把 manifest 渲染收敛成仓库内确定性脚本”也已落地。
+- 第 0.8 步“把提交前 readiness 检查收敛成仓库内确定性脚本”也已落地：`packaging/winget/Test-WinGetSubmissionReadiness.ps1` 会显式检查 LICENSE 来源、tag、GitHub Release 与 Windows 资产是否齐备。
+- 仓库内 MIT 许可证来源与 readiness 检查现已补齐。
+- 当前剩余 blocker 已收敛到：真实 tag、GitHub Release，以及对应的 Windows `portable` 资产是否已发布。
 
 ## 重新评估条件
 
