@@ -1,0 +1,39 @@
+{
+  "command": "replace-plan-material-batch",
+  "preview": false,
+  "payload": {
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "id": "job-a",
+        "status": "succeeded",
+        "result": {
+          "checkFiles": true,
+          "requireValid": false,
+          "target": {
+            "targetType": "audioTrack",
+            "targetKey": "audioTrack:voice-main",
+            "selector": {
+              "singleton": null,
+              "audioTrackId": "voice-main",
+              "artifactSlot": null
+            },
+            "previousPath": "dub.wav",
+            "nextPath": "audio\\updated.wav",
+            "pathStyleApplied": "relative",
+            "previousSubtitleMode": null,
+            "nextSubtitleMode": null
+          },
+          "changed": true,
+          "validation": {
+            "issues": [],
+            "isValid": true
+          }
+        }
+      }
+    ]
+  }
+}

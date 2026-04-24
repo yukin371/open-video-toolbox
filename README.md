@@ -31,6 +31,7 @@
 | 批量渲染预览 / 执行 | `render-batch` | 按 manifest 批量消费现有 plan，并汇总渲染 preview 或执行结果 | 已可用 |
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
 | 素材替换 | `replace-plan-material` | 受控替换 plan 内素材并返回后置校验结果 | 已可用 |
+| 批量素材替换 | `replace-plan-material-batch` | 按 manifest 批量替换多份 plan 中已存在的素材绑定，并汇总 `summary.json` | 已可用 |
 | 素材挂载 | `attach-plan-material` | 为缺失的字幕、转写、节拍、音轨或声明 slot 做显式挂载 | 已可用 |
 | 批量素材挂载 | `attach-plan-material-batch` | 按 manifest 批量把 transcript / subtitles / beats / 音轨 / slot 接回多份 plan，并汇总 `summary.json` | 已可用 |
 | 配音接回 | `bind-voice-track` | 用默认 voice 轨约定把外部配音/TTS/变音结果接回 plan | 已可用 |
@@ -235,6 +236,38 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- r
 ```
 
 适合在外部已经产出新素材文件后，用受控方式替换 plan 内已有绑定，而不是手改整份 JSON。
+
+如果你手上是一批已经有绑定、只需要统一替换的 plan，也可以直接准备批量 manifest：
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "plan": "jobs/a/edit.json",
+      "path": "audio/a-new.wav",
+      "audioTrackId": "voice-main",
+      "checkFiles": true,
+      "pathStyle": "relative"
+    },
+    {
+      "id": "job-b",
+      "plan": "jobs/b/edit.json",
+      "path": "subs/b-new.srt",
+      "subtitles": true,
+      "subtitleMode": "burnIn",
+      "writeTo": "outputs/job-b.edit.json"
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- replace-plan-material-batch --manifest .\batch.json
+```
+
+这条命令会继续沿用现有 batch 约定：相对路径按 manifest 所在目录解析，根目录写 `summary.json`，每个条目写 `results/<id>.json`，全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 本身失败返回 `1`。
 
 ### 给当前还没挂上的字幕、转写或模板槽位补绑定
 

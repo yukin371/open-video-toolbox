@@ -38,6 +38,7 @@ static async Task<int> MainAsync(string[] args)
         "subtitle" => await AudioCommandHandlers.RunSubtitleAsync(remaining, Fail),
         "inspect-plan" => await FoundationCommandHandlers.RunInspectPlanAsync(remaining, Fail),
         "replace-plan-material" => await FoundationCommandHandlers.RunReplacePlanMaterialAsync(remaining, Fail),
+        "replace-plan-material-batch" => await FoundationCommandHandlers.RunReplacePlanMaterialBatchAsync(remaining, Fail),
         "attach-plan-material" => await FoundationCommandHandlers.RunAttachPlanMaterialAsync(remaining, Fail),
         "attach-plan-material-batch" => await FoundationCommandHandlers.RunAttachPlanMaterialBatchAsync(remaining, Fail),
         "bind-voice-track" => await FoundationCommandHandlers.RunBindVoiceTrackAsync(remaining, Fail),
@@ -101,6 +102,7 @@ static void PrintUsage()
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
     Console.WriteLine("  inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--source-input | --audio-track-id <id> | --artifact-slot <slotId> | --transcript | --beats | --subtitles) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
+    Console.WriteLine("  replace-plan-material-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  attach-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--transcript | --beats | --subtitles | --audio-track-id <id> [--audio-track-role <original|voice|bgm|effects>] | --artifact-slot <slotId>) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
     Console.WriteLine("  attach-plan-material-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  bind-voice-track --plan <edit.json> --path <audio-file> [--track-id <id>] [--role <original|voice|bgm|effects>] [--write-to <path>] [--in-place [true|false]] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
