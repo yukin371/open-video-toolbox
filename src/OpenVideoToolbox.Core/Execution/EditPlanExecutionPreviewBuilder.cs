@@ -5,19 +5,25 @@ namespace OpenVideoToolbox.Core.Execution;
 public sealed class EditPlanExecutionPreviewBuilder
 {
     private readonly FfmpegEditPlanRenderCommandBuilder _renderCommandBuilder;
+    private readonly FfmpegTimelineRenderCommandBuilder _timelineRenderCommandBuilder;
     private readonly FfmpegEditPlanAudioMixCommandBuilder _audioMixCommandBuilder;
 
     public EditPlanExecutionPreviewBuilder()
-        : this(new FfmpegEditPlanRenderCommandBuilder(), new FfmpegEditPlanAudioMixCommandBuilder())
+        : this(
+            new FfmpegEditPlanRenderCommandBuilder(),
+            new FfmpegEditPlanAudioMixCommandBuilder(),
+            new FfmpegTimelineRenderCommandBuilder())
     {
     }
 
     public EditPlanExecutionPreviewBuilder(
         FfmpegEditPlanRenderCommandBuilder renderCommandBuilder,
-        FfmpegEditPlanAudioMixCommandBuilder audioMixCommandBuilder)
+        FfmpegEditPlanAudioMixCommandBuilder audioMixCommandBuilder,
+        FfmpegTimelineRenderCommandBuilder? timelineRenderCommandBuilder = null)
     {
         _renderCommandBuilder = renderCommandBuilder;
         _audioMixCommandBuilder = audioMixCommandBuilder;
+        _timelineRenderCommandBuilder = timelineRenderCommandBuilder ?? new FfmpegTimelineRenderCommandBuilder();
     }
 
     public ExecutionPreview BuildRenderPreview(EditPlanRenderRequest request, string executablePath = "ffmpeg")
@@ -28,7 +34,9 @@ public sealed class EditPlanExecutionPreviewBuilder
         {
             Operation = "render",
             PathsResolved = Path.IsPathFullyQualified(request.Plan.Output.Path),
-            CommandPlan = _renderCommandBuilder.Build(request, executablePath),
+            CommandPlan = request.Plan.Timeline is null
+                ? _renderCommandBuilder.Build(request, executablePath)
+                : _timelineRenderCommandBuilder.Build(request, executablePath),
             ProducedPaths = EditPlanRenderRunner.BuildProducedPaths(request.Plan),
             SideEffects = EditPlanRenderRunner.BuildSideEffects(request.Plan)
         };

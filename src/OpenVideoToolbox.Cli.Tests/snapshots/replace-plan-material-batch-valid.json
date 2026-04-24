@@ -29,8 +29,19 @@
           },
           "changed": true,
           "validation": {
+            "checkMode": "basic",
             "issues": [],
-            "isValid": true
+            "isValid": true,
+            "stats": {
+              "totalIssues": 0,
+              "errorCount": 0,
+              "warningCount": 0,
+              "bySeverity": {
+                "error": 0,
+                "warning": 0
+              },
+              "byCode": {}
+            }
           }
         }
       }

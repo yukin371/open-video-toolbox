@@ -8,6 +8,7 @@
     "description": "Rhythm-first montage template tuned for beat-group seeding and optional music replacement.",
     "category": "montage",
     "version": "1.0.0",
+    "planModel": "v1",
     "outputContainer": "mp4",
     "defaultSubtitleMode": null,
     "parameterDefaults": {

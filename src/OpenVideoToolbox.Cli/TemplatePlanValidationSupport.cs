@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenVideoToolbox.Core;
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Serialization;
 
@@ -14,7 +15,7 @@ internal static class TemplatePlanValidationSupport
         var plan = JsonSerializer.Deserialize<EditPlan>(content, OpenVideoToolboxJson.Default)
             ?? throw new InvalidOperationException($"Failed to parse edit plan '{fullPlanPath}'.");
 
-        if (plan.SchemaVersion != 1)
+        if (plan.SchemaVersion is not (SchemaVersions.V1 or SchemaVersions.V2))
         {
             throw new InvalidOperationException($"Unsupported edit plan schema version '{plan.SchemaVersion}'.");
         }
@@ -37,7 +38,11 @@ internal static class TemplatePlanValidationSupport
         TemplatePluginCatalog? pluginCatalog = null)
     {
         var context = await LoadPlanContextAsync(fullPlanPath, pluginCatalog);
-        return new EditPlanValidator().Validate(context.ResolvedPlan, checkFiles, context.ValidationTemplates);
+        return new EditPlanValidator().Validate(
+            context.ResolvedPlan,
+            checkFiles,
+            context.ValidationTemplates,
+            BuiltInEffectCatalog.CreateRegistry());
     }
 
     private static IReadOnlyList<EditPlanTemplateDefinition>? SelectValidationTemplates(

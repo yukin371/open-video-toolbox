@@ -38,22 +38,21 @@ internal static class EditPlanCommandHandlers
                 planPath = fullPlanPath,
                 resolvedBaseDirectory = planDirectory,
                 checkFiles = checkFiles == true,
+                checkMode = validation.CheckMode,
                 isValid = validation.IsValid,
-                issues = validation.Issues
+                issues = validation.Issues,
+                stats = validation.Stats
             };
 
             return WriteCommandEnvelope("validate-plan", preview: false, report, jsonOutPath);
         }
         catch (Exception ex)
         {
-            var report = new
+            var validation = new EditPlanValidationResult
             {
-                planPath = fullPlanPath,
-                resolvedBaseDirectory = planDirectory,
-                checkFiles = checkFiles == true,
-                isValid = false,
-                issues = new[]
-                {
+                CheckMode = EditPlanValidationMode.Basic,
+                Issues =
+                [
                     new EditPlanValidationIssue
                     {
                         Severity = EditPlanValidationSeverity.Error,
@@ -61,7 +60,18 @@ internal static class EditPlanCommandHandlers
                         Code = "plan.parse.failed",
                         Message = ex.Message
                     }
-                }
+                ]
+            };
+
+            var report = new
+            {
+                planPath = fullPlanPath,
+                resolvedBaseDirectory = planDirectory,
+                checkFiles = checkFiles == true,
+                checkMode = validation.CheckMode,
+                isValid = validation.IsValid,
+                issues = validation.Issues,
+                stats = validation.Stats
             };
 
             return WriteCommandEnvelope("validate-plan", preview: false, report, jsonOutPath);

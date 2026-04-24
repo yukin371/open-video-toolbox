@@ -125,4 +125,67 @@ public sealed partial class CommandArtifactsIntegrationTests
         Assert.Single(beatsPreview["clips"]!.AsArray());
         Assert.Equal("stems/htdemucs/input/no_vocals.wav", beatsPreview["audioTracks"]![0]!["path"]!.GetValue<string>());
     }
+
+    [Fact]
+    public async Task TemplateGuide_ForTimelineEffectsStarter_ReturnsSchemaV2PreviewShape()
+    {
+        var result = await RunCliAsync("templates", "timeline-effects-starter");
+
+        Assert.Equal(0, result.ExitCode);
+
+        var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+        var template = payload["template"]!.AsObject();
+        var examples = payload["examples"]!.AsObject();
+
+        Assert.Equal("timeline-effects-starter", template["id"]!.GetValue<string>());
+        Assert.Equal("v2Timeline", template["planModel"]!.GetValue<string>());
+        Assert.True(template["recommendedSeedModes"]!.AsArray()
+            .Select(node => node!.GetValue<string>())
+            .SequenceEqual(["manual", "transcript", "beats"]));
+        Assert.True(template["supportingSignals"]!.AsArray()
+            .Select(node => node!["kind"]!.GetValue<string>())
+            .SequenceEqual(["transcript", "beats"]));
+
+        Assert.Equal("audio/input.wav", examples["artifacts"]!["bgm"]!.GetValue<string>());
+        Assert.Equal("-10", examples["templateParams"]!["bgmTargetGainDb"]!.GetValue<string>());
+        Assert.Equal(2, examples["signalCommands"]!.AsArray().Count);
+        Assert.Empty(examples["artifactCommands"]!.AsArray());
+        var seedCommands = examples["seedCommands"]!.AsArray();
+        Assert.Equal(3, seedCommands.Count);
+        Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "transcript");
+        Assert.Contains(seedCommands, node => node!["mode"]!.GetValue<string>() == "beats");
+        Assert.Equal(3, examples["previewPlans"]!.AsArray().Count);
+
+        var manualPreview = GetPreviewPlan(examples["previewPlans"]!.AsArray(), "manual");
+        Assert.Equal(2, manualPreview["schemaVersion"]!.GetValue<int>());
+        Assert.NotNull(manualPreview["timeline"]);
+        Assert.True(manualPreview["clips"]!.AsArray().Count == 0);
+        Assert.Equal(2, manualPreview["timeline"]!["tracks"]!.AsArray().Count);
+        Assert.Equal("scale", manualPreview["timeline"]!["tracks"]![0]!["effects"]![0]!["type"]!.GetValue<string>());
+        Assert.Equal("fade", manualPreview["timeline"]!["tracks"]![0]!["clips"]![0]!["transitions"]!["out"]!["type"]!.GetValue<string>());
+        Assert.Equal("volume", manualPreview["timeline"]!["tracks"]![1]!["clips"]![0]!["effects"]![0]!["type"]!.GetValue<string>());
+
+        var transcriptPreviewNode = GetPreview(examples["previewPlans"]!.AsArray(), "transcript");
+        var transcriptPreview = Assert.IsType<JsonObject>(transcriptPreviewNode["editPlan"]);
+        Assert.Equal(2, transcriptPreview["schemaVersion"]!.GetValue<int>());
+        Assert.NotNull(transcriptPreview["transcript"]);
+        Assert.True(transcriptPreview["clips"]!.AsArray().Count == 0);
+        Assert.Equal(2, transcriptPreview["timeline"]!["tracks"]![0]!["clips"]!.AsArray().Count);
+        Assert.Equal("brightness_contrast", transcriptPreview["timeline"]!["tracks"]![0]!["clips"]![0]!["effects"]![0]!["type"]!.GetValue<string>());
+        Assert.Null(transcriptPreview["timeline"]!["tracks"]![0]!["clips"]![0]!["transitions"]);
+        var transcriptVariants = transcriptPreviewNode["strategyVariants"]!.AsArray();
+        Assert.Equal(3, transcriptVariants.Count);
+        Assert.Equal("grouped", transcriptVariants[0]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[0]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("max-gap", transcriptVariants[1]!["key"]!.GetValue<string>());
+        Assert.True(transcriptVariants[1]!["isRecommended"]!.GetValue<bool>());
+        Assert.Equal("min-duration", transcriptVariants[2]!["key"]!.GetValue<string>());
+        Assert.False(transcriptVariants[2]!["isRecommended"]!.GetValue<bool>());
+
+        var beatsPreview = GetPreviewPlan(examples["previewPlans"]!.AsArray(), "beats");
+        Assert.Equal(2, beatsPreview["schemaVersion"]!.GetValue<int>());
+        Assert.NotNull(beatsPreview["beats"]);
+        Assert.Single(beatsPreview["timeline"]!["tracks"]![0]!["clips"]!.AsArray());
+        Assert.Equal("brightness_contrast", beatsPreview["timeline"]!["tracks"]![0]!["clips"]![0]!["effects"]![0]!["type"]!.GetValue<string>());
+    }
 }

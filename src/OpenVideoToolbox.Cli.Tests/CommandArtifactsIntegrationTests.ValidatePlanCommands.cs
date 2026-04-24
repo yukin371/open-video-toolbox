@@ -44,9 +44,13 @@ public sealed partial class CommandArtifactsIntegrationTests
             var payload = envelope["payload"]!.AsObject();
             Assert.True(payload["isValid"]!.GetValue<bool>());
             Assert.False(payload["checkFiles"]!.GetValue<bool>());
+            Assert.Equal("basic", payload["checkMode"]!.GetValue<string>());
             Assert.Equal(Path.GetFullPath(planPath), payload["planPath"]!.GetValue<string>());
             Assert.Equal(outputDirectory, payload["resolvedBaseDirectory"]!.GetValue<string>());
             Assert.Empty(payload["issues"]!.AsArray());
+            Assert.Equal(0, payload["stats"]!["totalIssues"]!.GetValue<int>());
+            Assert.Equal(0, payload["stats"]!["errorCount"]!.GetValue<int>());
+            Assert.Equal(0, payload["stats"]!["warningCount"]!.GetValue<int>());
         }
         finally
         {

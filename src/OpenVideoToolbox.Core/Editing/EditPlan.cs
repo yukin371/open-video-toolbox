@@ -24,6 +24,9 @@ public sealed record EditPlan
 
     public EditSubtitlePlan? Subtitles { get; init; }
 
+    // v2: 结构化时间线（可选，存在时渲染引擎走 v2 路径）
+    public EditPlanTimeline? Timeline { get; init; }
+
     public required EditOutputPlan Output { get; init; }
 
     [JsonExtensionData]

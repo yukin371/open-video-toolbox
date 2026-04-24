@@ -329,6 +329,53 @@ public static class BuiltInEditPlanTemplateCatalog
                     Required = false
                 }
             ]
+        },
+        new EditPlanTemplateDefinition
+        {
+            Id = "timeline-effects-starter",
+            DisplayName = "Timeline Effects Starter",
+            Description = "First schema v2 timeline starter with real clip effects, optional transcript/beat seeding, and an optional BGM track.",
+            Category = "timeline",
+            PlanModel = EditPlanTemplatePlanModel.V2Timeline,
+            RecommendedSeedModes =
+            [
+                EditPlanSeedMode.Manual,
+                EditPlanSeedMode.Transcript,
+                EditPlanSeedMode.Beats
+            ],
+            RecommendedTranscriptSeedStrategies =
+            [
+                TranscriptSeedStrategy.Grouped,
+                TranscriptSeedStrategy.MaxGap
+            ],
+            SupportingSignals =
+            [
+                new EditPlanSupportingSignalHint
+                {
+                    Kind = EditPlanSupportingSignalKind.Transcript,
+                    Reason = "Use transcript segments when the first v2 timeline pass should follow spoken beats instead of the default demo skeleton."
+                },
+                new EditPlanSupportingSignalHint
+                {
+                    Kind = EditPlanSupportingSignalKind.Beats,
+                    Reason = "Use beat markers when the first v2 timeline pass should inherit rhythm-first pacing from music or motion."
+                }
+            ],
+            ParameterDefaults = new Dictionary<string, string>
+            {
+                ["look"] = "clean-contrast",
+                ["bgmTargetGainDb"] = "-10"
+            },
+            ArtifactSlots =
+            [
+                new EditPlanArtifactSlot
+                {
+                    Id = "bgm",
+                    Kind = "audio",
+                    Description = "Optional background music file placed on a dedicated v2 timeline audio track.",
+                    Required = false
+                }
+            ]
         }
     ];
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using OpenVideoToolbox.Core;
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
 using OpenVideoToolbox.Core.Serialization;
@@ -9,6 +10,145 @@ namespace OpenVideoToolbox.Cli;
 
 internal static class RenderCommandHandlers
 {
+    public static async Task<int> RunExportAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--format", out var formatValue, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--output", out var outputPath, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var formatIsEdl = string.Equals(formatValue, ProjectExportFormats.Edl, StringComparison.OrdinalIgnoreCase);
+        if (!formatIsEdl)
+        {
+            return WriteCommandEnvelope(
+                "export",
+                preview: false,
+                new
+                {
+                    export = new
+                    {
+                        planPath = fullPlanPath,
+                        format = formatValue,
+                        outputPath = outputPath
+                    },
+                    error = new
+                    {
+                        message = "Option '--format' expects 'edl'."
+                    }
+                },
+                jsonOutPath,
+                exitCode: 1);
+        }
+
+        var rawFrameRate = GetOption(options, "--frame-rate");
+        if (rawFrameRate is not null && !int.TryParse(rawFrameRate, out _))
+        {
+            return WriteCommandEnvelope(
+                "export",
+                preview: false,
+                new
+                {
+                    export = new
+                    {
+                        planPath = fullPlanPath,
+                        format = ProjectExportFormats.Edl,
+                        outputPath = outputPath,
+                        frameRate = rawFrameRate
+                    },
+                    error = new
+                    {
+                        message = "Option '--frame-rate' expects an integer value."
+                    }
+                },
+                jsonOutPath,
+                exitCode: 1);
+        }
+
+        var parsedFrameRate = rawFrameRate is null ? (int?)null : int.Parse(rawFrameRate);
+        EditPlan? plan = null;
+        string? resolvedOutputPath = null;
+
+        try
+        {
+            plan = await LoadEditPlanAsync(fullPlanPath, outputOverridePath: null);
+            var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
+            resolvedOutputPath = EditPlanPathResolver.ResolvePath(planDirectory, outputPath!);
+
+            var service = new EditPlanExportService();
+            var result = await service.ExportAsync(new ProjectExportRequest
+            {
+                Plan = plan,
+                Format = ProjectExportFormat.Edl,
+                OutputPath = resolvedOutputPath,
+                FrameRate = parsedFrameRate,
+                Title = GetOption(options, "--title"),
+                Overwrite = GetOption(options, "--overwrite") == "true"
+            });
+
+            return WriteCommandEnvelope(
+                "export",
+                preview: false,
+                new
+                {
+                    export = new
+                    {
+                        planPath = fullPlanPath,
+                        result.Format,
+                        result.FidelityLevel,
+                        result.OutputPath,
+                        result.Title,
+                        result.FrameRate,
+                        result.EventCount,
+                        result.Warnings
+                    },
+                    templateSource = BuildPlanTemplateSourcePayload(plan)
+                },
+                jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            if (plan is null || string.IsNullOrWhiteSpace(resolvedOutputPath))
+            {
+                return fail(ex.Message);
+            }
+
+            return FailWithCommandEnvelope(
+                "export",
+                preview: false,
+                BuildFailedPlanCommandPayload(
+                    "export",
+                    new
+                    {
+                        planPath = fullPlanPath,
+                        format = ProjectExportFormats.Edl,
+                        outputPath = resolvedOutputPath,
+                        frameRate = parsedFrameRate
+                    },
+                    plan,
+                    executionPreview: null,
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
+        }
+    }
+
     public static async Task<int> RunRenderAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseOptions(args, out var options, out var error))
@@ -469,7 +609,7 @@ internal static class RenderCommandHandlers
         var plan = JsonSerializer.Deserialize<EditPlan>(content, OpenVideoToolboxJson.Default)
             ?? throw new InvalidOperationException($"Failed to parse edit plan '{planPath}'.");
 
-        if (plan.SchemaVersion != 1)
+        if (plan.SchemaVersion is not (SchemaVersions.V1 or SchemaVersions.V2))
         {
             throw new InvalidOperationException($"Unsupported edit plan schema version '{plan.SchemaVersion}'.");
         }

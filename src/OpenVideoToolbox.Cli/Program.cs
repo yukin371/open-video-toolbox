@@ -18,6 +18,7 @@ static async Task<int> MainAsync(string[] args)
     return command switch
     {
         "doctor" => await FoundationCommandHandlers.RunDoctorAsync(remaining, Fail),
+        "effects" => EffectsCommandHandlers.RunEffects(remaining, Fail),
         "validate-plugin" => FoundationCommandHandlers.RunValidatePlugin(remaining, Fail),
         "init-plan" => await TemplateCommandHandlers.RunInitPlanAsync(remaining, Fail),
         "scaffold-template" => await TemplateCommandHandlers.RunScaffoldTemplateAsync(remaining, Fail),
@@ -28,10 +29,12 @@ static async Task<int> MainAsync(string[] args)
         "audio-normalize" => await AudioCommandHandlers.RunAudioNormalizeAsync(remaining, Fail),
         "transcribe" => await AudioCommandHandlers.RunTranscribeAsync(remaining, Fail),
         "detect-silence" => await AudioCommandHandlers.RunDetectSilenceAsync(remaining, Fail),
+        "auto-cut-silence" => await AudioCommandHandlers.RunAutoCutSilenceAsync(remaining, Fail),
         "separate-audio" => await AudioCommandHandlers.RunSeparateAudioAsync(remaining, Fail),
         "beat-track" => await AudioCommandHandlers.RunBeatTrackAsync(remaining, Fail),
         "concat" => await MediaCommandHandlers.RunConcatAsync(remaining, Fail),
         "cut" => await MediaCommandHandlers.RunCutAsync(remaining, Fail),
+        "export" => await RenderCommandHandlers.RunExportAsync(remaining, Fail),
         "mix-audio" => await RenderCommandHandlers.RunMixAudioAsync(remaining, Fail),
         "render" => await RenderCommandHandlers.RunRenderAsync(remaining, Fail),
         "render-batch" => await RenderCommandHandlers.RunRenderBatchAsync(remaining, Fail),
@@ -81,6 +84,7 @@ static void PrintUsage()
     Console.WriteLine("Commands:");
     Console.WriteLine("  presets [--json-out <path>]");
     Console.WriteLine("  templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manual|transcript|beats>] [--output-container <ext>] [--artifact-kind <kind>] [--has-artifacts [true|false]] [--has-subtitles [true|false]] [--summary [true|false]] [--plugin-dir <path>] [--json-out <path>] [--write-examples <dir>]");
+    Console.WriteLine("  effects [list [--category <id>] | describe <type> | <type>] [--json-out <path>]");
     Console.WriteLine("  doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  validate-plugin --plugin-dir <path> [--json-out <path>]");
     Console.WriteLine("  beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]");
@@ -89,6 +93,7 @@ static void PrintUsage()
     Console.WriteLine("  audio-normalize <input> --output <path> [--target-lufs <n>] [--lra <n>] [--true-peak-db <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  transcribe <input> --model <path> --output <transcript.json> [--language <id>] [--translate [true|false]] [--whisper-cli <path>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-ms <n>] [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]");
+    Console.WriteLine("  auto-cut-silence --silence <silence.json> [--clips-only] [--padding-ms <n>] [--merge-gap-ms <n>] [--min-clip-duration-ms <n>] [--source-duration-ms <n>] [--ffprobe <path>] [--template <id>] [--render-output <path>] [--output <path>] [--json-out <path>]");
     Console.WriteLine("  separate-audio <input> --output-dir <path> [--model <id>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  cut <input> --from <hh:mm:ss.fff> --to <hh:mm:ss.fff> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  concat --input-list <path> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
@@ -96,6 +101,7 @@ static void PrintUsage()
     Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
+    Console.WriteLine("  export --plan <edit.json> --format <edl> --output <path> [--frame-rate <fps>] [--title <name>] [--json-out <path>] [--overwrite]");
     Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render-batch --manifest <batch.json> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--json-out <path>]");

@@ -139,4 +139,62 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task Render_RejectsMissingFfmpegExecutable_ForSchemaV2()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-render-v2-missing-ffmpeg-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+        var planPath = Path.Combine(outputDirectory, "edit.v2.json");
+
+        await File.WriteAllTextAsync(
+            planPath,
+            """
+            {
+              "schemaVersion": 2,
+              "source": { "inputPath": "input.mp4" },
+              "timeline": {
+                "duration": "00:00:03",
+                "resolution": { "w": 1920, "h": 1080 },
+                "frameRate": 30,
+                "tracks": [
+                  {
+                    "id": "main",
+                    "kind": "video",
+                    "clips": [
+                      { "id": "clip-001", "start": "00:00:00", "in": "00:00:00", "out": "00:00:03" }
+                    ]
+                  }
+                ]
+              },
+              "output": { "path": "final-v2.mp4", "container": "mp4" }
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync("render", "--plan", planPath, "--ffmpeg", "missing-ffmpeg");
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("missing-ffmpeg", result.StdErr, StringComparison.Ordinal);
+
+            var payload = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("render", payload["command"]!.GetValue<string>());
+            Assert.False(payload["preview"]!.GetValue<bool>());
+
+            var envelope = payload["payload"]!.AsObject();
+            Assert.Equal(2, envelope["render"]!["schemaVersion"]!.GetValue<int>());
+            Assert.Contains("missing-ffmpeg", envelope["error"]!["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.NotNull(envelope["executionPreview"]);
+            Assert.Equal(2, envelope["executionPreview"]!["commandPlan"]!["schemaVersion"]!.GetValue<int>());
+            Assert.False(File.Exists(Path.Combine(outputDirectory, "final-v2.mp4")));
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }

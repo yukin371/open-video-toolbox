@@ -47,6 +47,11 @@ public sealed partial class CommandArtifactsIntegrationTests
             var payload = stdout["payload"]!.AsObject();
             Assert.False(payload["isValid"]!.GetValue<bool>());
             Assert.True(payload["checkFiles"]!.GetValue<bool>());
+            Assert.Equal("basic", payload["checkMode"]!.GetValue<string>());
+            Assert.Equal(1, payload["stats"]!["totalIssues"]!.GetValue<int>());
+            Assert.Equal(1, payload["stats"]!["errorCount"]!.GetValue<int>());
+            Assert.Equal(0, payload["stats"]!["warningCount"]!.GetValue<int>());
+            Assert.Equal(1, payload["stats"]!["byCode"]!["source.inputPath.missing"]!.GetValue<int>());
 
             var issueNode = Assert.Single(payload["issues"]!.AsArray());
             var issue = Assert.IsType<JsonObject>(issueNode);
@@ -54,6 +59,11 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal("source.inputPath", issue["path"]!.GetValue<string>());
             Assert.Equal("source.inputPath.missing", issue["code"]!.GetValue<string>());
             Assert.Contains("missing.mp4", issue["message"]!.GetValue<string>(), StringComparison.Ordinal);
+            Assert.Equal("source", issue["category"]!.GetValue<string>());
+            Assert.Equal("files", issue["checkStage"]!.GetValue<string>());
+            Assert.Equal(
+                "Fix source.inputPath so it points to an existing media file, or rerun without --check-files.",
+                issue["suggestion"]!.GetValue<string>());
         }
         finally
         {

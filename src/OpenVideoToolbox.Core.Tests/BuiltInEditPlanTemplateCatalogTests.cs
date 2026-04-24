@@ -17,6 +17,7 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         Assert.Contains(templates, template => template.Id == "explainer-captioned");
         Assert.Contains(templates, template => template.Id == "beat-montage");
         Assert.Contains(templates, template => template.Id == "music-captioned-montage");
+        Assert.Contains(templates, template => template.Id == "timeline-effects-starter");
         Assert.Contains(
             templates.Single(template => template.Id == "shorts-basic").RecommendedSeedModes,
             mode => mode == EditPlanSeedMode.Transcript);
@@ -36,6 +37,9 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
             templates.Single(template => template.Id == "beat-montage").SupportingSignals
                 .Select(signal => signal.Kind)
                 .SequenceEqual([EditPlanSupportingSignalKind.Beats, EditPlanSupportingSignalKind.Stems]));
+        Assert.Equal(
+            EditPlanTemplatePlanModel.V2Timeline,
+            templates.Single(template => template.Id == "timeline-effects-starter").PlanModel);
     }
 
     [Fact]
@@ -59,7 +63,7 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
     {
         var templates = BuiltInEditPlanTemplateCatalog.GetAll(category: null, seedMode: EditPlanSeedMode.Beats);
 
-        Assert.Equal(4, templates.Count);
+        Assert.Equal(5, templates.Count);
         Assert.DoesNotContain(templates, template => template.Id == "commentary-bgm");
     }
 
@@ -125,6 +129,7 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         }));
 
         Assert.Equal("commentary-bgm", summary.Id);
+        Assert.Equal(EditPlanTemplatePlanModel.V1, summary.PlanModel);
         Assert.Equal("mp4", summary.OutputContainer);
         Assert.True(summary.HasArtifacts);
         Assert.False(summary.HasSubtitles);
@@ -153,6 +158,22 @@ public sealed class BuiltInEditPlanTemplateCatalogTests
         Assert.True(beatMontage.SupportingSignals.SequenceEqual([
             EditPlanSupportingSignalKind.Beats,
             EditPlanSupportingSignalKind.Stems
+        ]));
+
+        var timelineStarter = summaries.Single(summary => summary.Id == "timeline-effects-starter");
+        Assert.Equal(EditPlanTemplatePlanModel.V2Timeline, timelineStarter.PlanModel);
+        Assert.True(timelineStarter.RecommendedSeedModes.SequenceEqual([
+            EditPlanSeedMode.Manual,
+            EditPlanSeedMode.Transcript,
+            EditPlanSeedMode.Beats
+        ]));
+        Assert.True(timelineStarter.RecommendedTranscriptSeedStrategies.SequenceEqual([
+            TranscriptSeedStrategy.Grouped,
+            TranscriptSeedStrategy.MaxGap
+        ]));
+        Assert.True(timelineStarter.SupportingSignals.SequenceEqual([
+            EditPlanSupportingSignalKind.Transcript,
+            EditPlanSupportingSignalKind.Beats
         ]));
     }
 }

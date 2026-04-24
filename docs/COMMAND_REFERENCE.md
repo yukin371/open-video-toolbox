@@ -81,6 +81,18 @@ templates [<template-id>] [--template <id>] [--category <id>] [--seed-mode <manu
 
 - 模板发现、单模板指南、工作目录示例输出
 
+### `effects`
+
+```text
+effects [list [--category <id>] | describe <type> | <type>] [--json-out <path>]
+```
+
+用途：
+
+- 列出当前内置 v2 effect 描述符
+- 查看单个 effect 的参数 schema、模板模式与 FFmpeg 模板骨架
+- 当前只覆盖 built-in effect discovery，不负责插件 effect 加载或 render 执行
+
 ### `doctor`
 
 ```text
@@ -143,6 +155,12 @@ validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <pat
 用途：
 
 - 校验 `edit.json`
+- 当前可校验：
+  - 现有 v1 plan
+  - `schemaVersion = 2` 的 timeline 合约层结构
+- 当前不负责：
+  - v2 render 可执行性验证
+  - effect registry 的发现与执行能力验证
 
 ### `inspect-plan`
 
@@ -285,6 +303,21 @@ detect-silence <input> --output <silence.json> [--noise-db <n>] [--min-duration-
 
 - 生成 `silence.json`
 
+### `auto-cut-silence`
+
+```text
+auto-cut-silence --silence <silence.json> [--clips-only] [--padding-ms <n>] [--merge-gap-ms <n>] [--min-clip-duration-ms <n>] [--source-duration-ms <n>] [--ffprobe <path>] [--template <id>] [--render-output <path>] [--output <path>] [--json-out <path>]
+```
+
+用途：
+
+- 根据 `silence.json` 生成确定性的非静音 clips，或直接生成 `edit.json`
+- `--clips-only` 模式输出 `EditClip[]`
+- 不带 `--clips-only` 时输出完整 plan，且必须显式提供 `--render-output`
+- 总时长优先取 `--source-duration-ms`，否则会对 `silence.json.inputPath` 执行 `ffprobe`
+- 默认仍输出既有 v1 plan；只有当内置模板显式声明 `planModel = v2Timeline` 时，才会复用模板工厂产出 v2 `timeline` plan，并把主视频轨 clips 替换为去静音结果
+- `--output` 只负责把 clips 或 plan 原始 JSON 写盘；stdout / `--json-out` 仍返回统一 command envelope
+
 ### `separate-audio`
 
 ```text
@@ -349,6 +382,19 @@ mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-ou
 
 - 混音预览与执行
 
+### `export`
+
+```text
+export --plan <edit.json> --format <edl> --output <path> [--frame-rate <fps>] [--title <name>] [--json-out <path>] [--overwrite]
+```
+
+用途：
+
+- 把 `schemaVersion = 1` 或 `schemaVersion = 2` 的 `edit.json` 导出为粗粒度 `EDL` cut list
+- 当前只支持 `edl`
+- `v1` 会包装成单主视频轨 cut list
+- `v2` 只导出 `main` 或首条 video track，并通过 warnings 显式说明 audio / effect / transition / extra video track 的忽略语义
+
 ### `render`
 
 ```text
@@ -358,6 +404,16 @@ render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <pat
 用途：
 
 - 最终导出预览与执行
+- 当前支持：
+  - 现有 v1 render 路径
+  - `schemaVersion = 2` 的 timeline render baseline 路径
+- 当前 v2 范围：
+  - 支持基础 timeline preview / execute dispatch
+  - 支持内置模板型 effect 的 filter graph 构建
+  - 支持基础 transition / overlay / amix
+- 当前不负责：
+  - 插件 effect 加载
+  - 复杂 executor effect 的正式执行保证
 
 ### `render-batch`
 
