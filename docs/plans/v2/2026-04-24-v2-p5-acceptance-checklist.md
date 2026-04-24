@@ -1,6 +1,6 @@
 # V2-P5 验收清单
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 ## 说明
 
@@ -11,6 +11,7 @@
 - `templates -> init-plan -> render --preview` 的真实 v2 模板闭环
 - `templates -> init-plan --seed-from-transcript/--seed-from-beats -> render --preview` 的 v2 seed 闭环
 - `auto-cut-silence -> render --preview` 的首条信号驱动 v2 plan 闭环
+- `export --plan <edit.json> --format edl --output <path>` 的 v1/v2 统一导出闭环
 
 本清单仍作为阶段验收材料保留，不要求在每张内部任务卡后强制停顿。
 
@@ -195,6 +196,114 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 - 返回 `command = "render"`
 - `payload.executionPreview.commandPlan.schemaVersion = 2`
 - `payload.executionPreview.commandPlan.arguments` 包含 `-filter_complex`
+
+## Step 9：确认 v1 plan 可导出为 EDL
+
+```powershell
+$root = Join-Path $env:TEMP ("ovt-v2-p5-export-v1-" + [guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $root | Out-Null
+
+@'
+{
+  "schemaVersion": 1,
+  "source": { "inputPath": "input.mp4" },
+  "clips": [
+    { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" },
+    { "id": "clip-002", "in": "00:00:05", "out": "00:00:06" }
+  ],
+  "output": { "path": "final.mp4", "container": "mp4" }
+}
+'@ | Set-Content -LiteralPath (Join-Path $root "edit.v1.json") -Encoding UTF8
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  export `
+  --plan (Join-Path $root "edit.v1.json") `
+  --format edl `
+  --output (Join-Path $root "out" "v1.edl")
+```
+
+通过标准：
+
+- 返回 `command = "export"`
+- `payload.export.format = "edl"`
+- `payload.export.fidelityLevel = "L1"`
+- `payload.export.eventCount = 2`
+- `payload.export.warnings[*].code` 包含：
+  - `export.plan.v1Wrapped`
+  - `export.frameRate.defaulted`
+- 输出文件 `out\v1.edl` 存在
+
+## Step 10：确认 v2 plan 可导出主视频轨并显式返回 warning
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  export `
+  --plan (Join-Path $root "edit.autocut.v2.json") `
+  --format edl `
+  --output (Join-Path $root "out" "v2.edl")
+```
+
+通过标准：
+
+- 返回 `command = "export"`
+- `payload.export.format = "edl"`
+- `payload.export.fidelityLevel = "L1"`
+- `payload.export.eventCount` 等于 `edit.autocut.v2.json` 中主视频轨 clips 数量
+- `payload.export.warnings[*].code` 至少包含：
+  - `export.timeline.effectsIgnored`
+- 输出文件 `out\v2.edl` 存在
+
+## Step 11：确认 export 的 `--json-out` / overwrite failure 契约
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  export `
+  --plan (Join-Path $root "edit.autocut.v2.json") `
+  --format edl `
+  --output (Join-Path $root "out" "v2.edl") `
+  --json-out (Join-Path $root "out" "export-result.json") `
+  --overwrite
+```
+
+然后重复执行一次，但去掉 `--overwrite`。
+
+通过标准：
+
+- 首次执行：
+  - `export-result.json` 成功写出
+  - `export-result.json` 与 stdout envelope 结构一致
+- 第二次执行：
+  - 返回非零退出码
+  - 仍返回结构化 envelope
+  - `payload.error.message` 明确说明输出文件已存在
+
+## 阶段验收通过条件
+
+只有同时满足以下条件，才建议把 `V2-P5` 标为人工验收通过：
+
+1. v2 模板发现、生成、preview 三条正式路径全部可重复跑通
+2. `auto-cut-silence --template timeline-effects-starter` 的信号驱动 v2 plan 路径可重复跑通
+3. `export L1` 能同时消费：
+   - v1 plan
+   - v2 plan
+4. `export` 的 warning / failure 契约不是口头说明，而是能在真实 CLI 输出中看到
+5. 现有 v1 模板仍未被打坏
+
+## 验收输出建议
+
+如果以上步骤都通过，建议阶段验收输出为：
+
+```text
+阶段：V2-P5
+阶段验收结果：通过
+人工确认结论：
+- 首个 built-in v2 模板工作流已可正式手测
+- signal-driven v2 planner 路径已可正式手测
+- export L1 已具备 v1 / v2 统一导出能力
+后续动作：
+- 关闭 V2-P5
+- 再决定是否进入下一阶段或补 parity / 迁移文档
+```
 
 ## 当前不在本清单内
 
