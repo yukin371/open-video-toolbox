@@ -241,6 +241,7 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 - 当前首个实现候选：`scaffold-template-batch`
 - 当前专项计划：`docs/plans/2026-04-24-e2-f4-batch-and-workdir-plan.md`
 - 当前 batch 公共 contract：`docs/plans/2026-04-24-e2-f4-batch-command-contract.md`
+- 当前阶段检查：`docs/plans/2026-04-24-e2-f4-phase-check.md`
 
 ## E2-G1: Desktop 启动重判
 
