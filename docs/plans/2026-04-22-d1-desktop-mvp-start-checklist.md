@@ -13,12 +13,17 @@
 
 ## 当前结论
 
-**结论：截至 2026-04-22，暂不建议正式启动 `D1 Desktop MVP`。**
+**结论：截至 2026-04-24，仍不建议正式启动 `D1 Desktop MVP`。**
 
 原因不是 CLI 或模板链路未完成，而是最关键的启动门槛之一尚未满足：
 
 - `edit.json schema v1` 仍未证明进入低频变更窗口。
 - 按当前文档口径，最早也要到 **2026-05-22** 之后，且期间没有 breaking change，才能满足“连续 1 个月无 breaking change”的判断条件。
+
+补充：
+
+- `E2-F4` 在 **2026-04-24** 已完成 batch / workdir / owner 收口判断，当前不再把“CLI 能力不足”视为 Desktop 阻塞项。
+- **2026-04-24** 的 `E2-G1` 首轮正式重判结果仍为“继续留在 E2，不启动 D1”；详见 `docs/plans/2026-04-24-e2-g1-desktop-start-recheck.md`。
 
 其余启动门槛大体已经满足或接近满足，当前真正缺的不是能力面，而是阶段纪律与时间验证。
 
@@ -26,7 +31,7 @@
 
 | 检查项 | 门槛来源 | 当前判断 | 证据 | 备注 |
 |--------|----------|----------|------|------|
-| `edit.json schema v1` 进入低频变更阶段 | `ARCHITECTURE_GUARDRAILS` / 长期路线 | `未满足` | 2026-04-22 刚完成 H2+T1 收口；尚未形成连续 1 个月观察窗口 | 最早观察完成日：`2026-05-22` |
+| `edit.json schema v1` 进入低频变更阶段 | `ARCHITECTURE_GUARDRAILS` / 长期路线 | `未满足` | 截至 2026-04-24 仍未形成连续 1 个月观察窗口 | 最早观察完成日：`2026-05-22` |
 | 模板工作流稳定 | `ARCHITECTURE_GUARDRAILS` / 长期路线 | `基本满足` | `templates -> init-plan / scaffold-template -> validate-plan -> render` 已在当前阶段文档中认定完成 | 后续仍应避免重新改写契约 |
 | 外部 AI 已能通过 CLI 完成多数基础剪辑任务 | `ARCHITECTURE_GUARDRAILS` / 长期路线 | `满足` | roadmap 已认定 CLI 契约冻结、模板链路稳定、插件边界与发布链完成 | 当前不缺 CLI 主能力 |
 | Desktop 明确定位为交互壳 | `ARCHITECTURE_GUARDRAILS` / 长期路线 | `满足` | 现有文档已明确禁止 Desktop 成为新业务 owner | 启动后仍需用 `MODULE.md` 锁边界 |
@@ -101,4 +106,5 @@
 - `docs/roadmap.md`
 - `docs/ARCHITECTURE_GUARDRAILS.md`
 - `docs/plans/2026-04-21-long-term-evolution-roadmap.md`
+- `docs/plans/2026-04-24-e2-g1-desktop-start-recheck.md`
 - `docs/PROJECT_PROFILE.md`

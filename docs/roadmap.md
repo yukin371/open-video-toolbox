@@ -30,8 +30,8 @@
 ## 当前版本目标
 
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
-- 当前状态（2026-04-24）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪。
-- 下一步：继续推进 `E2`，但按分阶段计划执行；功能交付线以 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md` 为准，生态 / 分发线以 `docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md` 为准；`D1` 最早在 `2026-05-22` 后重判。
+- 当前状态（2026-04-24）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`。
+- 下一步：继续推进 `E2`，但按分阶段计划执行；功能交付线以 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md` 为准，生态 / 分发线以 `docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md` 为准；`D1` 最早在 `2026-05-22` 后再次重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 阶段检查（2026-04-22）
@@ -109,7 +109,7 @@
       - `E2-F2` 计划内素材与配音工作流收口：已进入完成前状态
       - `E2-F3` 字幕与 supporting signal 工作流收口：当前活跃阶段，已进入完成前状态
       - `E2-F4` 批量工作流与工作目录编排：当前活跃阶段，批量建目录与批量消费目录都已开始落地
-      - `E2-G1` Desktop 启动重判：阶段门，不提前启动
+      - `E2-G1` Desktop 启动重判：首轮已执行，当前结果为继续留在 `E2`，不提前启动 `D1`
       - `E2-F2` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f2-phase-check.md`
       - `E2-F3` 的专项计划已补到 `docs/plans/2026-04-24-e2-f3-subtitle-and-signal-workflow-plan.md`
       - `E2-F3` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f3-phase-check.md`
@@ -126,7 +126,9 @@
       - `E2-F4` 已继续推进素材替换批量入口：`replace-plan-material-batch` 现可从 manifest 批量替换 source / transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
       - `E2-F4` 已继续推进第三个高频素材入口：`attach-plan-material-batch` 现可从 manifest 批量接回 transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
       - `E2-F4` 的 batch 公共字段、summary/result 目录、退出码与兼容策略现已单独收敛到专项文档，不再只隐含在代码里
-      - `E2-F4` 当前判断已进入“阶段收尾判断”状态：高频 batch 入口与公共 contract 已基本齐备，剩余问题主要转为 owner 收口与阶段门判断
+      - `E2-F4` 当前判断已达到阶段门输入要求：高频 batch 入口与公共 contract 已基本齐备，`EditPlanCommandHandlers.cs` 也已完成 edit-plan/material/batch 命令 owner 收口
+      - `E2-G1` 已于 **2026-04-24** 完成首轮正式判断，当前结果为“继续留在 `E2`，不启动 `D1`”；当前主要原因仍是 `edit.json schema v1` 低频变更窗口尚未完成，最早再次重判日期仍为 **2026-05-22**
+      - `docs/plans/v2/2026-04-24-v1-v2-boundary-and-phased-delivery-plan.md` 已补：`v2` 当前只进入边界冻结、依赖梳理与候选 backlog 状态，不作为当前活跃实现线；后续若要推进，需先通过准入门并按 `V2-P*` 阶段执行
     - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
       - `inspect-plan` 已落地
       - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
@@ -137,6 +139,7 @@
       - `bind-voice-track-batch` 已落地，当前支持 manifest 驱动的批量配音接回、相对路径解析、`summary.json` / `results/<id>.json` 结果落盘与稳定退出码
       - 当前判断：`E2-F2` 已进入完成前状态；`E2-F3` 也已进入完成前状态；当前下一步进入 `E2-F4` 的 batch / 工作目录统一设计
 - `D1` 仍不是当前活跃面：
+  - `E2-G1` 首轮正式判断已完成，结果为暂不启动
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 
 ## 当前决策面
@@ -149,6 +152,7 @@
   - `templates -> init-plan / scaffold-template -> validate-plan -> render` 工作流的持续稳定性
   - Desktop 是否真的比继续做 CLI / 生态收敛更有产出
 - 启动前检查清单：`docs/plans/2026-04-22-d1-desktop-mvp-start-checklist.md`
+- 首轮重判结果：`docs/plans/2026-04-24-e2-g1-desktop-start-recheck.md`
 
 ### E2: 生态与可持续演进
 

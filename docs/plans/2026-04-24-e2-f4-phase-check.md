@@ -178,38 +178,34 @@
 - 代码层面，batch 入口已经不再只是一个样板，而是已经覆盖高频闭环
 - contract 层面，公共字段、summary / result 目录和退出码已经显式文档化
 - 内部实现层面，也已经开始有共享 helper 承接 batch 公共规则
+- owner 收口层面，edit-plan/material/batch 入口已从 `FoundationCommandHandlers.cs` 收敛到 `EditPlanCommandHandlers.cs`
 
 因此当前不再适合继续用“随手补一个 batch 命令”的方式推进 `E2-F4`。
 
-如果后续还继续把 `E2-F4` 往前推，应该优先回答的不是“还差哪个 batch 命令”，而是：
+如果后续还继续把 `E2-F4` 往前推，应该优先回答的已经不再是“还差哪个 batch 命令”，而是：
 
-1. 是否还需要把 batch handler 的 owner 再拆清楚
-2. 当前这套 contract 是否已经足够支撑 `E2-G1` 的阶段门判断
+1. 当前这套 contract 是否已经足够支撑 `E2-G1` 的阶段门判断
+2. 是否还存在会影响阶段关闭的边界文档缺口
 
 ## 当前不判为完全完成的原因
 
-当前仍有一个收尾问题没有完全判断完：
+当前不再是代码 owner 不清楚，而是阶段门还没有正式判定：
 
-- batch command handler 目前仍分散在：
-  - `TemplateCommandHandlers.cs`
-  - `RenderCommandHandlers.cs`
-  - `FoundationCommandHandlers.cs`
+- `TemplateCommandHandlers.cs`、`RenderCommandHandlers.cs`、`EditPlanCommandHandlers.cs` 现在已经分别承接各自 batch / edit-plan 命令 owner
+- 但 `E2-G1` 是否开启、`E2-F4` 是否正式关闭，仍需要基于当前 contract、文档和阶段门标准做明确判断
 
-这不影响当前 contract 的稳定性，但会影响后续维护者对“batch handler 的代码 owner 是否足够清晰”的判断。
+因此当前更合理的结论不是“继续补实现”，而是：
 
-因此当前更合理的结论不是“完全结束”，而是：
-
-- `E2-F4` 已经达到**可做阶段门判断**的状态
-- 是否还需要进一步做 owner 收口，应作为进入 `E2-G1` 前的最后一个实现 / 设计判断点
+- `E2-F4` 已经达到**可正式做阶段门判断**的状态
+- 下一步应优先进入 `E2-G1` 判断，而不是继续横向扩 batch 命令
 
 ## 对下一阶段的影响
 
 基于当前检查，下一步已经不适合继续横向扩更多 batch 命令。
 
-更合理的下一步是二选一：
+更合理的下一步已经收敛为一条：
 
-1. 先补 batch handler owner 收口判断，再正式关闭 `E2-F4`
-2. 直接进入 `E2-G1`，判断当前 contract 是否已经足够支撑 Desktop 启动重判
+1. 进入 `E2-G1`，判断当前 contract 是否已经足够支撑 Desktop 启动重判
 
 这意味着当前功能交付线已经不再缺“明显没补的 batch 高频入口”。
 
@@ -218,9 +214,9 @@
 ```text
 阶段：E2-F4
 阶段目标是否完成：基本完成，当前进入阶段收尾判断
-当前 owner 是否保持单一：单项 owner 保持单一；batch handler 代码 owner 仍有进一步收口空间
+当前 owner 是否保持单一：单项 owner 保持单一；edit-plan/material/batch 入口 owner 已完成收口
 是否出现第二套模型或第二套语义：否
 当前 CLI 是否已能形成稳定闭环：是，已覆盖 batch scaffold / render / replace / attach / voice bind
-下一阶段是否已满足进入条件：基本满足，可进入 E2-G1 前的最终判断
+下一阶段是否已满足进入条件：基本满足，可进入 E2-G1 的正式判断
 如果现在停止，仓库是否仍处于一致状态：是
 ```

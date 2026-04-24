@@ -196,6 +196,7 @@
             "path": "subtitles.srt",
             "mode": "sidecar"
           },
+          "timeline": null,
           "output": {
             "path": "final.mp4",
             "container": "mp4"
@@ -265,6 +266,7 @@
             "path": "subtitles.srt",
             "mode": "sidecar"
           },
+          "timeline": null,
           "output": {
             "path": "final.mp4",
             "container": "mp4"
@@ -336,6 +338,7 @@
                 "path": "subtitles.srt",
                 "mode": "sidecar"
               },
+              "timeline": null,
               "output": {
                 "path": "final.mp4",
                 "container": "mp4"
@@ -407,6 +410,7 @@
                 "path": "subtitles.srt",
                 "mode": "sidecar"
               },
+              "timeline": null,
               "output": {
                 "path": "final.mp4",
                 "container": "mp4"
@@ -472,6 +476,7 @@
                 "path": "subtitles.srt",
                 "mode": "sidecar"
               },
+              "timeline": null,
               "output": {
                 "path": "final.mp4",
                 "container": "mp4"
@@ -535,6 +540,7 @@
             "path": "subtitles.srt",
             "mode": "sidecar"
           },
+          "timeline": null,
           "output": {
             "path": "final.mp4",
             "container": "mp4"
