@@ -1,6 +1,6 @@
 # V1 / V2 边界与分阶段实施清单
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 ## 目的
 
@@ -342,7 +342,7 @@ V2-P6 数据驱动批量 / resolve-assets / 图表能力
 
 ## V2-P5：首批正式交付能力
 
-**状态：已进入阶段验收材料收口**
+**状态：已完成并人工接受**
 
 ### 目标
 
@@ -358,6 +358,15 @@ V2-P6 数据驱动批量 / resolve-assets / 图表能力
 ### 进入标准
 
 只有当 `V2-P2 ~ V2-P4` 都已经达到“可回归、可文档化、可解释错误”时，才进入本阶段。
+
+### 阶段收口结果
+
+- `export L1` 已可统一消费 v1 / v2 plan
+- `auto-cut-silence --template timeline-effects-starter` 已可真实产出 v2 plan
+- 首个 built-in v2 模板工作流已正式跑通
+- 当前阶段已关闭，不再继续向 `V2-P5` 混入新能力
+- 阶段后的 parity / migration 口径已补到：
+  - [2026-04-25-v1-v2-parity-and-migration.md](./2026-04-25-v1-v2-parity-and-migration.md)
 
 ## V2-P6：高风险扩面项
 
@@ -562,15 +571,16 @@ V2-P6 数据驱动批量 / resolve-assets / 图表能力
   - `validate-plan` 增强
   - `auto-cut-silence` 的 `v1-compatible` 落地
 - 当前阶段：`V2-P5`
-- 阶段状态：`implemented`
+- 阶段状态：`accepted`
 - 当前子项：首个真正消费 timeline/effects 的模板示例
-- 当前阶段验收状态：`acceptance-pack-ready`
+- 当前阶段验收状态：`accepted`
 - 当前稿件：
   - [2026-04-24-v2-render-engine-design.md](2026-04-24-v2-render-engine-design.md)
   - [2026-04-24-v2-p4-phase-check.md](2026-04-24-v2-p4-phase-check.md)
   - [2026-04-24-v2-p4-acceptance-checklist.md](2026-04-24-v2-p4-acceptance-checklist.md)
   - [2026-04-24-v2-p5-phase-check.md](2026-04-24-v2-p5-phase-check.md)
   - [2026-04-24-v2-p5-acceptance-checklist.md](2026-04-24-v2-p5-acceptance-checklist.md)
+  - [2026-04-25-v1-v2-parity-and-migration.md](2026-04-25-v1-v2-parity-and-migration.md)
 - 当前说明：
   - `V2-P1` 已通过人工反馈并进入下一阶段
   - `SchemaVersions.V2`、`EditPlan.Timeline` 与 timeline 类型已落地
@@ -587,8 +597,9 @@ V2-P6 数据驱动批量 / resolve-assets / 图表能力
     - `init-plan --template timeline-effects-starter`
     - `render --plan <generated-v2-plan> --preview`
     - `init-plan --template timeline-effects-starter --seed-from-transcript/--seed-from-beats`
-  - `V2-P5` 阶段检查与验收清单已补齐
+  - `V2-P5` 阶段检查、验收清单与 parity / migration 文档已补齐
   - 当前阶段仍只覆盖首个正式模板样例、其 transcript / beats seed 接线与首个信号驱动 planner，不纳入插件 v2 模板、数据驱动 batch 或更多 effect 扩面
+  - 当前结论已固定为：`V2-P5` 关闭、`v1` 继续正式支持、是否进入下一阶段需单独决策
 
 ### V2-P1-C1 规格
 
