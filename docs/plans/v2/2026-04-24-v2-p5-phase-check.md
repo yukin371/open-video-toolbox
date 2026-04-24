@@ -222,9 +222,25 @@
 - `OpenVideoToolbox.Cli.Tests`：179 通过
 - 总计：343 通过
 
+本阶段已于 `2026-04-25` 继续完成一次按清单逐项执行的人工阶段验收，当前结果为：
+
+- `templates timeline-effects-starter`
+  - 返回真实 `planModel = "v2Timeline"`，且 preview plans 全为 `schemaVersion = 2`
+- `init-plan --template timeline-effects-starter`
+  - 成功写出真实 v2 plan，并保留 `main / bgm` 两条轨道
+- `init-plan --seed-from-transcript`
+  - 成功写出真实 v2 timeline clips，首个 clip effect 为 `brightness_contrast`
+- `render --plan ... --preview`
+  - 能直接消费模板生成的 v2 plan 与 signal-driven v2 plan
+- `auto-cut-silence --template timeline-effects-starter`
+  - 成功产出可继续 preview / export 的 v2 plan
+- `export --format edl`
+  - 已确认可同时消费 v1 / v2 plan
+  - warning / overwrite failure 契约已在真实 CLI 输出中验证
+
 ## 当前结论
 
-`V2-P5` 当前判断为：**已完成当前最小模板工作流交付、首个信号驱动 v2 planner 入口和 `export L1`，并已补齐阶段验收包，可进入人工阶段验收**
+`V2-P5` 当前判断为：**已完成当前最小模板工作流交付、首个信号驱动 v2 planner 入口和 `export L1`，并已通过人工阶段验收**
 
 更准确地说：
 
@@ -236,7 +252,7 @@
 - `template.planModel` 已把 v1 / v2 模板边界固定成显式契约
 - 当前仍保持了“只做一个最小正式样例 + 一个最小互操作出口”的范围控制，没有把更多 v2 能力一起混进来
 
-因此下一步不应继续在 `V2-P5` 内无边界追加新能力，而应先做人工阶段验收决定。
+因此下一步不应继续在 `V2-P5` 内无边界追加新能力；`V2-P5` 应视为已完成并关闭，后续如要继续推进，应单独决定是补 parity / 迁移文档，还是进入下一阶段。
 
 ## 手动验收入口
 
@@ -256,11 +272,11 @@
 
 ```text
 阶段：V2-P5
-阶段目标是否完成：已完成当前最小 v2 模板工作流、signal-driven planner 与 export L1，达到阶段验收输入条件
+阶段目标是否完成：已完成当前最小 v2 模板工作流、signal-driven planner 与 export L1，并已通过人工阶段验收
 本阶段范围是否清楚：是，仅包含首个 built-in v2 模板、其 seed/planner 接线和 export L1
 当前 owner 是否保持单一：是，模板语义仍由 Core.Editing 持有，render / export 仍由 Core.Execution 持有
 是否出现第二套 CLI 骨架：否
-当前验证是否充分：是，已完成全量 build/test，且已补手动验收清单
-是否应继续在本阶段追加实现：否，应先进入人工阶段验收
+当前验证是否充分：是，已完成全量 build/test，且已完成手动验收清单逐项执行
+是否应继续在本阶段追加实现：否，本阶段应关闭并等待下一阶段决策
 如果现在停止，仓库是否仍处于一致状态：是
 ```
