@@ -2,6 +2,11 @@
 
 最后更新：2026-04-24
 
+补充：
+
+- 当前 batch 公共 contract 已补到 `docs/plans/2026-04-24-e2-f4-batch-command-contract.md`
+- 本文档继续负责阶段目标、顺序与判断；公共字段和结果目录约定不再散写在这里
+
 ## 目的
 
 `E2-F3` 收口后，下一阶段不应继续零散补新的 batch 命令，而应该先把两件事统一下来：
@@ -27,7 +32,7 @@
 
 ### 已有 batch 样板
 
-当前仓库里唯一已经稳定落地的 batch 样板是：
+当前仓库里最早稳定落地的 batch 样板是：
 
 - `bind-voice-track-batch`
 
@@ -300,10 +305,33 @@ batch 只负责：
 
 因此 `E2-G1` 必须建立在 `E2-F4` 已经先把 batch 与工作目录 contract 固定的前提下。
 
+## 当前状态补充（2026-04-24）
+
+当前已落地的 batch 命令：
+
+- `scaffold-template-batch`
+- `render-batch`
+- `replace-plan-material-batch`
+- `attach-plan-material-batch`
+- `bind-voice-track-batch`
+
+当前已固定的共识：
+
+- manifest 相对路径统一按 manifest 所在目录解析
+- 顶层统一写 `summary.json`
+- 任务级统一写 `results/<id>.json`
+- 退出码统一为 `0 / 2 / 1`
+
+当前仍保留的差异：
+
+- item 私有业务字段
+- result 内部 payload 结构
+- `bind-voice-track-batch` 对缺失 `id` 的兼容性兜底
+
 ## 当前建议下一步
 
 如果按这份计划继续推进，当前最合理的下一步应是：
 
-1. 先把这份 `E2-F4` 计划同步进 `roadmap` 和分阶段总表
-2. 再基于现有 `bind-voice-track-batch` 样板，设计 batch contract 的公共字段
-3. 然后以 `scaffold-template-batch` 作为首个实现候选，先固定工作目录结构，再进入代码实现
+1. 先把新增的 batch contract 文档同步进 `roadmap` 和分阶段总表
+2. 再判断是否需要把 batch handler 进一步拆出更明确的 owner
+3. 最后再决定 `E2-F4` 是否已达到阶段检查条件
