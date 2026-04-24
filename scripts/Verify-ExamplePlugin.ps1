@@ -25,7 +25,8 @@ param(
     [string]$Ffmpeg = "ffmpeg",
     [string]$OutputJsonPath,
     [switch]$KeepArtifacts,
-    [bool]$NoBuild = $true
+    [bool]$NoBuild = $true,
+    [string]$Configuration = "Debug"
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,20 +40,52 @@ function Get-TemporaryDirectory {
     return $tempDirectory
 }
 
+function Get-ProjectRuntimeEntryPoint {
+    param(
+        [string]$ProjectPath,
+        [string]$BuildConfiguration
+    )
+
+    $resolvedProjectPath = (Resolve-Path $ProjectPath).Path
+    [xml]$projectXml = Get-Content -Raw $resolvedProjectPath
+
+    $assemblyName = $projectXml.Project.PropertyGroup.AssemblyName | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($assemblyName)) {
+        $assemblyName = [System.IO.Path]::GetFileNameWithoutExtension($resolvedProjectPath)
+    }
+
+    $targetFramework = $projectXml.Project.PropertyGroup.TargetFramework | Select-Object -First 1
+    if ([string]::IsNullOrWhiteSpace($targetFramework)) {
+        throw "Could not resolve TargetFramework from project file: $resolvedProjectPath"
+    }
+
+    $projectDirectory = Split-Path -Parent $resolvedProjectPath
+    $entryPointPath = Join-Path $projectDirectory ("bin/" + $BuildConfiguration + "/" + $targetFramework + "/" + $assemblyName + ".dll")
+
+    if (-not (Test-Path $entryPointPath)) {
+        throw "Expected built CLI entry point was not found: $entryPointPath"
+    }
+
+    return $entryPointPath
+}
+
 function Invoke-CliCommand {
     param(
         [string]$ProjectPath,
         [string[]]$Arguments,
-        [bool]$SkipBuild
+        [bool]$SkipBuild,
+        [string]$BuildConfiguration
     )
 
-    $dotnetArgs = @("run")
+    $executablePath = "dotnet"
     if ($SkipBuild) {
-        $dotnetArgs += "--no-build"
+        $dotnetArgs = @((Get-ProjectRuntimeEntryPoint -ProjectPath $ProjectPath -BuildConfiguration $BuildConfiguration))
+        $dotnetArgs += $Arguments
     }
-
-    $dotnetArgs += @("--project", $ProjectPath, "--")
-    $dotnetArgs += $Arguments
+    else {
+        $dotnetArgs = @("run", "--configuration", $BuildConfiguration, "--project", $ProjectPath, "--")
+        $dotnetArgs += $Arguments
+    }
 
     $tempDirectory = Get-TemporaryDirectory
     $stdoutPath = Join-Path $tempDirectory ("ovt-plugin-out-" + [guid]::NewGuid().ToString("N") + ".log")
@@ -60,7 +93,7 @@ function Invoke-CliCommand {
 
     try {
         $duration = Measure-Command {
-            $process = Start-Process -FilePath "dotnet" -ArgumentList $dotnetArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+            $process = Start-Process -FilePath $executablePath -ArgumentList $dotnetArgs -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
             if ($process.ExitCode -ne 0) {
                 $stdout = if (Test-Path $stdoutPath) { Get-Content -Raw $stdoutPath } else { "" }
                 $stderr = if (Test-Path $stderrPath) { Get-Content -Raw $stderrPath } else { "" }
@@ -171,14 +204,14 @@ try {
         "validate-plugin",
         "--plugin-dir", $resolvedPluginDirectory,
         "--json-out", $validatePluginJsonPath
-    ) -SkipBuild:$NoBuild
+    ) -SkipBuild:$NoBuild -BuildConfiguration $Configuration
 
     $templatesSummaryResult = Invoke-CliCommand -ProjectPath $Project -Arguments @(
         "templates",
         "--plugin-dir", $resolvedPluginDirectory,
         "--summary",
         "--json-out", $templatesSummaryJsonPath
-    ) -SkipBuild:$NoBuild
+    ) -SkipBuild:$NoBuild -BuildConfiguration $Configuration
 
     $templateGuideResult = Invoke-CliCommand -ProjectPath $Project -Arguments @(
         "templates",
@@ -186,7 +219,7 @@ try {
         "--plugin-dir", $resolvedPluginDirectory,
         "--json-out", $templateGuideJsonPath,
         "--write-examples", $guideDirectory
-    ) -SkipBuild:$NoBuild
+    ) -SkipBuild:$NoBuild -BuildConfiguration $Configuration
 
     $initPlanResult = Invoke-CliCommand -ProjectPath $Project -Arguments @(
         "init-plan",
@@ -195,14 +228,14 @@ try {
         "--plugin-dir", $resolvedPluginDirectory,
         "--output", $planPath,
         "--render-output", $renderOutputPath
-    ) -SkipBuild:$NoBuild
+    ) -SkipBuild:$NoBuild -BuildConfiguration $Configuration
 
     $validatePlanResult = Invoke-CliCommand -ProjectPath $Project -Arguments @(
         "validate-plan",
         "--plan", $planPath,
         "--plugin-dir", $resolvedPluginDirectory,
         "--json-out", $validatePlanJsonPath
-    ) -SkipBuild:$NoBuild
+    ) -SkipBuild:$NoBuild -BuildConfiguration $Configuration
 
     $validatePlugin = Read-JsonFile -Path $validatePluginJsonPath
     $templatesSummary = Read-JsonFile -Path $templatesSummaryJsonPath

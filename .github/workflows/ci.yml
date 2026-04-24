@@ -34,4 +34,4 @@ jobs:
 
       - name: Verify example plugin flow
         shell: pwsh
-        run: ./scripts/Verify-ExamplePlugin.ps1 -NoBuild $true
+        run: ./scripts/Verify-ExamplePlugin.ps1 -NoBuild $true -Configuration Release
