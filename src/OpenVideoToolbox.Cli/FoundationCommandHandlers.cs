@@ -1073,6 +1073,7 @@ internal static class FoundationCommandHandlers
         var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
+        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
 
         try
         {
@@ -1101,6 +1102,20 @@ internal static class FoundationCommandHandlers
                 var item = manifest.Items[index];
                 try
                 {
+                    if (string.IsNullOrWhiteSpace(item.Plan))
+                    {
+                        throw new InvalidOperationException($"Batch item at index {index} is missing required field 'plan'.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item.Path))
+                    {
+                        throw new InvalidOperationException(
+                            $"Batch item at index {index} is missing required field 'path'.");
+                    }
+
+                    var itemId = string.IsNullOrWhiteSpace(item.Id)
+                        ? $"item-{index + 1:000}"
+                        : item.Id;
                     var fullPlanPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Plan));
                     var resolvedVoicePath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Path));
                     var outputPlanPath = item.WriteTo is null
@@ -1120,6 +1135,7 @@ internal static class FoundationCommandHandlers
                             RequireValid = item.RequireValid == true
                         },
                         pluginCatalog);
+                    var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, itemId, result.Report);
 
                     if (result.ErrorMessage is null)
                     {
@@ -1127,6 +1143,10 @@ internal static class FoundationCommandHandlers
                         results.Add(new
                         {
                             index,
+                            id = itemId,
+                            planPath = fullPlanPath,
+                            outputPlanPath,
+                            resultPath,
                             status = "succeeded",
                             result = result.Report
                         });
@@ -1137,6 +1157,10 @@ internal static class FoundationCommandHandlers
                         results.Add(new
                         {
                             index,
+                            id = itemId,
+                            planPath = fullPlanPath,
+                            outputPlanPath,
+                            resultPath,
                             status = "failed",
                             result = result.Report,
                             error = new
@@ -1149,9 +1173,24 @@ internal static class FoundationCommandHandlers
                 catch (Exception ex)
                 {
                     failedCount++;
+                    var itemId = string.IsNullOrWhiteSpace(item.Id)
+                        ? $"item-{index + 1:000}"
+                        : item.Id;
+                    var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, itemId, new
+                    {
+                        index,
+                        id = itemId,
+                        status = "failed",
+                        error = new
+                        {
+                            message = ex.Message
+                        }
+                    });
                     results.Add(new
                     {
                         index,
+                        id = itemId,
+                        resultPath,
                         status = "failed",
                         error = new
                         {
@@ -1165,11 +1204,14 @@ internal static class FoundationCommandHandlers
             {
                 manifestPath = fullManifestPath,
                 manifestBaseDirectory,
+                summaryPath,
                 itemCount = manifest.Items.Count,
                 succeededCount,
                 failedCount,
                 results
             };
+
+            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
 
             return WriteCommandEnvelope(
                 "bind-voice-track-batch",
@@ -1184,6 +1226,7 @@ internal static class FoundationCommandHandlers
             return WriteCommandEnvelope("bind-voice-track-batch", preview: false, new
             {
                 manifestPath = fullManifestPath,
+                summaryPath,
                 error = new
                 {
                     message = ex.Message

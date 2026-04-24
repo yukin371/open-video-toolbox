@@ -130,7 +130,7 @@
       - `attach-plan-material` 已落地，当前支持 `transcript` / `beats` / `subtitles` / `audioTracks` attach，以及模板声明 artifact slot upsert
       - `attach-plan-material-batch` 已落地，当前支持 manifest 驱动的批量素材挂载、相对路径解析、部分成功摘要与结果文件落盘
       - `bind-voice-track` 已落地，作为外部配音 / TTS / voice conversion 的更直接接回入口
-      - `bind-voice-track-batch` 已落地，当前支持 manifest 驱动的批量配音接回、相对路径解析、部分成功摘要与稳定退出码
+      - `bind-voice-track-batch` 已落地，当前支持 manifest 驱动的批量配音接回、相对路径解析、`summary.json` / `results/<id>.json` 结果落盘与稳定退出码
       - 当前判断：`E2-F2` 已进入完成前状态；`E2-F3` 也已进入完成前状态；当前下一步进入 `E2-F4` 的 batch / 工作目录统一设计
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`

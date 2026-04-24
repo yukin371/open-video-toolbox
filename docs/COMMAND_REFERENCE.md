@@ -219,7 +219,8 @@ bind-voice-track-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out
 
 用途：
 
-- 从批量 manifest 读取多条 plan / 音频绑定任务，逐项复用 `bind-voice-track` 流程，并返回部分成功摘要
+- 从批量 manifest 读取多条 plan / 音频绑定任务，逐项复用 `bind-voice-track` 流程
+- 在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`
 - 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
 ## 音频 / speech / supporting signal

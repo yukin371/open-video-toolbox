@@ -8,6 +8,7 @@
     "results": [
       {
         "index": 0,
+        "id": "job-a",
         "status": "succeeded",
         "result": {
           "checkFiles": true,
