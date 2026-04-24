@@ -81,6 +81,7 @@ public sealed class EditPlanTemplateExampleBuilderTests
         Assert.Equal("transcript.json", signals[0].OutputPath);
         Assert.Contains("ovt transcribe <input>", signals[0].Command, StringComparison.Ordinal);
         Assert.Contains("--transcript transcript.json", signals[0].Consumption, StringComparison.Ordinal);
+        Assert.Contains("attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", signals[0].Consumption, StringComparison.Ordinal);
 
         Assert.Equal(EditPlanSupportingSignalKind.Silence, signals[1].Kind);
         Assert.Equal("silence.json", signals[1].OutputPath);
@@ -239,6 +240,7 @@ public sealed class EditPlanTemplateExampleBuilderTests
 
         Assert.Equal(2, signals.Count);
         Assert.Equal(EditPlanSupportingSignalKind.Beats, signals[0].Kind);
+        Assert.Contains("attach-plan-material --plan edit.json --beats --path beats.json --check-files", signals[0].Consumption, StringComparison.Ordinal);
         Assert.Equal(EditPlanSupportingSignalKind.Stems, signals[1].Kind);
         Assert.Equal("stems/", signals[1].OutputPath);
         Assert.Contains("ovt separate-audio <input>", signals[1].Command, StringComparison.Ordinal);

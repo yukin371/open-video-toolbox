@@ -45,7 +45,8 @@ public sealed partial class CommandArtifactsIntegrationTests
             var workflowCommands = commands["workflowCommands"]!.AsArray().Select(node => node!.GetValue<string>()).ToArray();
             Assert.True(workflowCommands.SequenceEqual(
                 [
-                    "ovt validate-plan --plan edit.json",
+                    "ovt inspect-plan --plan edit.json --check-files",
+                    "ovt validate-plan --plan edit.json --check-files",
                     "ovt render --plan edit.json --preview",
                     "ovt mix-audio --plan edit.json --output mixed.wav --preview"
                 ]));
@@ -60,7 +61,8 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Contains(
                 signalInstructions,
                 node => node!["kind"]!.GetValue<string>() == "transcript"
-                    && node["command"]!.GetValue<string>().Contains("<whisper-model-path>", StringComparison.Ordinal));
+                    && node["command"]!.GetValue<string>().Contains("<whisper-model-path>", StringComparison.Ordinal)
+                    && node["consumption"]!.GetValue<string>().Contains("attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", StringComparison.Ordinal));
             Assert.Contains(
                 signalInstructions,
                 node => node!["kind"]!.GetValue<string>() == "silence"
@@ -107,14 +109,26 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Contains(
                 commands["artifactCommands"]!.AsArray(),
                 node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
+            Assert.Contains(
+                commands["artifactCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files");
+            Assert.Contains(
+                commands["artifactCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files");
 
             var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
             var batchScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.cmd"));
             var shellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.sh"));
 
             Assert.Contains("ovt subtitle $InputPath --transcript transcript.json --format srt --output subtitles.srt", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files", powerShellScript, StringComparison.Ordinal);
             Assert.Contains("ovt subtitle \"%INPUT_PATH%\" --transcript transcript.json --format srt --output subtitles.srt", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", batchScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files", batchScript, StringComparison.Ordinal);
             Assert.Contains("ovt subtitle \"$INPUT_PATH\" --transcript transcript.json --format srt --output subtitles.srt", shellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", shellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files", shellScript, StringComparison.Ordinal);
         }
         finally
         {

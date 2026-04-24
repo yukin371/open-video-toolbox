@@ -121,6 +121,18 @@ scaffold-template <input> --template <id> --dir <workdir> [--validate [true|fals
 
 - 一次落出模板工作目录
 
+### `scaffold-template-batch`
+
+```text
+scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]
+```
+
+用途：
+
+- 从 manifest 批量生成模板工作目录，并在 manifest 同目录写出 `summary.json`
+- 未显式提供 `workdir` 的条目默认落到 `tasks/<id>`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
+
 ### `validate-plan`
 
 ```text
@@ -140,6 +152,7 @@ inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path
 用途：
 
 - 输出 `edit.json` 的素材概览、可替换目标、缺失绑定、transcript / beats / subtitles signal 状态与校验摘要
+- `signals[].status` 会额外给出总状态：`attachedPresent`、`attachedMissing`、`attachedNotChecked`、`expectedUnbound`、`optionalUnbound`
 
 ### `replace-plan-material`
 

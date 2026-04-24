@@ -27,6 +27,7 @@
 | 快速计划 / 执行 | `plan` / `run` | 命令预览或直接执行 | 已可用 |
 | 模板筛选 | `templates` | 模板列表、过滤结果、单模板指南 | 已可用 |
 | 草稿生成 | `init-plan` / `scaffold-template` | 可编辑的 `edit.json` 与工作目录 | 已可用 |
+| 批量草稿生成 | `scaffold-template-batch` | 按 manifest 批量落出 `tasks/<id>` 工作目录，并汇总 `summary.json` | 已可用 |
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
 | 素材替换 | `replace-plan-material` | 受控替换 plan 内素材并返回后置校验结果 | 已可用 |
 | 素材挂载 | `attach-plan-material` | 为缺失的字幕、转写、节拍、音轨或声明 slot 做显式挂载 | 已可用 |
@@ -84,7 +85,36 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 
 这条命令会把模板指南、示例文件和初始 `edit.json` 一起写进 `.\.workspace`，你可以继续手改，也可以交给外部 AI 继续编排。
 
-### 4. 渲染输出
+如果模板本身带有字幕或 supporting signal 场景，写出的 `commands.json` / `commands.*` 现在也会把 `attach-plan-material`、`inspect-plan --check-files`、`validate-plan --check-files` 这类后续闭环步骤一起带出来，不需要再自己猜接线方式。
+
+### 4. 批量生成一组模板工作目录
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "input": "inputs/a.mp4",
+      "template": "shorts-captioned"
+    },
+    {
+      "id": "job-b",
+      "input": "inputs/b.mp4",
+      "template": "beat-montage",
+      "workdir": "custom/job-b"
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- scaffold-template-batch --manifest .\batch.json
+```
+
+这条命令会把相对路径统一按 `batch.json` 所在目录解析；未显式写 `workdir` 的条目会默认落到 `tasks/<id>`，并在同目录写出 `summary.json` 方便脚本或后续桌面层复用。
+
+### 5. 渲染输出
 
 ```powershell
 dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- render --plan .\.workspace\edit.json --output .\final.mp4
@@ -110,6 +140,41 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- r
 
 适合先拿到一个能改的草稿，再逐步细修的场景。
 
+### 批量准备一组待后续加工的模板任务
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "episode-01",
+      "input": "inputs/episode-01.mp4",
+      "template": "shorts-captioned",
+      "validate": true,
+      "checkFiles": true
+    },
+    {
+      "id": "episode-02",
+      "input": "inputs/episode-02.mp4",
+      "template": "beat-montage"
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- scaffold-template-batch --manifest .\batch.json
+```
+
+适合先批量落出一组可编辑工作目录，再把后续字幕、素材替换、配音接回或最终渲染分阶段处理。
+
+这条命令的约定是：
+
+- manifest 内相对路径统一按 manifest 所在目录解析
+- 默认工作目录为 `tasks/<id>`
+- 根目录会固定写出 `summary.json`
+- 全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 解析或装载失败返回 `1`
+
 ### 先看清计划里有哪些素材可以换
 
 ```powershell
@@ -117,6 +182,14 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- i
 ```
 
 适合在继续改 `edit.json`、挂字幕、换旁白或换 BGM 之前，先看清当前 plan 的素材绑定、可替换目标和缺失引用。
+
+`inspect-plan` 的 `signals[]` 现在还会给出一个总状态字段：
+
+- `attachedPresent`：已经接回，文件也能找到
+- `attachedMissing`：plan 里已经写了路径，但文件失效了
+- `attachedNotChecked`：已经接回，但这次没有做文件存在性检查
+- `expectedUnbound`：模板希望有这个 signal，但当前 plan 还没绑定
+- `optionalUnbound`：当前未绑定，而且模板也没有明确要求
 
 ### 把新的旁白、BGM 或字幕接回现有计划
 
@@ -184,6 +257,14 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 ```
 
 适合先拿到 `transcript.json` 和字幕文件，再接模板、外挂字幕或烧录流程。
+
+如果你准备把这条链接回现有 plan，通常顺序就是：
+
+1. 先跑 `transcribe`
+2. 再跑 `subtitle`
+3. 用 `attach-plan-material` 把 transcript 或 subtitles 接回 `edit.json`
+4. 用 `inspect-plan` / `validate-plan` 确认状态
+5. 最后再 `render`
 
 ### 只做基础媒体处理
 

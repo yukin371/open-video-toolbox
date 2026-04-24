@@ -30,8 +30,14 @@ public sealed partial class CommandArtifactsIntegrationTests
         Assert.Equal(3, supportingSignals.Count);
         Assert.Contains(supportingSignals, node => node!["kind"]!.GetValue<string>() == "silence");
         Assert.Contains(supportingSignals, node => node!["command"]!.GetValue<string>().Contains("detect-silence", StringComparison.Ordinal));
+        Assert.Contains(
+            supportingSignals,
+            node => node!["kind"]!.GetValue<string>() == "transcript"
+                && node["consumption"]!.GetValue<string>().Contains("attach-plan-material --plan edit.json --transcript --path transcript.json --check-files", StringComparison.Ordinal));
         Assert.Contains(examples["signalCommands"]!.AsArray(), node => node!.GetValue<string>().Contains("beat-track", StringComparison.Ordinal));
         Assert.Contains(examples["artifactCommands"]!.AsArray(), node => node!.GetValue<string>() == "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt");
+        Assert.Contains(examples["artifactCommands"]!.AsArray(), node => node!.GetValue<string>() == "ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files");
+        Assert.Contains(examples["artifactCommands"]!.AsArray(), node => node!.GetValue<string>() == "ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files");
 
         var seedCommands = examples["seedCommands"]!.AsArray();
         Assert.Equal(3, seedCommands.Count);
@@ -101,6 +107,10 @@ public sealed partial class CommandArtifactsIntegrationTests
             examples["supportingSignals"]!.AsArray(),
             node => node!["kind"]!.GetValue<string>() == "stems"
                 && node["consumption"]!.GetValue<string>().Contains("artifacts.json", StringComparison.Ordinal));
+        Assert.Contains(
+            examples["supportingSignals"]!.AsArray(),
+            node => node!["kind"]!.GetValue<string>() == "beats"
+                && node["consumption"]!.GetValue<string>().Contains("attach-plan-material --plan edit.json --beats --path beats.json --check-files", StringComparison.Ordinal));
         Assert.Empty(examples["artifactCommands"]!.AsArray());
 
         var previewPlans = examples["previewPlans"]!.AsArray();

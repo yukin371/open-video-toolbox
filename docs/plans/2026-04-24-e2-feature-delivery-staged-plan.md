@@ -142,7 +142,7 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 
 ## E2-F3: 字幕与 supporting signal 工作流收口
 
-**状态：下一阶段**
+**状态：当前阶段，已进入完成前状态**
 
 ### 阶段目标
 
@@ -166,7 +166,7 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 1. 补“已有 signal、但还没接回 plan”这类状态摘要
 2. 补更直接的字幕挂载与字幕链路文档
 3. 明确 transcript / subtitles / beats 在 preview / validate 里的最小可见性
-4. 必要时补批量字幕或 batch signal manifest，但前提是先确认复用单项语义
+4. 判断是否真的需要 batch 字幕或 batch signal manifest；如无硬缺口，不在本阶段直接实现
 
 ### 阶段检查
 
@@ -183,9 +183,16 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 - 发现字幕工作流开始要求 UI 私有状态
 - 发现 signal 语义正在从 `Core.Editing` 漂移到 `Cli`
 
+### 当前阶段结论（2026-04-24）
+
+- `inspect-plan` 的 signal 状态摘要已补齐
+- 用户向字幕链路文档已统一
+- 模板 guide / `commands.json` / `commands.*` 已与 attach / inspect / validate / render 行为对齐
+- `W4` 当前结论是“完成判断，但不进入实现”，避免提前与 `E2-F4` 的 batch 统一约定冲突
+
 ## E2-F4: 批量工作流与工作目录编排
 
-**状态：其后阶段**
+**状态：当前下一阶段，设计已开始**
 
 ### 阶段目标
 
@@ -208,9 +215,9 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 ### 建议工作包
 
 1. 统一 batch manifest 的公共约定
-2. 先补最有复用价值的批量命令，不并行铺开全部 batch 入口
-3. 固定 partial success exit code 与 JSON 摘要模式
-4. 固定工作目录组织，避免不同 batch 命令各自发明输出结构
+2. 固定工作目录组织，避免不同 batch 命令各自发明输出结构
+3. 先确定首个 batch 入口优先级，不并行铺开全部 batch 命令
+4. 以一个最有复用价值的 batch 入口先落地实现
 
 ### 阶段检查
 
@@ -226,6 +233,13 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 - 发现不同 batch 命令已经长出彼此不兼容的 manifest
 - 发现工作目录组织需要新的持久化层
 - 发现“批量调度”开始逼近任务队列 / 历史数据库
+
+### 当前阶段输入（2026-04-24）
+
+- 当前稳定 batch 样板：`bind-voice-track-batch`
+- 当前稳定工作目录样板：`scaffold-template`
+- 当前首个实现候选：`scaffold-template-batch`
+- 当前专项计划：`docs/plans/2026-04-24-e2-f4-batch-and-workdir-plan.md`
 
 ## E2-G1: Desktop 启动重判
 
@@ -274,9 +288,10 @@ E2-G1 Desktop 启动重判 ──────────── (阶段门)
 
 ## 当前下一步
 
-如果沿着这份计划继续推进，当前最合理的下一步不是立刻再做一个新命令，而是：
+如果沿着这份计划继续推进，当前最合理的下一步不是立刻铺开多个 batch 命令，而是：
 
-1. 先对 `E2-F2` 做阶段收尾判断，明确还缺哪一块才算完成
-2. 再以 `E2-F3` 为下一个实施阶段，设计字幕 / transcript / supporting signal 的完整闭环
+1. 先把 `E2-F4` 的 batch manifest 公共字段收敛出来
+2. 再固定 batch 工作目录结构
+3. 最后只选一个首个入口先做，当前优先候选为 `scaffold-template-batch`
 
-这样后面每轮推进都能先回答“当前在哪个阶段、这一项是不是当前阶段该做的事”，避免继续碎片化推进。
+这样后面每轮推进都能先回答“当前属于哪一层 contract，是否在复用单项 owner”，避免 batch 能力再次碎片化增长。

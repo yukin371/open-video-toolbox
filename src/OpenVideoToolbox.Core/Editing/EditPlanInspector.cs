@@ -360,6 +360,9 @@ public sealed class EditPlanInspector
     {
         var attached = !string.IsNullOrWhiteSpace(attachedPath);
         bool? exists = null;
+        var status = expectedByTemplate
+            ? EditPlanInspectionSignalStatuses.ExpectedUnbound
+            : EditPlanInspectionSignalStatuses.OptionalUnbound;
         var fileStatus = EditPlanInspectionSignalFileStatuses.Unbound;
 
         if (attached)
@@ -367,12 +370,16 @@ public sealed class EditPlanInspector
             if (checkReferencedFiles)
             {
                 exists = File.Exists(resolvedPath!);
+                status = exists == true
+                    ? EditPlanInspectionSignalStatuses.AttachedPresent
+                    : EditPlanInspectionSignalStatuses.AttachedMissing;
                 fileStatus = exists == true
                     ? EditPlanInspectionSignalFileStatuses.Present
                     : EditPlanInspectionSignalFileStatuses.Missing;
             }
             else
             {
+                status = EditPlanInspectionSignalStatuses.AttachedNotChecked;
                 fileStatus = EditPlanInspectionSignalFileStatuses.NotChecked;
             }
         }
@@ -383,6 +390,7 @@ public sealed class EditPlanInspector
             TargetKey = targetKey,
             ExpectedByTemplate = expectedByTemplate,
             Attached = attached,
+            Status = status,
             BindingStatus = attached
                 ? EditPlanInspectionSignalBindingStatuses.Attached
                 : EditPlanInspectionSignalBindingStatuses.Unbound,
@@ -524,6 +532,8 @@ public sealed record EditPlanInspectionSignalStatus
 
     public bool Attached { get; init; }
 
+    public required string Status { get; init; }
+
     public required string BindingStatus { get; init; }
 
     public required string FileStatus { get; init; }
@@ -584,6 +594,19 @@ public static class EditPlanInspectionSignalBindingStatuses
     public const string Attached = "attached";
 
     public const string Unbound = "unbound";
+}
+
+public static class EditPlanInspectionSignalStatuses
+{
+    public const string AttachedPresent = "attachedPresent";
+
+    public const string AttachedMissing = "attachedMissing";
+
+    public const string AttachedNotChecked = "attachedNotChecked";
+
+    public const string ExpectedUnbound = "expectedUnbound";
+
+    public const string OptionalUnbound = "optionalUnbound";
 }
 
 public static class EditPlanInspectionSignalFileStatuses

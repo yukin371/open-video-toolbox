@@ -365,6 +365,50 @@ public sealed class ContractSnapshotTests
         }
     }
 
+    [Fact]
+    public async Task ScaffoldTemplateBatch_ContractStructure()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-scaffold-batch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(tempDir, "inputs"));
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "inputs", "input.mp4"), "video");
+            var manifestPath = Path.Combine(tempDir, "batch.json");
+            await File.WriteAllTextAsync(manifestPath, """
+                {
+                  "schemaVersion": 1,
+                  "items": [
+                    {
+                      "id": "job-a",
+                      "input": "inputs/input.mp4",
+                      "template": "shorts-captioned"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await CliTestProcessHelper.RunCliAsync("scaffold-template-batch", "--manifest", manifestPath);
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("scaffold-template-batch", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            NormalizeScaffoldTemplateBatchPayload(payload);
+
+            var expectedPayload = LoadSnapshot("scaffold-template-batch-valid.json")!["payload"]!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
+                $"Contract structure mismatch for 'scaffold-template-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static void NormalizeInspectPayload(JsonObject payload)
     {
         payload.Remove("planPath");
@@ -384,6 +428,41 @@ public sealed class ContractSnapshotTests
         {
             signalNode!.AsObject().Remove("resolvedPath");
         }
+    }
+
+    private static void NormalizeScaffoldTemplateBatchPayload(JsonObject payload)
+    {
+        payload.Remove("manifestPath");
+        payload.Remove("manifestBaseDirectory");
+        payload.Remove("summaryPath");
+
+        foreach (var resultNode in payload["results"]!.AsArray())
+        {
+            var result = resultNode!.AsObject();
+            result.Remove("inputPath");
+            result.Remove("workdir");
+
+            if (result["result"] is JsonObject scaffoldResult)
+            {
+                NormalizeScaffoldTemplatePayload(scaffoldResult);
+            }
+        }
+    }
+
+    private static void NormalizeScaffoldTemplatePayload(JsonObject payload)
+    {
+        var scaffold = payload["scaffold"]!.AsObject();
+        scaffold.Remove("outputDirectory");
+        scaffold.Remove("planPath");
+        scaffold["writtenFiles"] = new JsonArray(
+            scaffold["writtenFiles"]!
+                .AsArray()
+                .Select(node => JsonValue.Create(Path.GetFileName(node!.GetValue<string>())))
+                .ToArray());
+
+        var editPlan = payload["editPlan"]!.AsObject();
+        editPlan["source"]!.AsObject().Remove("inputPath");
+        editPlan["output"]!.AsObject().Remove("path");
     }
 
     private static JsonNode LoadSnapshot(string fileName)

@@ -43,6 +43,7 @@
 - `validate-plugin --plugin-dir <path> [--json-out <path>]`
 - `init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
 - `scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
+- `scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]`
 - `beat-track <input> --output <beats.json> [--ffmpeg <path>] [--sample-rate <hz>] [--json-out <path>] [--timeout-seconds <n>]`
 - `audio-analyze <input> --output <audio.json> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `audio-gain <input> --gain-db <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]`
@@ -90,14 +91,15 @@
 - `separate-audio` 现也已切到统一 command envelope；当分离阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `subtitle` 已支持 `--json-out`，用于把 sidecar 生成结果的同一份结构化 envelope 直接写到文件。
 - `scaffold-template` 已实现，用于一次性落出模板指南、示例文件与初始 `edit.json` 工作目录；传 `--validate` 时还会同步返回校验结果。
+- `scaffold-template-batch` 已实现，用于从 manifest 批量生成模板工作目录；相对路径按 manifest 所在目录解析，默认工作目录为 `tasks/<id>`，并会在同目录固定写出 `summary.json` 与部分成功摘要。
 - `templates <id>` / `--write-examples` 已把 transcript、beats、silence、stems 等 supporting signal guidance 纳入稳定输出，外部 AI 不必再自己猜前置命令和接入方式。
 - 对带 `stems` supporting signal 的模板，`artifacts.json` / preview plan 里的 `bgm` 示例现在会直接预填 `stems/htdemucs/input/no_vocals.wav`，减少外部 AI 自己猜 `Demucs` 目录结构。
-- 对支持字幕的模板，`templates <id>` / `commands.*` 还会给出稳定的 subtitle artifact preparation 命令，帮助外部 AI 串起 `transcribe -> subtitle -> render`。
+- 对支持字幕的模板，`templates <id>` / `commands.*` 现在会给出稳定的 subtitle artifact preparation 与 attach 命令，并把 `inspect-plan --check-files`、`validate-plan --check-files` 纳入工作流，帮助外部 AI 串起 `transcribe -> subtitle -> attach -> inspect / validate -> render`。
 - `templates` 无参返回模板列表；`templates <id>` 返回单模板详情、建议 skeleton、推荐的 seed 模式，以及最小 preview plan；transcript 模式还会附带 grouped / min-duration / max-gap 策略变体示例，并标记模板推荐组合。
 - `templates --category` / `--seed-mode` / `--output-container` / `--artifact-kind` / `--has-artifacts` / `--has-subtitles` 支持先过滤模板列表；`--summary` 支持输出稳定摘要视图；`--json-out` 支持把当前返回结果直接写到文件。
 - `templates <id> --write-examples <dir>` 会把模板指南相关文件直接落到目录，包含 `guide.json` 与各类示例文件，减少外部 AI 自己拆 stdout。
 - 这些模板目录产物现在还会附带 `commands.json`、`commands.ps1`、`commands.cmd`、`commands.sh`，用于直接驱动后续 CLI 流程。
-- 对插件模板，这些 `commands.json` / `commands.*` 示例现会显式带上 `<plugin-dir>` 占位符和对应变量声明，保证示例目录里的 `init-plan` / `validate-plan` 工作流可以闭环复用插件上下文。
+- 对插件模板，这些 `commands.json` / `commands.*` 示例现会显式带上 `<plugin-dir>` 占位符和对应变量声明，保证示例目录里的 `init-plan` / `inspect-plan` / `validate-plan` 工作流可以闭环复用插件上下文。
 - 插件模板的 preview plan 示例现也会沿用同一份 `template.source` 元数据，避免 guide 顶层标记为 plugin、但示例 `edit.json` 仍像 built-in 的断层。
 - 模板插件扩展面已完成第一阶段收口：`--plugin-dir` 显式目录发现、静态 manifest、`template.source` 全链路审计、插件模板 schema 校验均已落地；仍不引入运行时代码插件；见 `docs/plans/2026-04-19-template-plugin-entry-boundary.md`。
 - `templates` 现已支持 `--plugin-dir <path>` 做显式目录发现，并在结构化输出里附带插件清单。
@@ -107,7 +109,7 @@
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
 - 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
-- 当前测试基线：`OpenVideoToolbox.Core.Tests` 140，`OpenVideoToolbox.Cli.Tests` 146，总计 286。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 141，`OpenVideoToolbox.Cli.Tests` 149，总计 290。
 - 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`

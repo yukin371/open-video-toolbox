@@ -141,6 +141,7 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Transcript, signal.Kind);
                     Assert.True(signal.ExpectedByTemplate);
                     Assert.True(signal.Attached);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.AttachedPresent, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalBindingStatuses.Attached, signal.BindingStatus);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Present, signal.FileStatus);
                     Assert.True(signal.Exists);
@@ -150,6 +151,7 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Beats, signal.Kind);
                     Assert.True(signal.ExpectedByTemplate);
                     Assert.False(signal.Attached);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.ExpectedUnbound, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalBindingStatuses.Unbound, signal.BindingStatus);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Unbound, signal.FileStatus);
                     Assert.Null(signal.Exists);
@@ -159,6 +161,7 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Subtitles, signal.Kind);
                     Assert.True(signal.ExpectedByTemplate);
                     Assert.True(signal.Attached);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.AttachedPresent, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalBindingStatuses.Attached, signal.BindingStatus);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Present, signal.FileStatus);
                     Assert.Equal(SubtitleMode.Sidecar, signal.Mode);
@@ -251,6 +254,7 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Transcript, signal.Kind);
                     Assert.False(signal.ExpectedByTemplate);
                     Assert.False(signal.Attached);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.OptionalUnbound, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Unbound, signal.FileStatus);
                 },
                 signal =>
@@ -258,6 +262,7 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Beats, signal.Kind);
                     Assert.False(signal.ExpectedByTemplate);
                     Assert.False(signal.Attached);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.OptionalUnbound, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Unbound, signal.FileStatus);
                 },
                 signal =>
@@ -265,8 +270,77 @@ public sealed class EditPlanInspectorTests
                     Assert.Equal(EditPlanInspectionSignalKinds.Subtitles, signal.Kind);
                     Assert.False(signal.Attached);
                     Assert.False(signal.ExpectedByTemplate);
+                    Assert.Equal(EditPlanInspectionSignalStatuses.OptionalUnbound, signal.Status);
                     Assert.Equal(EditPlanInspectionSignalFileStatuses.Unbound, signal.FileStatus);
                 });
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Inspect_ReportsAttachedSignalStatusForMissingAndUncheckedFiles()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"ovt-inspect-signal-status-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(root, "input.mp4"), "video");
+
+            var plan = new EditPlan
+            {
+                Source = new EditPlanSource
+                {
+                    InputPath = "input.mp4"
+                },
+                Template = new EditTemplateReference
+                {
+                    Id = "signal-status-template"
+                },
+                Transcript = new EditTranscriptPlan
+                {
+                    Path = "missing-transcript.json",
+                    SegmentCount = 1
+                },
+                Output = new EditOutputPlan
+                {
+                    Path = "final.mp4",
+                    Container = "mp4"
+                }
+            };
+
+            var template = new EditPlanTemplateDefinition
+            {
+                Id = "signal-status-template",
+                DisplayName = "Signal Status Template",
+                Description = "Used to inspect signal status variants.",
+                Category = "test",
+                OutputContainer = "mp4",
+                SupportingSignals =
+                [
+                    new EditPlanSupportingSignalHint
+                    {
+                        Kind = EditPlanSupportingSignalKind.Transcript,
+                        Reason = "Transcript should be available."
+                    }
+                ]
+            };
+
+            var checkedResult = new EditPlanInspector().Inspect(plan, root, checkReferencedFiles: true, availableTemplates: [template]);
+            var uncheckedResult = new EditPlanInspector().Inspect(plan, root, checkReferencedFiles: false, availableTemplates: [template]);
+
+            var checkedTranscript = Assert.Single(checkedResult.Signals, signal => signal.Kind == EditPlanInspectionSignalKinds.Transcript);
+            Assert.Equal(EditPlanInspectionSignalStatuses.AttachedMissing, checkedTranscript.Status);
+            Assert.Equal(EditPlanInspectionSignalFileStatuses.Missing, checkedTranscript.FileStatus);
+            Assert.False(checkedTranscript.Exists);
+
+            var uncheckedTranscript = Assert.Single(uncheckedResult.Signals, signal => signal.Kind == EditPlanInspectionSignalKinds.Transcript);
+            Assert.Equal(EditPlanInspectionSignalStatuses.AttachedNotChecked, uncheckedTranscript.Status);
+            Assert.Equal(EditPlanInspectionSignalFileStatuses.NotChecked, uncheckedTranscript.FileStatus);
+            Assert.Null(uncheckedTranscript.Exists);
         }
         finally
         {
