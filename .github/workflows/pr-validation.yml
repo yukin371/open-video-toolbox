@@ -44,11 +44,11 @@ jobs:
             "## Risks"
           )
 
-          placeholders=(
-            "- What changed?"
-            "- Why is this change needed?"
-            "- Main risk of this PR:"
-            "- Rollback path:"
+          placeholder_patterns=(
+            '^[[:space:]]*-[[:space:]]*What changed\?[[:space:]]*$'
+            '^[[:space:]]*-[[:space:]]*Why is this change needed\?[[:space:]]*$'
+            '^[[:space:]]*-[[:space:]]*Main risk of this PR:[[:space:]]*$'
+            '^[[:space:]]*-[[:space:]]*Rollback path:[[:space:]]*$'
           )
 
           for heading in "${required_headings[@]}"; do
@@ -58,9 +58,9 @@ jobs:
             fi
           done
 
-          for placeholder in "${placeholders[@]}"; do
-            if printf '%s\n' "$PR_BODY" | grep -Fq -- "$placeholder"; then
-              echo "::error title=Unfilled PR placeholder::Replace placeholder '$placeholder' with real content."
+          for placeholder_pattern in "${placeholder_patterns[@]}"; do
+            if printf '%s\n' "$PR_BODY" | grep -Eq -- "$placeholder_pattern"; then
+              echo "::error title=Unfilled PR placeholder::Replace placeholder matching '$placeholder_pattern' with real content."
               exit 1
             fi
           done

@@ -13,11 +13,11 @@ HAS_ERROR=0
 HAS_WARNING=0
 
 COMMIT_SUBJECT_REGEX='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,80}$'
-PR_PLACEHOLDERS=(
-    "- What changed?"
-    "- Why is this change needed?"
-    "- Main risk of this PR:"
-    "- Rollback path:"
+PR_PLACEHOLDER_PATTERNS=(
+    '^[[:space:]]*-[[:space:]]*What changed\?[[:space:]]*$'
+    '^[[:space:]]*-[[:space:]]*Why is this change needed\?[[:space:]]*$'
+    '^[[:space:]]*-[[:space:]]*Main risk of this PR:[[:space:]]*$'
+    '^[[:space:]]*-[[:space:]]*Rollback path:[[:space:]]*$'
 )
 PR_REQUIRED_HEADINGS=(
     "## Summary"
@@ -84,7 +84,7 @@ validate_commit_message() {
 
 validate_pr_body() {
     local pr_body="$1"
-    local heading placeholder
+    local heading placeholder_pattern
 
     if [ -z "$pr_body" ]; then
         error "PR 描述为空，缺少模板内容"
@@ -97,9 +97,9 @@ validate_pr_body() {
         fi
     done
 
-    for placeholder in "${PR_PLACEHOLDERS[@]}"; do
-        if printf '%s\n' "$pr_body" | grep -Fq -- "$placeholder"; then
-            error "PR 描述仍保留未填写占位内容: $placeholder"
+    for placeholder_pattern in "${PR_PLACEHOLDER_PATTERNS[@]}"; do
+        if printf '%s\n' "$pr_body" | grep -Eq -- "$placeholder_pattern"; then
+            error "PR 描述仍保留未填写占位内容: $placeholder_pattern"
         fi
     done
 }
