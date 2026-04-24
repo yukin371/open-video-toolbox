@@ -1,6 +1,6 @@
 # V2-P5 阶段检查：首个真正消费 timeline/effects 的模板示例
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 ## 目的
 
@@ -30,6 +30,12 @@
 
 也就是首条“模板 guide -> signal seed -> v2 timeline plan”的正式路径。
 
+当前阶段已继续补进同阶段的第四类正式入口：
+
+- `export --plan <edit.json> --format edl --output <path>`
+
+也就是首条“v1/v2 统一导出到外部 NLE 互操作格式”的正式路径。
+
 ## 阶段定义回顾
 
 `V2-P5` 当前选择的最小目标是：
@@ -48,12 +54,14 @@
 - `EditPlanTemplateFactory` 的 v1 / v2 模板分流
 - CLI `templates` / `init-plan` 对该模板的真实输出
 - `auto-cut-silence` 对 built-in v2 模板的首个 planner 复用接线
+- `export L1` 的 v1/v2 统一导出接线
 
 本阶段当前不纳入范围：
 
 - 插件模板的 v2 正式支持
 - 新的 effect 类型扩面
 - `V2-P6` 的数据驱动 batch 与 resolve-assets
+- `premiere-xml` / `fcpxml` / effect 映射级导出
 
 ## 当前已落地能力
 
@@ -110,6 +118,10 @@
   - 可直接消费上一步生成的模板产物
 - `auto-cut-silence --template timeline-effects-starter`
   - 可直接写出可被 `render --preview` 消费的 v2 plan
+- `export --plan ... --format edl --output ...`
+  - 可直接消费 v1 plan
+  - 也可直接消费 v2 plan
+  - warning / failure envelope 已落地
 
 ## 与阶段目标对照
 
@@ -183,6 +195,18 @@
 - seed clip 生成仍由 `Core.Editing` 统一拥有
 - v2 路径只把同一批 seed 结果转换成 `timeline` clips，没有在 CLI 层复制一套规则
 
+### 条件 7
+
+> 至少要有一条不依赖 render 的正式能力，证明 v2 plan 已可被第二个长期 owner 消费
+
+当前判断：**满足**
+
+说明：
+
+- `export L1` 已落地到 `Core.Execution`
+- `Cli` 只新增 `export` 命令入口，不持有第二套导出骨架
+- `v1` 与 `v2` 已能通过同一条 `Core.Execution` 路径统一导出为 `EDL`
+
 ## 当前验证结果
 
 本阶段当前已完成：
@@ -200,7 +224,7 @@
 
 ## 当前结论
 
-`V2-P5` 当前判断为：**已完成当前最小模板工作流交付，并已补上首个信号驱动 v2 planner 入口，可进入阶段验收材料收口**
+`V2-P5` 当前判断为：**已完成当前最小模板工作流交付、首个信号驱动 v2 planner 入口和 `export L1`，并已补齐阶段验收包，可进入人工阶段验收**
 
 更准确地说：
 
@@ -208,7 +232,35 @@
 - 首个 built-in v2 模板已能从发现、生成到 preview 闭环跑通
 - transcript / beats 的既有 seed 规则已能在同一模板路径下直接产出 v2 timeline clips
 - `auto-cut-silence` 已能在显式 v2 模板下复用同一条真实 plan 生成路径
+- `export L1` 已能以同一条 `Core.Execution` 路径同时消费 v1 / v2 `edit.json`
 - `template.planModel` 已把 v1 / v2 模板边界固定成显式契约
-- 当前仍保持了“只做一个最小正式样例”的范围控制，没有把更多 v2 能力一起混进来
+- 当前仍保持了“只做一个最小正式样例 + 一个最小互操作出口”的范围控制，没有把更多 v2 能力一起混进来
 
-因此下一步应继续留在 `V2-P5` 内，补验收包与阶段结论，而不是回头继续扩 `V2-P4` 或直接跳到 `V2-P6`。
+因此下一步不应继续在 `V2-P5` 内无边界追加新能力，而应先做人工阶段验收决定。
+
+## 手动验收入口
+
+本阶段已补可直接执行的人工验收清单：
+
+- [2026-04-24-v2-p5-acceptance-checklist.md](./2026-04-24-v2-p5-acceptance-checklist.md)
+
+该清单当前覆盖：
+
+1. `templates -> init-plan -> render --preview` 的首个 built-in v2 模板闭环
+2. `init-plan --seed-from-transcript/--seed-from-beats` 的 v2 seed 闭环
+3. `auto-cut-silence --template timeline-effects-starter` 的信号驱动 v2 plan 闭环
+4. `export L1` 对 v1 / v2 plan 的统一导出闭环
+5. `export` 的 `--json-out` / overwrite failure 契约
+
+## 本轮阶段检查输出
+
+```text
+阶段：V2-P5
+阶段目标是否完成：已完成当前最小 v2 模板工作流、signal-driven planner 与 export L1，达到阶段验收输入条件
+本阶段范围是否清楚：是，仅包含首个 built-in v2 模板、其 seed/planner 接线和 export L1
+当前 owner 是否保持单一：是，模板语义仍由 Core.Editing 持有，render / export 仍由 Core.Execution 持有
+是否出现第二套 CLI 骨架：否
+当前验证是否充分：是，已完成全量 build/test，且已补手动验收清单
+是否应继续在本阶段追加实现：否，应先进入人工阶段验收
+如果现在停止，仓库是否仍处于一致状态：是
+```

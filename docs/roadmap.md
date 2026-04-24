@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -159,8 +159,10 @@
     - `Cli` 只新增 `export` 命令入口与 envelope 输出
     - `v1` 会包装成单主视频轨 cut list
     - `v2` 只导出 `main` 或首条 video track，并通过 warning 显式说明 audio / effect / transition / extra video track 的忽略语义
-  - 当前阶段状态：`implemented`
-  - 当前下一步应在 `V2-P5` 内完成 `export L1` 的阶段验收包与结论收口，而不是回到 `V2-P4` 再混入插件 effect 或更复杂执行器
+  - 当前阶段状态：`acceptance-pack-ready`
+  - 当前下一步应先做 `V2-P5` 的人工阶段验收决定，而不是回到 `V2-P4` 再混入插件 effect 或更复杂执行器
+  - 当前手动验收入口：
+    - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
 
 ### 开发时的总入口文档
 
