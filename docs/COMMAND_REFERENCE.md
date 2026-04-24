@@ -165,6 +165,19 @@ replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|f
 
 - 对 plan 中已存在的 source、audio track、artifact、transcript、beats 或 subtitles 做受控替换
 
+### `replace-plan-material-batch`
+
+```text
+replace-plan-material-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]
+```
+
+用途：
+
+- 从批量 manifest 读取多条素材替换任务，逐项复用 `replace-plan-material` 流程
+- 支持批量替换 `sourceInput`、`transcript`、`beats`、`subtitles`、`audioTrackId`、`artifactSlot`
+- 在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
+
 ### `attach-plan-material`
 
 ```text

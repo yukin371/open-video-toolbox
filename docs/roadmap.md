@@ -121,10 +121,12 @@
       - `E2-F4` 当前设计结论：先固定 batch manifest 与工作目录约定，再以 `scaffold-template-batch` 作为首个实现入口
       - `E2-F4-W4` 已推进首个实现：`scaffold-template-batch` 已落地最小 manifest contract、默认 `tasks/<id>` 工作目录、顶层 `summary.json`、`results/<id>.json` 与部分成功退出码
       - `E2-F4` 已继续推进第二个高频消费入口：`render-batch` 现可从 manifest 批量消费多份 `edit.json`，支持统一 preview / execute 汇总，并复用单项 `render` 语义；任务级结果也已固定写入 `results/<id>.json`
+      - `E2-F4` 已继续推进素材替换批量入口：`replace-plan-material-batch` 现可从 manifest 批量替换 source / transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
       - `E2-F4` 已继续推进第三个高频素材入口：`attach-plan-material-batch` 现可从 manifest 批量接回 transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
     - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
       - `inspect-plan` 已落地
       - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
+      - `replace-plan-material-batch` 已落地，当前支持 manifest 驱动的批量素材替换、相对路径解析、部分成功摘要与结果文件落盘
       - `attach-plan-material` 已落地，当前支持 `transcript` / `beats` / `subtitles` / `audioTracks` attach，以及模板声明 artifact slot upsert
       - `attach-plan-material-batch` 已落地，当前支持 manifest 驱动的批量素材挂载、相对路径解析、部分成功摘要与结果文件落盘
       - `bind-voice-track` 已落地，作为外部配音 / TTS / voice conversion 的更直接接回入口
@@ -164,7 +166,7 @@
 
 - `dotnet test OpenVideoToolbox.sln`
 - `OpenVideoToolbox.Core.Tests`: 141/141
-- `OpenVideoToolbox.Cli.Tests`: 155/155
+- `OpenVideoToolbox.Cli.Tests`: 158/158
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`
