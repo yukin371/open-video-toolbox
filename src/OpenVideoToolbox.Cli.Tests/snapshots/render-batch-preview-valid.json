@@ -1,0 +1,80 @@
+{
+  "command": "render-batch",
+  "preview": true,
+  "payload": {
+    "preview": true,
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "id": "job-a",
+        "status": "succeeded",
+        "result": {
+          "render": {
+            "schemaVersion": 1,
+            "source": {},
+            "template": null,
+            "clips": [
+              {
+                "id": "clip-001",
+                "in": "00:00:00",
+                "out": "00:00:02",
+                "label": "intro"
+              }
+            ],
+            "audioTracks": [],
+            "artifacts": [],
+            "transcript": null,
+            "beats": null,
+            "subtitles": null,
+            "output": {
+              "container": "mp4"
+            }
+          },
+          "templateSource": null,
+          "executionPreview": {
+            "schemaVersion": 1,
+            "operation": "render",
+            "isPreview": true,
+            "pathsResolved": true,
+            "commandPlan": {
+              "schemaVersion": 1,
+              "toolName": "ffmpeg",
+              "executablePath": "ffmpeg",
+              "arguments": [
+                "-n",
+                "-i",
+                "input.mp4",
+                "-filter_complex",
+                "[0:v]trim=start=0.000:end=2.000,setpts=PTS-STARTPTS[v0];[0:a]atrim=start=0.000:end=2.000,asetpts=PTS-STARTPTS[a0];[v0][a0]concat=n=1:v=1:a=1[v_base][a_base]",
+                "-map",
+                "[v_base]",
+                "-map",
+                "[a_base]",
+                "-c:a",
+                "aac",
+                "-b:a",
+                "192k",
+                "-shortest",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-movflags",
+                "+faststart",
+                "final.mp4"
+              ],
+              "responseFilePath": null
+            },
+            "producedPaths": [
+              "final.mp4"
+            ],
+            "sideEffects": []
+          }
+        }
+      }
+    ]
+  }
+}

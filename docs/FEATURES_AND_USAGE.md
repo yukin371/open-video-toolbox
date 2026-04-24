@@ -204,6 +204,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | 编辑基元 | `subtitle` | 渲染 `srt` / `ass` | 字幕文件 |
 | 导出 | `mix-audio` | 音频混合预览 / 执行 | `mixed.wav` / preview JSON |
 | 导出 | `render` | 最终视频导出预览 / 执行 | `final.mp4` / preview JSON |
+| 导出 | `render-batch` | 从 manifest 批量预览或执行多份 plan | stdout / `summary.json` |
 
 ## 标准输出约定
 
@@ -381,6 +382,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - 从 manifest 批量准备模板工作目录
 - 适合先生成一批待后续加工的任务目录，再分阶段做字幕、素材替换、配音接回或渲染
 - 会在 manifest 同目录固定写出 `summary.json`
+- 每个条目还会额外写出 `results/<id>.json`
 
 最小 manifest：
 
@@ -417,6 +419,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - `id` 是稳定任务标识，也是默认工作目录命名基准
 - 未写 `workdir` 时默认落到 `tasks/<id>`
 - stdout / `--json-out` 返回 command envelope；`summary.json` 写 payload，便于脚本和 future Desktop 直接读取
+- `results/<id>.json` 用于直接读取单任务结果，不必每次都从大 summary 里拆
 - 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
 ### `validate-plan`
@@ -708,6 +711,54 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 <ovt> render --plan edit.json --output final.mp4
 ```
 
+### `render-batch`
+
+用途：
+
+- 从批量 manifest 读取多份 `edit.json`
+- 逐项复用单项 `render` 的 preview / execute 语义
+- 适合消费 `scaffold-template-batch` 产出的任务目录，统一做预览或真正导出
+
+最小 manifest：
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "plan": "tasks/job-a/edit.json"
+    },
+    {
+      "id": "job-b",
+      "plan": "tasks/job-b/edit.json",
+      "output": "exports/job-b.mp4",
+      "overwrite": true
+    }
+  ]
+}
+```
+
+预览：
+
+```powershell
+<ovt> render-batch --manifest render-batch.json --preview --json-out render-batch-preview.json
+```
+
+实际执行：
+
+```powershell
+<ovt> render-batch --manifest render-batch.json --ffmpeg ffmpeg --json-out render-batch.json
+```
+
+当前约定：
+
+- manifest 内相对路径统一按 manifest 所在目录解析
+- item 级当前支持 `id`、`plan`、可选 `output`、可选 `overwrite`
+- 根目录会写出 `summary.json`，记录本轮 batch render 的 payload 汇总
+- 每个条目会额外写出 `results/<id>.json`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
+
 ## 典型工作流
 
 ### 工作流 1：传统转码
@@ -730,6 +781,14 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 <ovt> init-plan input.mp4 --template shorts-captioned --output edit.json --render-output final.mp4
 <ovt> validate-plan --plan edit.json --check-files
 <ovt> render --plan edit.json --output final.mp4
+```
+
+### 工作流 2.5：批量脚手架后统一预览 / 导出
+
+```powershell
+<ovt> scaffold-template-batch --manifest batch.json --json-out scaffold-template-batch.json
+<ovt> render-batch --manifest render-batch.json --preview --json-out render-batch-preview.json
+<ovt> render-batch --manifest render-batch.json --json-out render-batch.json
 ```
 
 ### 工作流 3：字幕链路

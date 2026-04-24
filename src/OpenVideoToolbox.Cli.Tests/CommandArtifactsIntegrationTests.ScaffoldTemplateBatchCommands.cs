@@ -59,11 +59,13 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal("succeeded", results[0]!["status"]!.GetValue<string>());
             Assert.EndsWith(Path.Combine("tasks", "job-a"), results[0]!["workdir"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(Path.Combine(outputDirectory, "tasks", "job-a", "edit.json")));
+            Assert.True(File.Exists(results[0]!["resultPath"]!.GetValue<string>()));
 
             Assert.Equal("job-b", results[1]!["id"]!.GetValue<string>());
             Assert.Equal("succeeded", results[1]!["status"]!.GetValue<string>());
             Assert.EndsWith(Path.Combine("custom", "job-b"), results[1]!["workdir"]!.GetValue<string>(), StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(Path.Combine(outputDirectory, "custom", "job-b", "edit.json")));
+            Assert.True(File.Exists(results[1]!["resultPath"]!.GetValue<string>()));
         }
         finally
         {
@@ -116,6 +118,7 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal("failed", payload["results"]![1]!["status"]!.GetValue<string>());
             Assert.NotNull(payload["results"]![1]!["error"]);
             Assert.True(File.Exists(payload["summaryPath"]!.GetValue<string>()));
+            Assert.True(File.Exists(payload["results"]![1]!["resultPath"]!.GetValue<string>()));
         }
         finally
         {

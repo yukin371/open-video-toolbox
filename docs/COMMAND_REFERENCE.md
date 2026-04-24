@@ -130,6 +130,7 @@ scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-ou
 用途：
 
 - 从 manifest 批量生成模板工作目录，并在 manifest 同目录写出 `summary.json`
+- 每个条目还会额外写出 `results/<id>.json`
 - 未显式提供 `workdir` 的条目默认落到 `tasks/<id>`
 - 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
@@ -330,6 +331,20 @@ render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <pat
 用途：
 
 - 最终导出预览与执行
+
+### `render-batch`
+
+```text
+render-batch --manifest <batch.json> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--json-out <path>]
+```
+
+用途：
+
+- 从批量 manifest 读取多份 `edit.json`，逐项复用 `render` 语义
+- 支持先用 `--preview` 汇总 execution preview，再决定是否真正执行
+- item 级当前支持：`id`、`plan`、可选 `output`、可选 `overwrite`
+- 每个条目会额外写出 `results/<id>.json`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
 ## 建议阅读顺序
 

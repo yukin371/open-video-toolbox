@@ -174,6 +174,7 @@ internal static class TemplateCommandHandlers
                         item.CheckFiles == true,
                         itemOptions,
                         pluginCatalog);
+                    var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, result.Payload);
 
                     if (result.ExitCode == 0)
                     {
@@ -185,6 +186,7 @@ internal static class TemplateCommandHandlers
                             inputPath = resolvedInputPath,
                             templateId = item.Template,
                             workdir = resolvedWorkDirectory,
+                            resultPath,
                             status = "succeeded",
                             result = result.Payload
                         });
@@ -199,6 +201,7 @@ internal static class TemplateCommandHandlers
                             inputPath = resolvedInputPath,
                             templateId = item.Template,
                             workdir = resolvedWorkDirectory,
+                            resultPath,
                             status = "failed",
                             result = result.Payload,
                             error = new
@@ -211,11 +214,28 @@ internal static class TemplateCommandHandlers
                 catch (Exception ex)
                 {
                     failedCount++;
+                    string? resultPath = null;
+                    if (!string.IsNullOrWhiteSpace(item.Id))
+                    {
+                        resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, new
+                        {
+                            index,
+                            id = item.Id,
+                            templateId = item.Template,
+                            status = "failed",
+                            error = new
+                            {
+                                message = ex.Message
+                            }
+                        });
+                    }
+
                     results.Add(new
                     {
                         index,
                         id = item.Id,
                         templateId = item.Template,
+                        resultPath,
                         status = "failed",
                         error = new
                         {

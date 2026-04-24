@@ -409,6 +409,64 @@ public sealed class ContractSnapshotTests
         }
     }
 
+    [Fact]
+    public async Task RenderBatchPreview_ContractStructure()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-render-batch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(tempDir, "tasks", "job-a"));
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "tasks", "job-a", "input.mp4"), "video");
+            var planPath = Path.Combine(tempDir, "tasks", "job-a", "edit.json");
+            await File.WriteAllTextAsync(
+                planPath,
+                """
+                {
+                  "schemaVersion": 1,
+                  "source": { "inputPath": "input.mp4" },
+                  "clips": [
+                    { "id": "clip-001", "in": "00:00:00", "out": "00:00:02", "label": "intro" }
+                  ],
+                  "audioTracks": [],
+                  "artifacts": [],
+                  "output": { "path": "final.mp4", "container": "mp4" }
+                }
+                """);
+            var manifestPath = Path.Combine(tempDir, "batch.json");
+            await File.WriteAllTextAsync(manifestPath, """
+                {
+                  "schemaVersion": 1,
+                  "items": [
+                    {
+                      "id": "job-a",
+                      "plan": "tasks/job-a/edit.json"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await CliTestProcessHelper.RunCliAsync("render-batch", "--manifest", manifestPath, "--preview");
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("render-batch", envelope["command"]!.GetValue<string>());
+            Assert.True(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            NormalizeRenderBatchPayload(payload);
+
+            var expectedPayload = LoadSnapshot("render-batch-preview-valid.json")!["payload"]!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
+                $"Contract structure mismatch for 'render-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     private static void NormalizeInspectPayload(JsonObject payload)
     {
         payload.Remove("planPath");
@@ -441,6 +499,7 @@ public sealed class ContractSnapshotTests
             var result = resultNode!.AsObject();
             result.Remove("inputPath");
             result.Remove("workdir");
+            result.Remove("resultPath");
 
             if (result["result"] is JsonObject scaffoldResult)
             {
@@ -463,6 +522,51 @@ public sealed class ContractSnapshotTests
         var editPlan = payload["editPlan"]!.AsObject();
         editPlan["source"]!.AsObject().Remove("inputPath");
         editPlan["output"]!.AsObject().Remove("path");
+    }
+
+    private static void NormalizeRenderBatchPayload(JsonObject payload)
+    {
+        payload.Remove("manifestPath");
+        payload.Remove("manifestBaseDirectory");
+        payload.Remove("summaryPath");
+
+        foreach (var resultNode in payload["results"]!.AsArray())
+        {
+            var result = resultNode!.AsObject();
+            result.Remove("planPath");
+            result.Remove("outputPath");
+            result.Remove("resultPath");
+
+            if (result["result"] is JsonObject renderResult)
+            {
+                NormalizeRenderPayload(renderResult);
+            }
+        }
+    }
+
+    private static void NormalizeRenderPayload(JsonObject payload)
+    {
+        var render = payload["render"]!.AsObject();
+        render["source"]!.AsObject().Remove("inputPath");
+        render["output"]!.AsObject().Remove("path");
+
+        var executionPreview = payload["executionPreview"]!.AsObject();
+        var commandPlan = executionPreview["commandPlan"]!.AsObject();
+        commandPlan.Remove("workingDirectory");
+        commandPlan.Remove("commandLine");
+        commandPlan["arguments"] = new JsonArray(
+            commandPlan["arguments"]!
+                .AsArray()
+                .Select(node =>
+                {
+                    var value = node!.GetValue<string>();
+                    return JsonValue.Create(Path.IsPathRooted(value) ? Path.GetFileName(value) : value);
+                })
+                .ToArray());
+
+        var producedPaths = executionPreview["producedPaths"]!.AsArray();
+        executionPreview["producedPaths"] = new JsonArray(
+            producedPaths.Select(node => JsonValue.Create(Path.GetFileName(node!.GetValue<string>()))).ToArray());
     }
 
     private static JsonNode LoadSnapshot(string fileName)
