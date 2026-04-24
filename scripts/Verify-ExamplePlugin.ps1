@@ -30,6 +30,15 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-TemporaryDirectory {
+    $tempDirectory = [System.IO.Path]::GetTempPath()
+    if ([string]::IsNullOrWhiteSpace($tempDirectory)) {
+        throw "Could not resolve a temporary directory."
+    }
+
+    return $tempDirectory
+}
+
 function Invoke-CliCommand {
     param(
         [string]$ProjectPath,
@@ -45,8 +54,9 @@ function Invoke-CliCommand {
     $dotnetArgs += @("--project", $ProjectPath, "--")
     $dotnetArgs += $Arguments
 
-    $stdoutPath = Join-Path $env:TEMP ("ovt-plugin-out-" + [guid]::NewGuid().ToString("N") + ".log")
-    $stderrPath = Join-Path $env:TEMP ("ovt-plugin-err-" + [guid]::NewGuid().ToString("N") + ".log")
+    $tempDirectory = Get-TemporaryDirectory
+    $stdoutPath = Join-Path $tempDirectory ("ovt-plugin-out-" + [guid]::NewGuid().ToString("N") + ".log")
+    $stderrPath = Join-Path $tempDirectory ("ovt-plugin-err-" + [guid]::NewGuid().ToString("N") + ".log")
 
     try {
         $duration = Measure-Command {
@@ -97,8 +107,9 @@ function Invoke-NativeCommandQuiet {
         [string[]]$Arguments
     )
 
-    $stdoutPath = Join-Path $env:TEMP ("ovt-native-out-" + [guid]::NewGuid().ToString("N") + ".log")
-    $stderrPath = Join-Path $env:TEMP ("ovt-native-err-" + [guid]::NewGuid().ToString("N") + ".log")
+    $tempDirectory = Get-TemporaryDirectory
+    $stdoutPath = Join-Path $tempDirectory ("ovt-native-out-" + [guid]::NewGuid().ToString("N") + ".log")
+    $stderrPath = Join-Path $tempDirectory ("ovt-native-err-" + [guid]::NewGuid().ToString("N") + ".log")
 
     try {
         $process = Start-Process -FilePath $ExecutablePath -ArgumentList (Join-ProcessArguments -Arguments $Arguments) -Wait -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
@@ -128,7 +139,7 @@ function Read-JsonFile {
     return Get-Content -Raw $Path | ConvertFrom-Json
 }
 
-$workingDirectory = Join-Path $env:TEMP ("ovt-example-plugin-" + [guid]::NewGuid().ToString("N"))
+$workingDirectory = Join-Path (Get-TemporaryDirectory) ("ovt-example-plugin-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Path $workingDirectory | Out-Null
 
 try {
