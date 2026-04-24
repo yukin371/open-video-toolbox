@@ -284,4 +284,64 @@ internal static class CliOptionParsing
         error = "Option '--seed-mode' expects one of: manual, transcript, beats.";
         return false;
     }
+
+    public static bool TryParseEditPlanPathWriteStyleOption(string? rawValue, out EditPlanPathWriteStyle style, out string? error)
+    {
+        style = EditPlanPathWriteStyle.Auto;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<EditPlanPathWriteStyle>(rawValue, ignoreCase: true, out var parsed))
+        {
+            style = parsed;
+            return true;
+        }
+
+        error = "Option '--path-style' expects one of: auto, relative, absolute.";
+        return false;
+    }
+
+    public static bool TryParseRequiredSubtitleMode(string? rawValue, out SubtitleMode mode, out string? error)
+    {
+        mode = default;
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            error = "Option '--subtitle-mode' is required.";
+            return false;
+        }
+
+        if (Enum.TryParse<SubtitleMode>(rawValue, ignoreCase: true, out var parsed))
+        {
+            mode = parsed;
+            error = null;
+            return true;
+        }
+
+        error = "Option '--subtitle-mode' expects one of: sidecar, burnIn.";
+        return false;
+    }
+
+    public static bool TryParseAudioTrackRole(string? rawValue, out AudioTrackRole? role, out string? error)
+    {
+        role = null;
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<AudioTrackRole>(rawValue, ignoreCase: true, out var parsed))
+        {
+            role = parsed;
+            return true;
+        }
+
+        error = "Option '--audio-track-role' expects one of: original, voice, bgm, effects.";
+        return false;
+    }
 }

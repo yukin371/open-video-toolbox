@@ -1,6 +1,6 @@
 # 功能与使用总览
 
-最后更新：2026-04-22
+最后更新：2026-04-24
 
 ## 文档定位
 
@@ -33,6 +33,7 @@
 
 - 基础媒体：`probe`、`plan`、`run`
 - 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`validate-plan`
+- 计划内素材工作流：`inspect-plan`、`replace-plan-material`、`attach-plan-material`、`bind-voice-track`、`bind-voice-track-batch`
 - 音频 / speech / signals：`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`
 - 编辑基元：`cut`、`concat`、`extract-audio`、`subtitle`
 - 执行导出：`mix-audio`、`render`
@@ -50,7 +51,7 @@
 
 ```powershell
 # 从源码运行
-dotnet run --project E:\Github\open-video-toolbox\src\OpenVideoToolbox.Cli\OpenVideoToolbox.Cli.csproj --
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj --
 
 # Windows Release 二进制
 .\ovt-win-x64.exe
@@ -136,6 +137,11 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - `init-plan`
 - `scaffold-template`
 - `validate-plan`
+- `inspect-plan`
+- `replace-plan-material`
+- `attach-plan-material`
+- `bind-voice-track`
+- `bind-voice-track-batch`
 - `beat-track`
 - `audio-analyze`
 - `audio-gain`
@@ -179,6 +185,11 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | 模板工作流 | `init-plan` | 生成初始 `edit.json` | `edit.json` |
 | 模板工作流 | `scaffold-template` | 一次落出模板工作目录 | 工作目录文件集 |
 | 模板工作流 | `validate-plan` | 校验 `edit.json` | stdout / `--json-out` |
+| 计划内素材 | `inspect-plan` | 查看当前 plan 的素材、缺失绑定、可替换目标与 signal 状态 | stdout / `--json-out` |
+| 计划内素材 | `replace-plan-material` | 对已有绑定做受控替换 | stdout / `--json-out` |
+| 计划内素材 | `attach-plan-material` | 对缺失 binding 做显式挂载 | stdout / `--json-out` |
+| 计划内素材 | `bind-voice-track` | 把外部配音 / TTS / 变音结果接回单份 plan | stdout / `--json-out` |
+| 计划内素材 | `bind-voice-track-batch` | 从 manifest 批量接回多份配音结果 | stdout / `--json-out` |
 | supporting signals | `beat-track` | 节拍分析 | `beats.json` |
 | supporting signals | `audio-analyze` | 响度分析 | `audio.json` |
 | supporting signals | `audio-gain` | 显式音量增益 | 输出音频文件 |
@@ -372,6 +383,87 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 ```powershell
 <ovt> validate-plan --plan edit.json --check-files
 ```
+
+### 计划内素材工作流
+
+这组命令适合已经有 `edit.json` 之后的高频场景：
+
+- 先看清当前 plan 里挂了什么
+- 再决定是替换已有绑定，还是挂载缺失素材
+- 最后再校验并导出
+
+#### `inspect-plan`
+
+用途：
+
+- 查看当前 plan 的素材概览
+- 明确哪些目标可以安全替换
+- 明确哪些 transcript / subtitles / beats / audio tracks 当前缺失、未绑定或路径失效
+
+示例：
+
+```powershell
+<ovt> inspect-plan --plan edit.json --check-files --json-out inspect-plan.json
+```
+
+#### `replace-plan-material`
+
+用途：
+
+- 对当前 plan 中已经存在的绑定做受控替换
+- 适合换旁白、换 BGM、换 transcript、换 subtitles
+
+示例：
+
+```powershell
+<ovt> replace-plan-material --plan edit.json --audio-track-id voice-main --path .\audio\new-dub.wav --path-style relative --check-files --json-out replace-plan-material.json
+```
+
+#### `attach-plan-material`
+
+用途：
+
+- 给当前 plan 还没挂上的素材做显式 attach
+- 适合补 transcript、beats、subtitles、audio track 或模板 artifact slot
+
+示例：
+
+```powershell
+<ovt> attach-plan-material --plan edit.json --transcript --path .\signals\transcript.json --check-files --json-out attach-plan-material.json
+```
+
+#### `bind-voice-track`
+
+用途：
+
+- 用更直接的人声入口把外部配音、TTS 或变音结果接回单份 plan
+- 默认建立在既有 `audioTracks` / `voice-main` 语义上
+
+示例：
+
+```powershell
+<ovt> bind-voice-track --plan edit.json --path .\audio\dub.wav --path-style relative --check-files --json-out bind-voice-track.json
+```
+
+#### `bind-voice-track-batch`
+
+用途：
+
+- 从 manifest 批量读取多份 plan / 配音文件对
+- 逐项复用单项 voice bind 语义
+- 返回部分成功摘要
+
+示例：
+
+```powershell
+<ovt> bind-voice-track-batch --manifest batch.json --json-out bind-voice-track-batch.json
+```
+
+退出码约定：
+
+- 全部成功：`0`
+- 只要有条目失败：`2`
+- manifest 解析或装载失败：`1`
 
 ## 音频 / speech / supporting signal 命令
 
@@ -578,7 +670,18 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 ```powershell
 <ovt> transcribe input.mp4 --model ggml-base.bin --output transcript.json --json-out transcribe.json
 <ovt> subtitle input.mp4 --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
-<ovt> init-plan input.mp4 --template shorts-captioned --output edit.json --render-output final.mp4 --subtitle subtitles.srt
+<ovt> init-plan input.mp4 --template shorts-captioned --output edit.json --render-output final.mp4
+<ovt> attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files --json-out attach-plan-material.json
+<ovt> render --plan edit.json --output final.mp4
+```
+
+### 工作流 3.5：已有 plan 后替换字幕或旁白
+
+```powershell
+<ovt> inspect-plan --plan edit.json --check-files --json-out inspect-plan.json
+<ovt> replace-plan-material --plan edit.json --subtitles --path .\subs\updated.srt --path-style relative --check-files --json-out replace-subtitles.json
+<ovt> bind-voice-track --plan edit.json --path .\audio\new-dub.wav --path-style relative --check-files --json-out bind-voice-track.json
+<ovt> validate-plan --plan edit.json --check-files
 <ovt> render --plan edit.json --output final.mp4
 ```
 

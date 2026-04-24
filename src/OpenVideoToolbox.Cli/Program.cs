@@ -34,6 +34,11 @@ static async Task<int> MainAsync(string[] args)
         "mix-audio" => await RenderCommandHandlers.RunMixAudioAsync(remaining, Fail),
         "render" => await RenderCommandHandlers.RunRenderAsync(remaining, Fail),
         "subtitle" => await AudioCommandHandlers.RunSubtitleAsync(remaining, Fail),
+        "inspect-plan" => await FoundationCommandHandlers.RunInspectPlanAsync(remaining, Fail),
+        "replace-plan-material" => await FoundationCommandHandlers.RunReplacePlanMaterialAsync(remaining, Fail),
+        "attach-plan-material" => await FoundationCommandHandlers.RunAttachPlanMaterialAsync(remaining, Fail),
+        "bind-voice-track" => await FoundationCommandHandlers.RunBindVoiceTrackAsync(remaining, Fail),
+        "bind-voice-track-batch" => await FoundationCommandHandlers.RunBindVoiceTrackBatchAsync(remaining, Fail),
         "validate-plan" => await FoundationCommandHandlers.RunValidatePlanAsync(remaining, Fail),
         "probe" => await FoundationCommandHandlers.RunProbeAsync(remaining, Fail),
         "plan" => await FoundationCommandHandlers.RunPlanAsync(remaining, Fail),
@@ -89,6 +94,11 @@ static void PrintUsage()
     Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
+    Console.WriteLine("  inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
+    Console.WriteLine("  replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--source-input | --audio-track-id <id> | --artifact-slot <slotId> | --transcript | --beats | --subtitles) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
+    Console.WriteLine("  attach-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--transcript | --beats | --subtitles | --audio-track-id <id> [--audio-track-role <original|voice|bgm|effects>] | --artifact-slot <slotId>) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
+    Console.WriteLine("  bind-voice-track --plan <edit.json> --path <audio-file> [--track-id <id>] [--role <original|voice|bgm|effects>] [--write-to <path>] [--in-place [true|false]] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");
+    Console.WriteLine("  bind-voice-track-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  probe <input> [--ffprobe <path>] [--json-out <path>]");
     Console.WriteLine("  plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--json-out <path>] [--overwrite]");

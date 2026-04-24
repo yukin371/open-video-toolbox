@@ -1,6 +1,6 @@
 # OpenVideoToolbox.Core.Editing
 
-> 最后更新：2026-04-19
+> 最后更新：2026-04-24
 
 ## 职责
 
@@ -20,6 +20,9 @@
 - `EditOutputPlan`
 - `EditPlanPathResolver`
 - `EditPlanValidator`
+- `EditPlanInspector`
+- `EditPlanMaterialReplacer`
+- `EditPlanMaterialAttacher`
 - `BuiltInEditPlanTemplateCatalog`
 - `EditPlanTemplateCatalog`
 - `EditPlanTemplateCatalogQuery`
@@ -72,6 +75,9 @@
 
 - `edit.json` schema 变化
 - 字段语义变化
+- inspection / material summary 输出语义变化
+- material replacement / path-style 写回语义变化
+- material attachment / artifact slot upsert 语义变化
 - `render` / `mix-audio` 等命令消费方式变化
 - `beats` 字段或节拍种子语义变化
 - `transcript` 字段或 transcript 种子语义变化

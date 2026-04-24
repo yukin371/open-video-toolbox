@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-23
+最后更新：2026-04-24
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -30,8 +30,8 @@
 ## 当前版本目标
 
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
-- 当前状态（2026-04-22）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪。
-- 下一步：继续推进 `E2`，优先完成社区模板 / 插件贡献路径与运行时基线收口；`D1` 最早在 `2026-05-22` 后重判。
+- 当前状态（2026-04-24）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪。
+- 下一步：继续推进 `E2`，但按分阶段计划执行；功能交付线以 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md` 为准，生态 / 分发线以 `docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md` 为准；`D1` 最早在 `2026-05-22` 后重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 阶段检查（2026-04-22）
@@ -72,9 +72,12 @@
   - `E2 生态与可持续演进`
     - 适用场景：如果近期更高价值的是兼容性测试、安装渠道扩展、社区模板与维护自动化，而不是立即启动 Desktop。
 
-## 当前活跃工作面（2026-04-22）
+## 当前活跃工作面（2026-04-24）
 
 - 当前已转入 `E2` 的连续推进：
+  - `E2` 当前明确拆成两条线：
+    - `E2-A*`：生态 / 分发 / 社区 / 长期维护
+    - `E2-F*`：功能交付 / 工作流收口 / Desktop 预留
   - `E2-A1` 契约兼容性护栏已落地到 changelog / PR 模板 / snapshot README / development principles
   - `E2-A2` 已完成首轮分发渠道评估，当前首选方向已收敛到 `winget portable`
     - 仓库内 `packaging/winget/Test-WinGetSubmissionReadiness.ps1` 已落地，并已对 `v0.1.0` 实际通过
@@ -96,6 +99,27 @@
     - 仓库内已新增 runtime 阈值配置与显式判定脚本
     - `runtime-baseline` workflow 现会在超阈值时显式失败
     - workflow 现会同时上传 markdown summary artifact，便于 maintainer 下载和离线对照
+  - 当前增加一条明确的产品/实现纪律：
+    - 先整理当前基础功能列表，再继续丰富 CLI 高价值能力，而不是随机扩命令面
+    - Desktop 暂不正式启动，但已补充边界文档，后续只能消费模板发现结果、`edit.json`、`validate-plan`、preview、依赖状态与执行日志，不得成为新的业务 owner
+    - 功能优先级采用“常用工作流优先、基础层托底”的路线；近期更值得补的是素材堆积与替换、字幕识别与挂载、外部 TTS / 配音接回、批量工作流，而不是先补一批低频音频原语
+    - 功能交付默认按阶段推进，不再继续按“发现一个点就补一个命令”的方式滚动前进
+    - 当前功能交付线的阶段总表已落到 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md`
+      - `E2-F1` 基线盘点与边界固定：已完成
+      - `E2-F2` 计划内素材与配音工作流收口：当前活跃阶段
+      - `E2-F3` 字幕与 supporting signal 工作流收口：下一阶段
+      - `E2-F4` 批量工作流与工作目录编排：其后阶段
+      - `E2-G1` Desktop 启动重判：阶段门，不提前启动
+      - `E2-F2` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f2-phase-check.md`
+      - `E2-F3` 的专项计划已补到 `docs/plans/2026-04-24-e2-f3-subtitle-and-signal-workflow-plan.md`
+      - `E2-F3-W1` 已开始首个落点：`inspect-plan` 现已补 `signals[]` 摘要，用于表达 transcript / beats / subtitles 的 expected、attached 与 file status
+    - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
+      - `inspect-plan` 已落地
+      - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
+      - `attach-plan-material` 已落地，当前支持 `transcript` / `beats` / `subtitles` / `audioTracks` attach，以及模板声明 artifact slot upsert
+      - `bind-voice-track` 已落地，作为外部配音 / TTS / voice conversion 的更直接接回入口
+      - `bind-voice-track-batch` 已落地，当前支持 manifest 驱动的批量配音接回、相对路径解析、部分成功摘要与稳定退出码
+      - 当前判断：`E2-F2` 已进入完成前状态；下一步转入 `E2-F3` 的字幕 / signal 工作流收口
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 
@@ -113,6 +137,9 @@
 ### E2: 生态与可持续演进
 
   - 如果继续走 `E2`，优先级应放在：
+    - 基础功能清单与高频能力盘点
+    - 更利于未来 Desktop 复用的 CLI 输出与预览能力
+    - 围绕素材替换、字幕挂载、配音接回的高频工作流收口
     - CLI 契约兼容性检测自动化
     - 包管理器或其他分发渠道扩展
       - 当前已完成首轮评估，推荐先做 `winget`；`NuGet global tool` 与 `Homebrew` 暂不作为第一优先
@@ -121,12 +148,13 @@
     - 外部依赖兼容性、性能与安全基线
       - 当前已进入 `E2-A4`，并已补依赖验证脚本、性能观测脚本、GitHub Actions 观测 workflow 与 review 级安全检查项
 - 执行草案：`docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md`
+- 补充清单：`docs/plans/2026-04-24-cli-foundation-and-desktop-reservation.md`
 
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-- `OpenVideoToolbox.Core.Tests`: 130/130
-- `OpenVideoToolbox.Cli.Tests`: 118/118
+- `OpenVideoToolbox.Core.Tests`: 140/140
+- `OpenVideoToolbox.Cli.Tests`: 146/146
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`

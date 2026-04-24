@@ -1,0 +1,33 @@
+{
+  "command": "bind-voice-track-batch",
+  "preview": false,
+  "payload": {
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "status": "succeeded",
+        "result": {
+          "checkFiles": true,
+          "requireValid": false,
+          "voiceTrack": {
+            "trackId": "voice-main",
+            "roleApplied": "voice",
+            "added": true,
+            "previousPath": null,
+            "nextPath": "audio\\dub.wav",
+            "pathStyleApplied": "relative",
+            "previousAudioTrackRole": null,
+            "nextAudioTrackRole": "voice"
+          },
+          "validation": {
+            "issues": [],
+            "isValid": true
+          }
+        }
+      }
+    ]
+  }
+}
