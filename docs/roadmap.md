@@ -118,11 +118,13 @@
       - `E2-F3-W3` 已推进首轮对齐：模板 `commands.json` / `commands.*` 与 guide 现会把 transcript / beats 的 attach，以及 `inspect-plan --check-files`、`validate-plan --check-files` 纳入稳定示例
       - `E2-F3-W4` 当前结论已固定：不在本阶段新增 batch transcript / batch subtitle / batch signal 入口，统一留到 `E2-F4` 评估
       - `E2-F4` 的专项计划已补到 `docs/plans/2026-04-24-e2-f4-batch-and-workdir-plan.md`
+      - `E2-F4` 的 batch 公共 contract 已补到 `docs/plans/2026-04-24-e2-f4-batch-command-contract.md`
       - `E2-F4` 当前设计结论：先固定 batch manifest 与工作目录约定，再以 `scaffold-template-batch` 作为首个实现入口
       - `E2-F4-W4` 已推进首个实现：`scaffold-template-batch` 已落地最小 manifest contract、默认 `tasks/<id>` 工作目录、顶层 `summary.json`、`results/<id>.json` 与部分成功退出码
       - `E2-F4` 已继续推进第二个高频消费入口：`render-batch` 现可从 manifest 批量消费多份 `edit.json`，支持统一 preview / execute 汇总，并复用单项 `render` 语义；任务级结果也已固定写入 `results/<id>.json`
       - `E2-F4` 已继续推进素材替换批量入口：`replace-plan-material-batch` 现可从 manifest 批量替换 source / transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
       - `E2-F4` 已继续推进第三个高频素材入口：`attach-plan-material-batch` 现可从 manifest 批量接回 transcript / subtitles / beats / audio track / artifact slot，沿用现有 `summary.json`、`results/<id>.json` 与 `0/2/1` 退出码约定
+      - `E2-F4` 的 batch 公共字段、summary/result 目录、退出码与兼容策略现已单独收敛到专项文档，不再只隐含在代码里
     - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
       - `inspect-plan` 已落地
       - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
