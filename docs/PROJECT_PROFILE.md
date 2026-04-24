@@ -58,6 +58,7 @@
 - `inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]`
 - `replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--source-input | --audio-track-id <id> | --artifact-slot <slotId> | --transcript | --beats | --subtitles) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]`
 - `attach-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--transcript | --beats | --subtitles | --audio-track-id <id> [--audio-track-role <original|voice|bgm|effects>] | --artifact-slot <slotId>) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]`
+- `attach-plan-material-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]`
 - `bind-voice-track --plan <edit.json> --path <audio-file> [--track-id <id>] [--role <original|voice|bgm|effects>] [--write-to <path>] [--in-place [true|false]] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]`
 - `bind-voice-track-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]`
 - `validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]`
@@ -76,6 +77,7 @@
 - `inspect-plan` 已实现，用于把 `edit.json` 的素材绑定、可替换目标、缺失引用与校验结果收敛成稳定结构化输出；当 plan 来自插件模板时，可通过 `--plugin-dir` 把插件模板目录显式接回 inspection / 校验链。
 - `replace-plan-material` 已实现，用于对 plan 中已存在的素材绑定做受控替换，并返回后置校验结果；第一版只支持单目标 replace，不支持 attach / upsert。
 - `attach-plan-material` 已实现，用于对当前缺失的 `transcript` / `beats` / `subtitles` / `audioTracks` 做显式挂载，并对模板已声明的 artifact slot 做 upsert；它不承担通用 patch。
+- `attach-plan-material-batch` 已实现，用于从 manifest 批量读取多条素材挂载任务，统一解析相对路径、复用单项 attach 流程，并在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`。
 - `bind-voice-track` 已实现，用于把外部配音、TTS 或 voice conversion 结果按默认 `voice-main` / `voice` 约定接回 plan；底层仍复用 `audioTracks` attach/upsert 语义，不引入第二套模型。
 - `bind-voice-track-batch` 已实现，用于从 manifest 批量读取多条配音接回任务，统一解析相对路径、复用单项 voice bind 流程，并返回部分成功摘要与稳定退出码。
 - `validate-plan` 已实现，用于在真正执行前校验外部 AI 或人工修改后的 `edit.json` 是否仍满足当前 schema v1 与基础语义约束；当 plan 来自插件模板时，可通过 `--plugin-dir` 把插件模板目录显式接回校验链。
@@ -111,7 +113,7 @@
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
 - 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
-- 当前测试基线：`OpenVideoToolbox.Core.Tests` 141，`OpenVideoToolbox.Cli.Tests` 152，总计 293。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 141，`OpenVideoToolbox.Cli.Tests` 155，总计 296。
 - 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`

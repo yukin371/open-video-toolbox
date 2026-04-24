@@ -32,6 +32,7 @@
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
 | 素材替换 | `replace-plan-material` | 受控替换 plan 内素材并返回后置校验结果 | 已可用 |
 | 素材挂载 | `attach-plan-material` | 为缺失的字幕、转写、节拍、音轨或声明 slot 做显式挂载 | 已可用 |
+| 批量素材挂载 | `attach-plan-material-batch` | 按 manifest 批量把 transcript / subtitles / beats / 音轨 / slot 接回多份 plan，并汇总 `summary.json` | 已可用 |
 | 配音接回 | `bind-voice-track` | 用默认 voice 轨约定把外部配音/TTS/变音结果接回 plan | 已可用 |
 | 批量配音接回 | `bind-voice-track-batch` | 按 manifest 批量把外部配音/TTS/变音结果接回多份 plan，并返回部分成功摘要 | 已可用 |
 | 计划校验 | `validate-plan` | 对 AI 或手改后的计划做结构化校验 | 已可用 |
@@ -284,6 +285,38 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- b
 ```
 
 这条命令会把 manifest 内的相对路径统一按 manifest 所在目录解析；全部成功返回 `0`，只要有条目失败就返回 `2`，如果 manifest 本身无法解析则返回 `1`。
+
+如果你手上是一批待补挂的 transcript、字幕、节拍或模板 slot，也可以直接批量接回：
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "plan": "jobs/a/edit.json",
+      "path": "signals/a-transcript.json",
+      "transcript": true,
+      "checkFiles": true,
+      "pathStyle": "relative"
+    },
+    {
+      "id": "job-b",
+      "plan": "jobs/b/edit.json",
+      "path": "subs/b.srt",
+      "subtitles": true,
+      "subtitleMode": "sidecar",
+      "writeTo": "outputs/job-b.edit.json"
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- attach-plan-material-batch --manifest .\batch.json
+```
+
+这条命令会继续沿用现有 batch 约定：相对路径按 manifest 所在目录解析，根目录写 `summary.json`，每个条目写 `results/<id>.json`，全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 本身失败返回 `1`。
 
 ### 给现有素材补转写和字幕
 

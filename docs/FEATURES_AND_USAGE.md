@@ -33,7 +33,7 @@
 
 - 基础媒体：`probe`、`plan`、`run`
 - 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`scaffold-template-batch`、`validate-plan`
-- 计划内素材工作流：`inspect-plan`、`replace-plan-material`、`attach-plan-material`、`bind-voice-track`、`bind-voice-track-batch`
+- 计划内素材工作流：`inspect-plan`、`replace-plan-material`、`attach-plan-material`、`attach-plan-material-batch`、`bind-voice-track`、`bind-voice-track-batch`
 - 音频 / speech / signals：`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`
 - 编辑基元：`cut`、`concat`、`extract-audio`、`subtitle`
 - 执行导出：`mix-audio`、`render`
@@ -189,6 +189,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | 计划内素材 | `inspect-plan` | 查看当前 plan 的素材、缺失绑定、可替换目标与 signal 状态 | stdout / `--json-out` |
 | 计划内素材 | `replace-plan-material` | 对已有绑定做受控替换 | stdout / `--json-out` |
 | 计划内素材 | `attach-plan-material` | 对缺失 binding 做显式挂载 | stdout / `--json-out` |
+| 计划内素材 | `attach-plan-material-batch` | 从 manifest 批量接回 transcript / subtitles / beats / audio track / slot | stdout / `summary.json` |
 | 计划内素材 | `bind-voice-track` | 把外部配音 / TTS / 变音结果接回单份 plan | stdout / `--json-out` |
 | 计划内素材 | `bind-voice-track-batch` | 从 manifest 批量接回多份配音结果 | stdout / `--json-out` |
 | supporting signals | `beat-track` | 节拍分析 | `beats.json` |
@@ -492,6 +493,26 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 ```powershell
 <ovt> attach-plan-material --plan edit.json --transcript --path .\signals\transcript.json --check-files --json-out attach-plan-material.json
 ```
+
+#### `attach-plan-material-batch`
+
+用途：
+
+- 从 manifest 批量读取多份素材挂载任务
+- 逐项复用单项 attach 语义，不额外发明第二套 selector
+- 会在 manifest 同目录固定写 `summary.json` 和 `results/<id>.json`
+
+示例：
+
+```powershell
+<ovt> attach-plan-material-batch --manifest batch.json --json-out attach-plan-material-batch.json
+```
+
+退出码约定：
+
+- 全部成功：`0`
+- 只要有条目失败：`2`
+- manifest 解析或装载失败：`1`
 
 #### `bind-voice-track`
 
