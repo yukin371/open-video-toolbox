@@ -15,8 +15,9 @@ if (-not (Test-Path $hooksDirectory -PathType Container)) {
 
 $preCommitHook = Join-Path $hooksDirectory 'pre-commit'
 $commitMsgHook = Join-Path $hooksDirectory 'commit-msg'
+$prePushHook = Join-Path $hooksDirectory 'pre-push'
 
-foreach ($hookPath in @($preCommitHook, $commitMsgHook)) {
+foreach ($hookPath in @($preCommitHook, $commitMsgHook, $prePushHook)) {
     if (-not (Test-Path $hookPath -PathType Leaf)) {
         throw "Required hook '$hookPath' was not found."
     }
