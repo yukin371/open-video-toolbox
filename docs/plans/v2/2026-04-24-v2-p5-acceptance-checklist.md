@@ -289,6 +289,46 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 4. `export` 的 warning / failure 契约不是口头说明，而是能在真实 CLI 输出中看到
 5. 现有 v1 模板仍未被打坏
 
+## 本次验收结果（2026-04-25）
+
+本清单已于 `2026-04-25` 在本地逐条执行，结果为：**通过**
+
+- Step 1 通过
+  - `timeline-effects-starter` 返回 `template.planModel = "v2Timeline"`
+  - `recommendedSeedModes` 与 `previewPlans` 均包含 `manual / transcript / beats`
+  - `previewPlans[*].editPlan.schemaVersion = 2`
+- Step 2 通过
+  - `init-plan --template timeline-effects-starter` 成功写出真实 `schemaVersion = 2` 的 `edit.v2.json`
+  - 输出 plan 保持 `clips = []`，并包含 `timeline.tracks = ["main", "bgm"]`
+- Step 3 通过
+  - `--seed-from-transcript` 成功写出真实 v2 timeline clips
+  - 主视频轨 clip 数量为 `2`，首个 clip effect 为 `brightness_contrast`
+- Step 4 通过
+  - 真实输出 plan 中确认存在 `scale / brightness_contrast / fade / volume`
+- Step 5 通过
+  - `render --plan edit.v2.json --preview` 成功返回 `schemaVersion = 2` 的 execution preview
+  - `commandPlan.arguments` 包含 `-filter_complex` 与 `[v_out]`
+- Step 6 通过
+  - `shorts-captioned` 仍返回 `planModel = "v1"`
+  - `previewPlans[*].editPlan.schemaVersion` 仍为 `1`
+- Step 7 通过
+  - `auto-cut-silence --template timeline-effects-starter` 成功写出 `schemaVersion = 2` 的 plan
+  - 主视频轨 clip 数量为 `2`，并保留模板的 `scale` / `brightness_contrast`
+- Step 8 通过
+  - `render --plan edit.autocut.v2.json --preview` 成功返回 v2 command preview
+- Step 9 通过
+  - v1 plan 成功导出 `EDL`
+  - 返回 `fidelityLevel = "L1"`、`eventCount = 2`
+  - warning 包含 `export.plan.v1Wrapped`、`export.frameRate.defaulted`
+- Step 10 通过
+  - v2 plan 成功导出 `EDL`
+  - 返回 `fidelityLevel = "L1"`、`eventCount = 2`
+  - warning 包含 `export.timeline.effectsIgnored`
+- Step 11 通过
+  - `--json-out` 成功写出，与 stdout envelope 保持同一结构
+  - 重复执行且不带 `--overwrite` 时返回退出码 `1`
+  - failure stdout 仍返回结构化 envelope，且 `payload.error.message` 明确说明输出文件已存在
+
 ## 验收输出建议
 
 如果以上步骤都通过，建议阶段验收输出为：
