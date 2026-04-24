@@ -29,6 +29,7 @@
             "transcript": null,
             "beats": null,
             "subtitles": null,
+            "timeline": null,
             "output": {
               "container": "mp4"
             }
