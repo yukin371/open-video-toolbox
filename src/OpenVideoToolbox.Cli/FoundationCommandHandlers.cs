@@ -436,7 +436,7 @@ internal static class FoundationCommandHandlers
         var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
-        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
 
         try
         {
@@ -589,7 +589,7 @@ internal static class FoundationCommandHandlers
                 results
             };
 
-            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
 
             return WriteCommandEnvelope(
                 "replace-plan-material-batch",
@@ -765,7 +765,7 @@ internal static class FoundationCommandHandlers
         var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
-        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
 
         try
         {
@@ -925,7 +925,7 @@ internal static class FoundationCommandHandlers
                 results
             };
 
-            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
 
             return WriteCommandEnvelope(
                 "attach-plan-material-batch",
@@ -1073,7 +1073,7 @@ internal static class FoundationCommandHandlers
         var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
-        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
 
         try
         {
@@ -1113,9 +1113,7 @@ internal static class FoundationCommandHandlers
                             $"Batch item at index {index} is missing required field 'path'.");
                     }
 
-                    var itemId = string.IsNullOrWhiteSpace(item.Id)
-                        ? $"item-{index + 1:000}"
-                        : item.Id;
+                    var itemId = BatchCommandArtifacts.ResolveItemId(item.Id, index);
                     var fullPlanPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Plan));
                     var resolvedVoicePath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Path));
                     var outputPlanPath = item.WriteTo is null
@@ -1173,9 +1171,7 @@ internal static class FoundationCommandHandlers
                 catch (Exception ex)
                 {
                     failedCount++;
-                    var itemId = string.IsNullOrWhiteSpace(item.Id)
-                        ? $"item-{index + 1:000}"
-                        : item.Id;
+                    var itemId = BatchCommandArtifacts.ResolveItemId(item.Id, index);
                     var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, itemId, new
                     {
                         index,
@@ -1211,7 +1207,7 @@ internal static class FoundationCommandHandlers
                 results
             };
 
-            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
 
             return WriteCommandEnvelope(
                 "bind-voice-track-batch",

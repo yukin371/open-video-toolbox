@@ -87,7 +87,7 @@ internal static class RenderCommandHandlers
         TimeSpan? timeout = timeoutSeconds is null ? null : TimeSpan.FromSeconds(timeoutSeconds.Value);
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
-        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
 
         try
         {
@@ -218,7 +218,7 @@ internal static class RenderCommandHandlers
                 results
             };
 
-            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
 
             return WriteCommandEnvelope(
                 "render-batch",

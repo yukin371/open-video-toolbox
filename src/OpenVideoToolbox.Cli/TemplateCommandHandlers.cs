@@ -119,7 +119,7 @@ internal static class TemplateCommandHandlers
         var pluginCatalog = TemplatePluginCatalogLoader.Load(pluginDir);
         var fullManifestPath = Path.GetFullPath(manifestPath!);
         var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
-        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
 
         try
         {
@@ -256,7 +256,7 @@ internal static class TemplateCommandHandlers
                 results
             };
 
-            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
 
             return WriteCommandEnvelope(
                 "scaffold-template-batch",
