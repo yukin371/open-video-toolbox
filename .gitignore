@@ -5,6 +5,8 @@
 bin/
 obj/
 artifacts/
+.artifacts/
+tmp/
 coverage/
 TestResults/
 *.user

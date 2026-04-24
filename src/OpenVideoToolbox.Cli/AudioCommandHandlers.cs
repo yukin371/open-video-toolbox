@@ -3,7 +3,9 @@ using System.Text.Json;
 using OpenVideoToolbox.Core.Audio;
 using OpenVideoToolbox.Core.AudioSeparation;
 using OpenVideoToolbox.Core.Beats;
+using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
+using OpenVideoToolbox.Core.Media;
 using OpenVideoToolbox.Core.Serialization;
 using OpenVideoToolbox.Core.Speech;
 using OpenVideoToolbox.Core.Subtitles;
@@ -426,6 +428,172 @@ internal static class AudioCommandHandlers
         }
     }
 
+    public static async Task<int> RunAutoCutSilenceAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--silence", out var silencePath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--clips-only", out var clipsOnly, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetIntOption(options, "--padding-ms", out var paddingMs, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetIntOption(options, "--merge-gap-ms", out var mergeGapMs, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetIntOption(options, "--min-clip-duration-ms", out var minClipDurationMs, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetIntOption(options, "--source-duration-ms", out var sourceDurationMs, out error))
+        {
+            return fail(error!);
+        }
+
+        if (paddingMs is < 0)
+        {
+            return fail("Option '--padding-ms' must be zero or greater.");
+        }
+
+        if (mergeGapMs is < 0)
+        {
+            return fail("Option '--merge-gap-ms' must be zero or greater.");
+        }
+
+        if (minClipDurationMs is < 0)
+        {
+            return fail("Option '--min-clip-duration-ms' must be zero or greater.");
+        }
+
+        if (sourceDurationMs is <= 0)
+        {
+            return fail("Option '--source-duration-ms' must be greater than zero.");
+        }
+
+        var clipsOnlyMode = clipsOnly == true;
+        var templateId = GetOption(options, "--template");
+        var renderOutputPath = GetOption(options, "--render-output");
+        if (clipsOnlyMode)
+        {
+            if (!string.IsNullOrWhiteSpace(templateId))
+            {
+                return fail("Option '--template' cannot be used with '--clips-only'.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(renderOutputPath))
+            {
+                return fail("Option '--render-output' cannot be used with '--clips-only'.");
+            }
+        }
+        else if (string.IsNullOrWhiteSpace(renderOutputPath))
+        {
+            return fail("Option '--render-output' is required unless '--clips-only' is specified.");
+        }
+
+        var outputPath = GetOption(options, "--output");
+        var jsonOutPath = GetOption(options, "--json-out");
+        var ffprobePath = GetOption(options, "--ffprobe") ?? "ffprobe";
+        var fullSilencePath = Path.GetFullPath(silencePath!);
+        var mode = clipsOnlyMode ? "clipsOnly" : "plan";
+        var commandContext = new
+        {
+            silencePath = fullSilencePath,
+            mode,
+            outputPath = outputPath is null ? null : Path.GetFullPath(outputPath),
+            templateId,
+            renderOutputPath,
+            ffprobePath,
+            paddingMs = paddingMs ?? 200,
+            mergeGapMs = mergeGapMs ?? 500,
+            minClipDurationMs = minClipDurationMs ?? 1000,
+            sourceDurationMs
+        };
+
+        try
+        {
+            var silence = await LoadSilenceDocumentAsync(fullSilencePath);
+            var sourcePath = ResolveSourcePath(fullSilencePath, silence.InputPath);
+            var sourceDuration = sourceDurationMs is { } explicitDuration
+                ? TimeSpan.FromMilliseconds(explicitDuration)
+                : await ProbeSourceDurationAsync(sourcePath, ffprobePath);
+
+            var request = new AutoCutSilenceRequest
+            {
+                SourcePath = sourcePath,
+                SourceDuration = sourceDuration,
+                Silence = silence,
+                Padding = TimeSpan.FromMilliseconds(paddingMs ?? 200),
+                MergeGap = TimeSpan.FromMilliseconds(mergeGapMs ?? 500),
+                MinClipDuration = TimeSpan.FromMilliseconds(minClipDurationMs ?? 1000),
+                TemplateId = templateId,
+                RenderOutputPath = renderOutputPath
+            };
+
+            var planner = new AutoCutSilencePlanner();
+            var result = clipsOnlyMode
+                ? planner.BuildClips(request)
+                : planner.BuildPlan(request);
+
+            if (!string.IsNullOrWhiteSpace(outputPath))
+            {
+                var fullOutputPath = Path.GetFullPath(outputPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(fullOutputPath)!);
+                var filePayload = clipsOnlyMode
+                    ? JsonSerializer.Serialize(result.Clips, OpenVideoToolboxJson.Default)
+                    : JsonSerializer.Serialize(result.Plan, OpenVideoToolboxJson.Default);
+                await File.WriteAllTextAsync(fullOutputPath, filePayload, Encoding.UTF8);
+            }
+
+            return WriteCommandEnvelope(
+                "auto-cut-silence",
+                preview: false,
+                new
+                {
+                    autoCutSilence = new
+                    {
+                        commandContext.silencePath,
+                        sourcePath,
+                        sourceDuration,
+                        commandContext.mode,
+                        commandContext.outputPath,
+                        commandContext.templateId,
+                        commandContext.renderOutputPath,
+                        commandContext.ffprobePath,
+                        commandContext.paddingMs,
+                        commandContext.mergeGapMs,
+                        commandContext.minClipDurationMs,
+                        usedExplicitSourceDuration = sourceDurationMs is not null
+                    },
+                    result
+                },
+                jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            return FailWithCommandEnvelope(
+                "auto-cut-silence",
+                preview: false,
+                BuildFailedCommandPayload("autoCutSilence", commandContext, ex.Message),
+                ex.Message,
+                jsonOutPath);
+        }
+    }
+
     public static async Task<int> RunSeparateAudioAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
@@ -695,5 +863,42 @@ internal static class AudioCommandHandlers
                 // Best-effort cleanup only.
             }
         }
+    }
+
+    private static async Task<SilenceDetectionDocument> LoadSilenceDocumentAsync(string fullSilencePath)
+    {
+        var content = await File.ReadAllTextAsync(fullSilencePath);
+        return JsonSerializer.Deserialize<SilenceDetectionDocument>(content, OpenVideoToolboxJson.Default)
+            ?? throw new InvalidOperationException($"Failed to parse silence document '{fullSilencePath}'.");
+    }
+
+    private static string ResolveSourcePath(string fullSilencePath, string sourcePath)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            throw new InvalidOperationException(
+                $"Silence document '{fullSilencePath}' does not contain a usable inputPath.");
+        }
+
+        if (Path.IsPathRooted(sourcePath))
+        {
+            return Path.GetFullPath(sourcePath);
+        }
+
+        var silenceDirectory = Path.GetDirectoryName(fullSilencePath)!;
+        return Path.GetFullPath(Path.Combine(silenceDirectory, sourcePath));
+    }
+
+    private static async Task<TimeSpan> ProbeSourceDurationAsync(string sourcePath, string ffprobePath)
+    {
+        var probeService = new FfprobeMediaProbeService(new DefaultProcessRunner(), new FfprobeJsonParser());
+        var probeResult = await probeService.ProbeAsync(sourcePath, ffprobePath);
+        if (probeResult.Format.Duration is not { } duration || duration <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException(
+                $"Unable to determine source duration for '{sourcePath}'. Re-run with '--source-duration-ms'.");
+        }
+
+        return duration;
     }
 }

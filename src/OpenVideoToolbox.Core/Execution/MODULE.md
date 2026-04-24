@@ -1,6 +1,6 @@
 # OpenVideoToolbox.Core.Execution
 
-> 最后更新：2026-04-17
+> 最后更新：2026-04-24
 
 ## 职责
 
@@ -21,6 +21,8 @@
 - `mix-audio --plan` 音频导出编排
 - `audio-gain` 显式分贝增益命令构建与执行编排
 - `render --plan` 最终导出编排
+- `export --format edl` 的导出投影归一化、v1 包装与 EDL 文本生成
+- `FfmpegTimelineRenderCommandBuilder` 与后续 v2 timeline render 语义
 - 执行预览模型与 side effect 预览
 - 执行结果模型与原始日志模型
 
@@ -42,6 +44,11 @@
 - `FfmpegCommandBuilder` 必须保持可测试、可预览，不依赖 UI 状态
 - `mix-audio` 与 `render` 的音频图逻辑必须复用同一映射点，避免双份 filter 规则漂移
 - `render` 的 `edit.json` 消费逻辑必须集中在本模块，不能回流到 `Cli` 或未来 Desktop
+- `export` 的 v1/v2 兼容规则必须集中在本模块，不能在 CLI 维护第二套包装或主轨选择逻辑
+- v2 timeline render builder 必须与 v1 render builder 并存，直到显式完成 parity / deprecation 决策，不能隐式替换现有 v1 路径
+- render preview / runner 对 v1/v2 的 builder 分发必须留在本模块，不能把 timeline 分支判断回流到 CLI
+- 当前 v2 render baseline 只保证 timeline builder、preview/execute dispatch 和基础 template effect filter graph；复杂 executor effect 仍不得伪装成“已正式支持”
+- `export L1` 当前只承诺粗粒度 `EDL` cut list，不得在未完成设计收口前把 XML / fcpxml / effect 映射一起混入
 - preview 语义必须复用和执行阶段相同的 `CommandPlan`、`ProducedPaths` 与 side effect 规则，不能在 CLI 维护平行逻辑
 - `DefaultProcessRunner` 必须保留标准输出、标准错误、超时和取消上下文
 - `ExecutionResult` 是执行链路的统一结果模型，状态和原始输出都不能丢
@@ -64,3 +71,5 @@
 - `CommandPlan` 或 `ExecutionResult` schema 变化
 - 新增新的外部命令执行器或路径规则
 - 执行状态、日志采集或取消/超时语义变化
+- v1/v2 render 分发规则或 timeline builder 覆盖范围变化
+- `export` 的格式范围、warning 契约或 v1/v2 导出兼容策略变化

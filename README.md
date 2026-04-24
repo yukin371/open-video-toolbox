@@ -37,11 +37,13 @@
 | 配音接回 | `bind-voice-track` | 用默认 voice 轨约定把外部配音/TTS/变音结果接回 plan | 已可用 |
 | 批量配音接回 | `bind-voice-track-batch` | 按 manifest 批量把外部配音/TTS/变音结果接回多份 plan，并汇总 `summary.json` | 已可用 |
 | 计划校验 | `validate-plan` | 对 AI 或手改后的计划做结构化校验 | 已可用 |
+| 效果发现 | `effects` | 列出内置 v2 effect 描述符，或查看单 effect 的参数 schema 与模板模式 | 已可用 |
+| 导出互操作 | `export` | 把 `edit.json` 导出为粗粒度 `EDL` cut list，供外部 NLE 导入复核 | 已可用 |
 | 成片渲染 | `render` | 最终视频或预览执行计划 | 已可用 |
 | 独立混音 | `mix-audio` | 单独导出混音结果 | 已可用 |
 | 裁切 / 拼接 / 提音轨 | `cut` / `concat` / `extract-audio` | 基础媒体处理产物 | 已可用 |
 | 响度处理 | `audio-analyze` / `audio-gain` / `audio-normalize` | 分析、增益、归一化 | 已可用 |
-| 节拍 / 静音信号 | `beat-track` / `detect-silence` | `beats.json` / `silence.json` | 已可用 |
+| 节拍 / 静音信号 | `beat-track` / `detect-silence` / `auto-cut-silence` | `beats.json` / `silence.json` / 去静音 clips / v1 `edit.json` / 基于 v2 模板的 timeline `edit.json` 草稿 | 已可用 |
 | 转写 / 字幕 | `transcribe` / `subtitle` | `transcript.json`、`srt`、`ass` | 已可用 |
 | 音频分离 | `separate-audio` | 人声 / 伴奏 stem 输出 | 已可用 |
 | 插件模板 | `validate-plugin`、`templates --plugin-dir` | 静态模板插件发现与校验 | 已可用 |
@@ -369,6 +371,24 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 3. 用 `attach-plan-material` 把 transcript 或 subtitles 接回 `edit.json`
 4. 用 `inspect-plan` / `validate-plan` 确认状态
 5. 最后再 `render`
+
+### 先探静音，再生成去静音草稿
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- detect-silence .\input.mp4 --output .\silence.json
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- auto-cut-silence --silence .\silence.json --render-output .\final.mp4 --output .\edit.autocut.json
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- validate-plan --plan .\edit.autocut.json --check-files
+```
+
+适合先基于 `silence.json` 生成一版确定性的去静音 clips，再决定是否继续手改、接字幕或直接渲染。
+
+如果你给 `auto-cut-silence` 指定了显式 `v2Timeline` 模板，例如当前内置的 `timeline-effects-starter`，它会先通过模板工厂生成真实的 v2 `timeline` plan，再把主视频轨 clips 替换成去静音结果；没有指定这类模板时，仍按既有 v1 路径生成。
+
+如果你只想拿 clips 草稿而不写完整 plan，也可以显式切到：
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- auto-cut-silence --silence .\silence.json --clips-only --source-duration-ms 15000 --output .\clips.json
+```
 
 ### 只做基础媒体处理
 

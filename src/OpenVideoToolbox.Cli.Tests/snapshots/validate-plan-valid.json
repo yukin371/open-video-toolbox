@@ -5,7 +5,18 @@
     "planPath": "C:\\Users\\yukin\\AppData\\Local\\Temp\\tmp.gs8i87omdZ\\edit.json",
     "resolvedBaseDirectory": "C:\\Users\\yukin\\AppData\\Local\\Temp\\tmp.gs8i87omdZ",
     "checkFiles": false,
+    "checkMode": "basic",
     "isValid": true,
-    "issues": []
+    "issues": [],
+    "stats": {
+      "totalIssues": 0,
+      "errorCount": 0,
+      "warningCount": 0,
+      "bySeverity": {
+        "error": 0,
+        "warning": 0
+      },
+      "byCode": {}
+    }
   }
 }

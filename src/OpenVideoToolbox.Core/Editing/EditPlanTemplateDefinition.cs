@@ -12,6 +12,8 @@ public sealed record EditPlanTemplateDefinition
 
     public string Version { get; init; } = "1.0.0";
 
+    public EditPlanTemplatePlanModel PlanModel { get; init; } = EditPlanTemplatePlanModel.V1;
+
     public string OutputContainer { get; init; } = "mp4";
 
     public SubtitleMode? DefaultSubtitleMode { get; init; }
@@ -25,6 +27,12 @@ public sealed record EditPlanTemplateDefinition
     public IReadOnlyList<EditPlanArtifactSlot> ArtifactSlots { get; init; } = [];
 
     public IReadOnlyList<EditPlanSupportingSignalHint> SupportingSignals { get; init; } = [];
+}
+
+public enum EditPlanTemplatePlanModel
+{
+    V1,
+    V2Timeline
 }
 
 public enum EditPlanSeedMode

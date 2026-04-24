@@ -5,12 +5,17 @@ namespace OpenVideoToolbox.Core.Execution;
 public sealed class EditPlanRenderRunner
 {
     private readonly FfmpegEditPlanRenderCommandBuilder _commandBuilder;
+    private readonly FfmpegTimelineRenderCommandBuilder _timelineCommandBuilder;
     private readonly IProcessRunner _processRunner;
 
-    public EditPlanRenderRunner(FfmpegEditPlanRenderCommandBuilder commandBuilder, IProcessRunner processRunner)
+    public EditPlanRenderRunner(
+        FfmpegEditPlanRenderCommandBuilder commandBuilder,
+        IProcessRunner processRunner,
+        FfmpegTimelineRenderCommandBuilder? timelineCommandBuilder = null)
     {
         _commandBuilder = commandBuilder;
         _processRunner = processRunner;
+        _timelineCommandBuilder = timelineCommandBuilder ?? new FfmpegTimelineRenderCommandBuilder();
     }
 
     public async Task<ExecutionResult> RunAsync(
@@ -21,7 +26,9 @@ public sealed class EditPlanRenderRunner
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var plan = _commandBuilder.Build(request, executablePath);
+        var plan = request.Plan.Timeline is null
+            ? _commandBuilder.Build(request, executablePath)
+            : _timelineCommandBuilder.Build(request, executablePath);
         var producedPaths = BuildProducedPaths(request.Plan);
         var result = await _processRunner.ExecuteAsync(
             new ProcessExecutionRequest

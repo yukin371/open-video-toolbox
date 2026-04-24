@@ -1,3 +1,4 @@
+using OpenVideoToolbox.Core;
 using OpenVideoToolbox.Core.Editing;
 using Xunit;
 
@@ -131,6 +132,54 @@ public sealed class EditPlanTemplateExampleBuilderTests
         Assert.Equal(2, previews.Count);
         Assert.DoesNotContain(previews, preview => preview.Mode == EditPlanSeedMode.Beats);
         Assert.All(previews, preview => Assert.Single(preview.EditPlan.AudioTracks));
+    }
+
+    [Fact]
+    public void BuildPreviewPlans_TimelineEffectsStarter_ReturnsSchemaV2TimelineShape()
+    {
+        var template = BuiltInEditPlanTemplateCatalog.GetRequired("timeline-effects-starter");
+
+        var previews = EditPlanTemplateExampleBuilder.BuildPreviewPlans(template);
+
+        Assert.Equal(3, previews.Count);
+
+        var manual = Assert.Single(previews.Where(preview => preview.Mode == EditPlanSeedMode.Manual));
+        Assert.Equal(SchemaVersions.V2, manual.EditPlan.SchemaVersion);
+        Assert.Empty(manual.EditPlan.Clips);
+        Assert.Empty(manual.StrategyVariants);
+        Assert.NotNull(manual.EditPlan.Timeline);
+        Assert.Equal(2, manual.EditPlan.Timeline!.Tracks.Count);
+        Assert.Equal("main", manual.EditPlan.Timeline.Tracks[0].Id);
+        Assert.Equal(TrackKind.Video, manual.EditPlan.Timeline.Tracks[0].Kind);
+        Assert.Equal("scale", manual.EditPlan.Timeline.Tracks[0].Effects[0].Type);
+        Assert.Equal(2, manual.EditPlan.Timeline.Tracks[0].Clips.Count);
+        Assert.Equal("brightness_contrast", manual.EditPlan.Timeline.Tracks[0].Clips[0].Effects[0].Type);
+        Assert.Equal("fade", manual.EditPlan.Timeline.Tracks[0].Clips[0].Transitions!.Out!.Type);
+        Assert.Equal("bgm", manual.EditPlan.Timeline.Tracks[1].Id);
+        Assert.Equal(TrackKind.Audio, manual.EditPlan.Timeline.Tracks[1].Kind);
+        Assert.Equal("volume", manual.EditPlan.Timeline.Tracks[1].Clips[0].Effects[0].Type);
+        Assert.Equal("audio/input.wav", manual.EditPlan.Artifacts.Single(artifact => artifact.SlotId == "bgm").Path);
+
+        var transcript = Assert.Single(previews.Where(preview => preview.Mode == EditPlanSeedMode.Transcript));
+        Assert.Equal(SchemaVersions.V2, transcript.EditPlan.SchemaVersion);
+        Assert.NotNull(transcript.EditPlan.Transcript);
+        Assert.NotNull(transcript.EditPlan.Timeline);
+        Assert.Equal(2, transcript.EditPlan.Timeline!.Tracks[0].Clips.Count);
+        Assert.Equal("grouped", transcript.StrategyVariants[0].Key);
+        Assert.True(transcript.StrategyVariants[0].IsRecommended);
+        Assert.Equal("max-gap", transcript.StrategyVariants[1].Key);
+        Assert.True(transcript.StrategyVariants[1].IsRecommended);
+        Assert.Equal("min-duration", transcript.StrategyVariants[2].Key);
+        Assert.False(transcript.StrategyVariants[2].IsRecommended);
+        Assert.Equal("brightness_contrast", transcript.EditPlan.Timeline.Tracks[0].Clips[0].Effects[0].Type);
+        Assert.Null(transcript.EditPlan.Timeline.Tracks[0].Clips[0].Transitions);
+
+        var beats = Assert.Single(previews.Where(preview => preview.Mode == EditPlanSeedMode.Beats));
+        Assert.Equal(SchemaVersions.V2, beats.EditPlan.SchemaVersion);
+        Assert.NotNull(beats.EditPlan.Beats);
+        Assert.NotNull(beats.EditPlan.Timeline);
+        Assert.Single(beats.EditPlan.Timeline!.Tracks[0].Clips);
+        Assert.Equal("brightness_contrast", beats.EditPlan.Timeline.Tracks[0].Clips[0].Effects[0].Type);
     }
 
     [Fact]

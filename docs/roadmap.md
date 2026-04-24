@@ -34,6 +34,148 @@
 - 下一步：继续推进 `E2`，但按分阶段计划执行；功能交付线以 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md` 为准，生态 / 分发线以 `docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md` 为准；`D1` 最早在 `2026-05-22` 后再次重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
+## 整体开发流程
+
+当前整体开发默认按三层入口理解，而不是把所有事项混成一条线：
+
+- `E2-A*`
+  - 生态 / 分发 / 社区 / 维护基线
+- `E2-F*`
+  - 当前正式功能交付线
+- `V2-P*`
+  - `docs/plans/v2/` 对应的后继能力线；当前只处于边界冻结、候选 backlog 与阶段化拆分状态
+
+### 当前默认推进顺序
+
+```text
+先完成当前 E2 活跃阶段
+  ↓
+达到阶段门并人工确认
+  ↓
+只从 V2-P1 挑选 v1-compatible 孵化项
+  ↓
+人工接受后，才允许进入 V2-P2 及之后的正式 v2 实施
+```
+
+### v1 / v2 的当前关系
+
+- `v1`
+  - 仍然是当前唯一正式交付契约
+  - 仍然是当前正式支持运行路径
+- `v2`
+  - 当前不是活跃实现线
+  - 只能按 `docs/plans/v2/2026-04-24-v1-v2-boundary-and-phased-delivery-plan.md` 中定义的 `V2-P*` 阶段推进
+
+### v1 的两个结束节点
+
+为避免继续混淆，后续统一用两个节点表达 `v1` 的结束：
+
+1. `V1 Feature Freeze`
+   - 含义：停止新增纯 v1 功能，只接受修复、文档、兼容层和 parity 桥接
+   - 进入条件：`E2-F4` 关闭、`V2-P1` 被人工接受、并明确进入 `V2-P2`
+2. `V1 Runtime Sunset`
+   - 含义：v1 不再作为正式长期运行路径
+   - 进入条件：`V2-P5` 被人工接受、至少一条 v2 正式工作流可替代对应 v1 路径、且 parity / 迁移说明已文档化
+
+在达到 `V1 Runtime Sunset` 前，禁止把“开始做 v2”理解成“可以删 v1”。
+
+### v2 的默认执行节奏
+
+`V2-P*` 阶段统一按固定循环推进，但这条循环是阶段内的内部工作流，不是每走完一张卡就停下来等人工：
+
+```text
+规格 -> 计划 -> 执行 -> 测试 -> 修复 -> 人工反馈
+```
+
+强制规则：
+
+1. 一个阶段内可以包含多个已选子项，但每个子项都必须在阶段内走完 `规格 -> 计划 -> 执行 -> 测试 -> 修复`
+2. 上述循环默认由 AI 连续完成，不把 `C1 ~ C5` 当成外部停顿点
+3. `规格` 未完成前，不进入代码实现
+4. `测试` 与 `修复` 结束后，不自动进入下一阶段，但也不要求每个子项都单独等人工确认
+5. 阶段没有“可手动验证的验收包”时，不得标记为 `ready_for_acceptance`
+6. 每个阶段的验收包至少必须包含：
+  - 可直接运行的命令或脚本
+  - 最小样例输入或样例生成步骤
+  - 预期输出字段或可见结果
+  - 明确的通过 / 不通过标准
+7. 人工只在“阶段验收”节点介入，由人工决定：
+   - 进入下一阶段
+   - 留在当前阶段补剩余子项或补阶段缺口
+   - 回退到上一阶段重判
+   - 暂停整个 v2 线
+
+### 当前 v2 孵化状态
+
+- `V2-P1` 已被人工接受，并进入下一阶段
+- 上一阶段已接受结果：
+  - `validate-plan` 追加了 `checkMode`、`stats`
+  - issue 追加了 `category`、`checkStage`、`suggestion`
+  - `auto-cut-silence` 已落地为 `v1-compatible` 显式命令
+  - owner 仍保持在 `Core.Editing`，CLI 只做透传与命令封装
+- `V2-P2` 已完成并进入下一阶段
+- `V2-P3` 已完成并进入下一阶段
+- `V2-P4` 已完成并进入下一阶段
+- `V2-P5` 当前已切为活跃阶段：
+  - 当前阶段：`V2-P5`
+  - 当前主题：`首个真正消费 timeline/effects 的模板示例`
+  - 当前最小边界：
+    - 不把所有模板切到 v2
+    - 不在 CLI 层手搓 v2 preview skeleton
+    - 只新增首个 built-in v2 模板，并让 `templates <id>`、`init-plan`、`render --preview` 走真实同一路径
+  - 当前稿件：
+    - `docs/plans/v2/2026-04-24-v2-p5-phase-check.md`
+    - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
+- 当前不变结论：
+  - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
+  - `V1 Feature Freeze` 与 `V1 Runtime Sunset` 均未触发
+- 当前实现状态：
+  - `SchemaVersions.V2`、`EditPlan.Timeline` 与 timeline 类型已落地
+  - `EditPlanValidator` 已补 `schema v2` timeline 结构校验
+  - CLI `validate-plan` 已支持装载并校验 `schemaVersion = 2` 的 plan
+  - built-in effect catalog、`effects list/describe` 与 `validate-plan` 的 built-in effect 识别已落地
+  - `render --plan` 已支持装载 `schemaVersion = 2` 并在 `Core.Execution` 内部做 v1/v2 builder 分发
+  - `FfmpegTimelineRenderCommandBuilder` 已具备基础 timeline render baseline：
+    - 输入收集
+    - 内置模板型 effect filter 生成
+    - 基础 transition / overlay / amix
+    - preview / execute dispatch
+  - `V2-P4` 阶段检查已补到 `docs/plans/v2/2026-04-24-v2-p4-phase-check.md`
+  - `V2-P4` 回归清单已补到 `docs/plans/v2/2026-04-24-v2-p4-acceptance-checklist.md`
+  - `template.planModel` 已落地，作为 v1 / v2 模板生成路径的显式 owner 字段
+  - 首个 built-in v2 模板 `timeline-effects-starter` 已落地：
+    - `BuiltInEditPlanTemplateCatalog` 可发现
+    - `EditPlanTemplateFactory` 会真实产出 `schemaVersion = 2` 的 `EditPlan`
+    - `templates timeline-effects-starter` 的 `previewPlans` 已直接复用真实 v2 plan，并已暴露 `manual / transcript / beats` 三种 seed 形状
+    - `init-plan --template timeline-effects-starter` 已可直接写出可被 `render --preview` 消费的 v2 plan
+    - `init-plan --template timeline-effects-starter --seed-from-transcript/--seed-from-beats` 已可直接写出带真实 timeline clips 的 v2 plan
+  - `auto-cut-silence` 已完成首个 v2 planner 接线：
+    - 当 `--template timeline-effects-starter` 时，会复用模板工厂先生成 v2 baseline plan
+    - planner 只替换主视频轨 clips，并保留模板已有的 track-level effect 与基础 clip-level look
+    - `auto-cut-silence -> render --preview` 已可跑通首条“信号驱动生成 v2 plan”的正式链路
+  - `export L1` 已完成首轮实现：
+    - `export --plan <edit.json> --format edl --output <path>` 已落地
+    - owner 固定在 `Core.Execution`
+    - `Cli` 只新增 `export` 命令入口与 envelope 输出
+    - `v1` 会包装成单主视频轨 cut list
+    - `v2` 只导出 `main` 或首条 video track，并通过 warning 显式说明 audio / effect / transition / extra video track 的忽略语义
+  - 当前阶段状态：`implemented`
+  - 当前下一步应在 `V2-P5` 内完成 `export L1` 的阶段验收包与结论收口，而不是回到 `V2-P4` 再混入插件 effect 或更复杂执行器
+
+### 开发时的总入口文档
+
+- 当前活跃阶段与高层顺序：`docs/roadmap.md`
+- 当前 E2 功能交付线：`docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md`
+- 当前 E2 生态线：`docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md`
+- v1 / v2 边界、`V2-P*` 阶段、任务卡循环：
+  - `docs/plans/v2/2026-04-24-v1-v2-boundary-and-phased-delivery-plan.md`
+
+后续如果讨论的是具体实施，不再使用“继续做 v2”这种宽泛描述，而应明确到：
+
+- 当前处于哪个 `E2-*` 或 `V2-P*` 阶段
+- 当前阶段内正在推进哪个子项
+- 当前是否已到“阶段验收”停顿点
+
 ## 阶段检查（2026-04-22）
 
 - `H1` 已完成：
@@ -173,8 +315,8 @@
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-- `OpenVideoToolbox.Core.Tests`: 141/141
-- `OpenVideoToolbox.Cli.Tests`: 158/158
+- `OpenVideoToolbox.Core.Tests`: 164/164
+- `OpenVideoToolbox.Cli.Tests`: 179/179
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`

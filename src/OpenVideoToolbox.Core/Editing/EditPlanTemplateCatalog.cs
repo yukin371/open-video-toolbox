@@ -56,6 +56,7 @@ public static class EditPlanTemplateCatalog
                 Id = template.Id,
                 DisplayName = template.DisplayName,
                 Category = template.Category,
+                PlanModel = template.PlanModel,
                 OutputContainer = template.OutputContainer,
                 RecommendedSeedModes = template.RecommendedSeedModes.Distinct().ToArray(),
                 ArtifactKinds = template.ArtifactSlots

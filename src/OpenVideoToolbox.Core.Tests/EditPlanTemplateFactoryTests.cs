@@ -603,6 +603,110 @@ public sealed class EditPlanTemplateFactoryTests
     }
 
     [Fact]
+    public void Create_TimelineEffectsStarter_CanSeedTimelineFromTranscriptSegments()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "timeline-effects-starter",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                TranscriptPath = "transcript.json",
+                Transcript = new TranscriptDocument
+                {
+                    Language = "en",
+                    Segments =
+                    [
+                        new TranscriptSegment
+                        {
+                            Id = "seg-001",
+                            Start = TimeSpan.Zero,
+                            End = TimeSpan.FromSeconds(1.2),
+                            Text = "Hello"
+                        },
+                        new TranscriptSegment
+                        {
+                            Id = "seg-002",
+                            Start = TimeSpan.FromSeconds(1.2),
+                            End = TimeSpan.FromSeconds(2.4),
+                            Text = "World"
+                        }
+                    ]
+                },
+                SeedClipsFromTranscript = true
+            });
+
+        Assert.Equal(SchemaVersions.V2, plan.SchemaVersion);
+        Assert.Empty(plan.Clips);
+        Assert.NotNull(plan.Timeline);
+
+        var videoTrack = Assert.Single(plan.Timeline!.Tracks.Where(track => track.Kind == TrackKind.Video));
+        Assert.Equal(2, videoTrack.Clips.Count);
+        Assert.Equal(TimeSpan.Zero, videoTrack.Clips[0].Start);
+        Assert.Equal(TimeSpan.Zero, videoTrack.Clips[0].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(1.2), videoTrack.Clips[0].OutPoint);
+        Assert.Equal(TimeSpan.FromSeconds(1.2), videoTrack.Clips[1].Start);
+        Assert.Equal(TimeSpan.FromSeconds(1.2), videoTrack.Clips[1].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(2.4), videoTrack.Clips[1].OutPoint);
+        Assert.Equal("brightness_contrast", videoTrack.Clips[0].Effects[0].Type);
+        Assert.Null(videoTrack.Clips[0].Transitions);
+        Assert.Equal(TimeSpan.FromSeconds(2.4), plan.Timeline.Duration);
+        Assert.Equal("transcript.json", plan.Transcript!.Path);
+        Assert.Equal(2, plan.Transcript.SegmentCount);
+    }
+
+    [Fact]
+    public void Create_TimelineEffectsStarter_CanSeedTimelineFromBeatGroups()
+    {
+        var factory = new EditPlanTemplateFactory();
+
+        var plan = factory.Create(
+            "timeline-effects-starter",
+            new EditPlanTemplateRequest
+            {
+                InputPath = "input.mp4",
+                RenderOutputPath = "final.mp4",
+                BeatTrackPath = "beats.json",
+                BeatTrack = new BeatTrackDocument
+                {
+                    SourcePath = "input.mp4",
+                    SampleRateHz = 16000,
+                    FrameDuration = TimeSpan.FromMilliseconds(50),
+                    EstimatedBpm = 120,
+                    Beats =
+                    [
+                        new BeatMarker { Index = 0, Time = TimeSpan.Zero, Strength = 0.9 },
+                        new BeatMarker { Index = 1, Time = TimeSpan.FromSeconds(1), Strength = 0.9 },
+                        new BeatMarker { Index = 2, Time = TimeSpan.FromSeconds(2), Strength = 0.9 },
+                        new BeatMarker { Index = 3, Time = TimeSpan.FromSeconds(3), Strength = 0.9 },
+                        new BeatMarker { Index = 4, Time = TimeSpan.FromSeconds(4), Strength = 0.9 }
+                    ]
+                },
+                SeedClipsFromBeats = true,
+                BeatGroupSize = 2
+            });
+
+        Assert.Equal(SchemaVersions.V2, plan.SchemaVersion);
+        Assert.Empty(plan.Clips);
+        Assert.NotNull(plan.Timeline);
+
+        var videoTrack = Assert.Single(plan.Timeline!.Tracks.Where(track => track.Kind == TrackKind.Video));
+        Assert.Equal(2, videoTrack.Clips.Count);
+        Assert.Equal(TimeSpan.Zero, videoTrack.Clips[0].Start);
+        Assert.Equal(TimeSpan.FromSeconds(2), videoTrack.Clips[0].OutPoint);
+        Assert.Equal(TimeSpan.FromSeconds(2), videoTrack.Clips[1].Start);
+        Assert.Equal(TimeSpan.FromSeconds(2), videoTrack.Clips[1].InPoint);
+        Assert.Equal(TimeSpan.FromSeconds(4), videoTrack.Clips[1].OutPoint);
+        Assert.Equal("brightness_contrast", videoTrack.Clips[1].Effects[0].Type);
+        Assert.Null(videoTrack.Clips[1].Transitions);
+        Assert.Equal(TimeSpan.FromSeconds(4), plan.Timeline.Duration);
+        Assert.Equal("beats.json", plan.Beats!.Path);
+        Assert.Equal(120, plan.Beats.EstimatedBpm);
+    }
+
+    [Fact]
     public void Create_MusicCaptionedMontage_BindsCaptionAndMusicForBeatSeed()
     {
         var factory = new EditPlanTemplateFactory();

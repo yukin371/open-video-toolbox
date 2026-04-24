@@ -16,6 +16,7 @@
       "description": "Single-track short-form cut with a clean clip skeleton and no subtitle requirement.",
       "category": "short-form",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": null,
       "parameterDefaults": {
@@ -53,6 +54,7 @@
       "description": "Short-form cut with subtitle slot prepared for caption-driven publishing.",
       "category": "short-form",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": "sidecar",
       "parameterDefaults": {
@@ -97,6 +99,7 @@
       "description": "Talking-head or commentary cut with a prepared BGM slot for later mixing.",
       "category": "commentary",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": null,
       "parameterDefaults": {
@@ -135,6 +138,7 @@
       "description": "Commentary or talking-head cut with captions ready for social publishing and optional BGM support.",
       "category": "commentary",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": "sidecar",
       "parameterDefaults": {
@@ -181,6 +185,7 @@
       "description": "Transcript-friendly explainer cut with subtitle output prepared for tutorial or walkthrough delivery.",
       "category": "explainer",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": "sidecar",
       "parameterDefaults": {
@@ -220,6 +225,7 @@
       "description": "Rhythm-first montage template tuned for beat-group seeding and optional music replacement.",
       "category": "montage",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": null,
       "parameterDefaults": {
@@ -256,6 +262,7 @@
       "description": "Beat-driven montage template with optional lyric or hook captions and a prepared music bed slot.",
       "category": "montage",
       "version": "1.0.0",
+      "planModel": "v1",
       "outputContainer": "mp4",
       "defaultSubtitleMode": "sidecar",
       "parameterDefaults": {
@@ -290,6 +297,47 @@
         {
           "kind": "stems",
           "reason": "Use separated stems when lyric captions or hook overlays need a cleaner accompaniment bed."
+        }
+      ]
+    },
+    {
+      "id": "timeline-effects-starter",
+      "displayName": "Timeline Effects Starter",
+      "description": "First schema v2 timeline starter with real clip effects, optional transcript/beat seeding, and an optional BGM track.",
+      "category": "timeline",
+      "version": "1.0.0",
+      "planModel": "v2Timeline",
+      "outputContainer": "mp4",
+      "defaultSubtitleMode": null,
+      "parameterDefaults": {
+        "look": "clean-contrast",
+        "bgmTargetGainDb": "-10"
+      },
+      "recommendedSeedModes": [
+        "manual",
+        "transcript",
+        "beats"
+      ],
+      "recommendedTranscriptSeedStrategies": [
+        "grouped",
+        "maxGap"
+      ],
+      "artifactSlots": [
+        {
+          "id": "bgm",
+          "kind": "audio",
+          "description": "Optional background music file placed on a dedicated v2 timeline audio track.",
+          "required": false
+        }
+      ],
+      "supportingSignals": [
+        {
+          "kind": "transcript",
+          "reason": "Use transcript segments when the first v2 timeline pass should follow spoken beats instead of the default demo skeleton."
+        },
+        {
+          "kind": "beats",
+          "reason": "Use beat markers when the first v2 timeline pass should inherit rhythm-first pacing from music or motion."
         }
       ]
     }

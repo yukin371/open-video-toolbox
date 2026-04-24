@@ -13,8 +13,15 @@ public sealed class EditPlanValidatorTests
 
         var result = validator.Validate(plan);
 
+        Assert.Equal(EditPlanValidationMode.Basic, result.CheckMode);
         Assert.True(result.IsValid);
         Assert.Empty(result.Issues);
+        Assert.Equal(0, result.Stats.TotalIssues);
+        Assert.Equal(0, result.Stats.ErrorCount);
+        Assert.Equal(0, result.Stats.WarningCount);
+        Assert.Equal(0, result.Stats.BySeverity["error"]);
+        Assert.Equal(0, result.Stats.BySeverity["warning"]);
+        Assert.Empty(result.Stats.ByCode);
     }
 
     [Fact]
@@ -51,6 +58,17 @@ public sealed class EditPlanValidatorTests
         Assert.Contains(result.Issues, issue => issue.Code == "clips.range.invalid");
         Assert.Contains(result.Issues, issue => issue.Code == "clips.id.duplicate");
         Assert.Contains(result.Issues, issue => issue.Code == "output.container.mismatch");
+        Assert.Equal(3, result.Stats.TotalIssues);
+        Assert.Equal(3, result.Stats.ErrorCount);
+        Assert.Equal(0, result.Stats.WarningCount);
+        Assert.Equal(1, result.Stats.ByCode["clips.range.invalid"]);
+        Assert.Equal(1, result.Stats.ByCode["clips.id.duplicate"]);
+        Assert.Equal(1, result.Stats.ByCode["output.container.mismatch"]);
+
+        var clipRangeIssue = Assert.Single(result.Issues.Where(issue => issue.Code == "clips.range.invalid"));
+        Assert.Equal("clips", clipRangeIssue.Category);
+        Assert.Equal("structure", clipRangeIssue.CheckStage);
+        Assert.Equal("Adjust clip out so it is greater than clip in.", clipRangeIssue.Suggestion);
     }
 
     [Fact]
@@ -151,6 +169,12 @@ public sealed class EditPlanValidatorTests
 
         Assert.False(result.IsValid);
         Assert.Contains(result.Issues, issue => issue.Code == "template.source.catalog.required");
+        var issue = Assert.Single(result.Issues.Where(candidate => candidate.Code == "template.source.catalog.required"));
+        Assert.Equal("template", issue.Category);
+        Assert.Equal("template", issue.CheckStage);
+        Assert.Equal(
+            "Re-run validate-plan with --plugin-dir pointing at the plugin catalog that provides this template.",
+            issue.Suggestion);
     }
 
     [Fact]

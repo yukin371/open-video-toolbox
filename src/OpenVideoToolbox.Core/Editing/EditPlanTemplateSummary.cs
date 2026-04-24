@@ -8,6 +8,8 @@ public sealed record EditPlanTemplateSummary
 
     public required string Category { get; init; }
 
+    public EditPlanTemplatePlanModel PlanModel { get; init; } = EditPlanTemplatePlanModel.V1;
+
     public required string OutputContainer { get; init; }
 
     public required IReadOnlyList<EditPlanSeedMode> RecommendedSeedModes { get; init; }

@@ -1,5 +1,6 @@
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
+using OpenVideoToolbox.Core;
 using Xunit;
 
 namespace OpenVideoToolbox.Core.Tests;
@@ -105,5 +106,61 @@ public sealed class EditPlanExecutionPreviewBuilderTests
         Assert.Single(preview.ProducedPaths);
         Assert.Equal(Path.GetFullPath("mixed.wav"), preview.ProducedPaths[0]);
         Assert.Empty(preview.SideEffects);
+    }
+
+    [Fact]
+    public void BuildRenderPreview_UsesTimelineBuilderForSchemaV2()
+    {
+        var builder = new EditPlanExecutionPreviewBuilder();
+        var request = new EditPlanRenderRequest
+        {
+            Plan = new EditPlan
+            {
+                SchemaVersion = SchemaVersions.V2,
+                Source = new EditPlanSource
+                {
+                    InputPath = Path.GetFullPath("input.mp4")
+                },
+                Timeline = new EditPlanTimeline
+                {
+                    Duration = TimeSpan.FromSeconds(3),
+                    Resolution = new TimelineResolution
+                    {
+                        W = 1920,
+                        H = 1080
+                    },
+                    FrameRate = 30,
+                    Tracks =
+                    [
+                        new TimelineTrack
+                        {
+                            Id = "main",
+                            Kind = TrackKind.Video,
+                            Clips =
+                            [
+                                new TimelineClip
+                                {
+                                    Id = "clip-001",
+                                    Start = TimeSpan.Zero,
+                                    InPoint = TimeSpan.Zero,
+                                    OutPoint = TimeSpan.FromSeconds(3)
+                                }
+                            ]
+                        }
+                    ]
+                },
+                Output = new EditOutputPlan
+                {
+                    Path = Path.GetFullPath("timeline-final.mp4"),
+                    Container = "mp4"
+                }
+            }
+        };
+
+        var preview = builder.BuildRenderPreview(request);
+
+        Assert.Equal(SchemaVersions.V2, preview.CommandPlan.SchemaVersion);
+        Assert.Contains("[v_out]", preview.CommandPlan.Arguments);
+        Assert.Contains(Path.GetFullPath("timeline-final.mp4"), preview.ProducedPaths);
     }
 }

@@ -8,6 +8,7 @@
     "description": "Short-form cut with subtitle slot prepared for caption-driven publishing.",
     "category": "short-form",
     "version": "1.0.0",
+    "planModel": "v1",
     "outputContainer": "mp4",
     "defaultSubtitleMode": "sidecar",
     "parameterDefaults": {
