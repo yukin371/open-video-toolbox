@@ -133,11 +133,12 @@
   - 当前阶段状态：`accepted`
   - 当前下一步：
     - 不再继续向 `V2-P5` 混入新能力
-    - 先决定是否补 parity / 迁移文档，或单独启动下一阶段
+    - 已补 `v1 / v2 parity + migration` 文档
+    - 如需继续推进，应单独启动下一阶段，而不是回到 `V2-P5`
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
-  - `V2-P5` 虽已通过人工阶段验收，但 parity / 迁移说明尚未单独收口，因此 `V1 Runtime Sunset` 仍未触发
+  - `V2-P5` 虽已通过人工阶段验收，且 parity / 迁移说明已补齐，但当前 v2 只覆盖首条正式工作流，尚未形成对高频 v1 工作流的广泛替代，因此 `V1 Runtime Sunset` 仍未触发
 - 当前实现状态：
   - `SchemaVersions.V2`、`EditPlan.Timeline` 与 timeline 类型已落地
   - `EditPlanValidator` 已补 `schema v2` timeline 结构校验
@@ -169,6 +170,8 @@
     - `v1` 会包装成单主视频轨 cut list
     - `v2` 只导出 `main` 或首条 video track，并通过 warning 显式说明 audio / effect / transition / extra video track 的忽略语义
   - `V2-P5` 已完成人工阶段验收，不应回到 `V2-P4` 或继续在 `V2-P5` 内混入插件 effect / 更复杂执行器
+  - 当前 parity / migration 口径已补到：
+    - `docs/plans/v2/2026-04-25-v1-v2-parity-and-migration.md`
   - 当前手动验收入口：
     - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
 
