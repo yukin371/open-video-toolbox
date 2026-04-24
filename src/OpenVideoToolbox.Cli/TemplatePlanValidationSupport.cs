@@ -6,9 +6,8 @@ namespace OpenVideoToolbox.Cli;
 
 internal static class TemplatePlanValidationSupport
 {
-    public static async Task<EditPlanValidationResult> ValidatePlanFileAsync(
+    public static async Task<LoadedEditPlanContext> LoadPlanContextAsync(
         string fullPlanPath,
-        bool checkFiles,
         TemplatePluginCatalog? pluginCatalog = null)
     {
         var content = await File.ReadAllTextAsync(fullPlanPath);
@@ -20,9 +19,25 @@ internal static class TemplatePlanValidationSupport
             throw new InvalidOperationException($"Unsupported edit plan schema version '{plan.SchemaVersion}'.");
         }
 
-        var resolvedPlan = EditPlanPathResolver.ResolvePaths(plan, Path.GetDirectoryName(fullPlanPath)!);
+        var baseDirectory = Path.GetDirectoryName(fullPlanPath)!;
         var validationTemplates = SelectValidationTemplates(plan, pluginCatalog);
-        return new EditPlanValidator().Validate(resolvedPlan, checkFiles, validationTemplates);
+
+        return new LoadedEditPlanContext
+        {
+            Plan = plan,
+            ResolvedPlan = EditPlanPathResolver.ResolvePaths(plan, baseDirectory),
+            BaseDirectory = baseDirectory,
+            ValidationTemplates = validationTemplates
+        };
+    }
+
+    public static async Task<EditPlanValidationResult> ValidatePlanFileAsync(
+        string fullPlanPath,
+        bool checkFiles,
+        TemplatePluginCatalog? pluginCatalog = null)
+    {
+        var context = await LoadPlanContextAsync(fullPlanPath, pluginCatalog);
+        return new EditPlanValidator().Validate(context.ResolvedPlan, checkFiles, context.ValidationTemplates);
     }
 
     private static IReadOnlyList<EditPlanTemplateDefinition>? SelectValidationTemplates(
@@ -43,4 +58,15 @@ internal static class TemplatePlanValidationSupport
 
         return TemplateCommandPresentation.BuildAvailableTemplates(pluginCatalog);
     }
+}
+
+internal sealed record LoadedEditPlanContext
+{
+    public required EditPlan Plan { get; init; }
+
+    public required EditPlan ResolvedPlan { get; init; }
+
+    public required string BaseDirectory { get; init; }
+
+    public IReadOnlyList<EditPlanTemplateDefinition>? ValidationTemplates { get; init; }
 }

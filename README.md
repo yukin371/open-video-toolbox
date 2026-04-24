@@ -27,6 +27,11 @@
 | 快速计划 / 执行 | `plan` / `run` | 命令预览或直接执行 | 已可用 |
 | 模板筛选 | `templates` | 模板列表、过滤结果、单模板指南 | 已可用 |
 | 草稿生成 | `init-plan` / `scaffold-template` | 可编辑的 `edit.json` 与工作目录 | 已可用 |
+| 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
+| 素材替换 | `replace-plan-material` | 受控替换 plan 内素材并返回后置校验结果 | 已可用 |
+| 素材挂载 | `attach-plan-material` | 为缺失的字幕、转写、节拍、音轨或声明 slot 做显式挂载 | 已可用 |
+| 配音接回 | `bind-voice-track` | 用默认 voice 轨约定把外部配音/TTS/变音结果接回 plan | 已可用 |
+| 批量配音接回 | `bind-voice-track-batch` | 按 manifest 批量把外部配音/TTS/变音结果接回多份 plan，并返回部分成功摘要 | 已可用 |
 | 计划校验 | `validate-plan` | 对 AI 或手改后的计划做结构化校验 | 已可用 |
 | 成片渲染 | `render` | 最终视频或预览执行计划 | 已可用 |
 | 独立混音 | `mix-audio` | 单独导出混音结果 | 已可用 |
@@ -104,6 +109,72 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- r
 ```
 
 适合先拿到一个能改的草稿，再逐步细修的场景。
+
+### 先看清计划里有哪些素材可以换
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- inspect-plan --plan .\.workspace\edit.json --check-files
+```
+
+适合在继续改 `edit.json`、挂字幕、换旁白或换 BGM 之前，先看清当前 plan 的素材绑定、可替换目标和缺失引用。
+
+### 把新的旁白、BGM 或字幕接回现有计划
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- replace-plan-material --plan .\.workspace\edit.json --audio-track-id voice-main --path .\assets\new-dub.wav --path-style relative --check-files
+```
+
+适合在外部已经产出新素材文件后，用受控方式替换 plan 内已有绑定，而不是手改整份 JSON。
+
+### 给当前还没挂上的字幕、转写或模板槽位补绑定
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- attach-plan-material --plan .\.workspace\edit.json --transcript --path .\signals\transcript.json --check-files
+```
+
+适合在当前 plan 还没有 `transcript`、`subtitles`、`beats` 或某个模板声明 slot 时，显式把新文件接回去。
+
+如果你需要把外部生成的配音、TTS 或变音结果接回 plan，现在也可以这样补一条音轨：
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- attach-plan-material --plan .\.workspace\edit.json --audio-track-id voice-main --audio-track-role voice --path .\audio\dub.wav --path-style relative --check-files
+```
+
+如果你更希望用更直接的人声工作流入口，也可以这样：
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- bind-voice-track --plan .\.workspace\edit.json --path .\audio\dub.wav --path-style relative --check-files
+```
+
+如果你手上是一批待接回的外部配音结果，也可以准备一个批量 manifest：
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "plan": "jobs/a/edit.json",
+      "path": "audio/a.wav",
+      "checkFiles": true,
+      "pathStyle": "relative"
+    },
+    {
+      "plan": "jobs/b/edit.json",
+      "path": "audio/b.wav",
+      "trackId": "voice-alt",
+      "role": "voice"
+    }
+  ]
+}
+```
+
+然后直接批量接回：
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- bind-voice-track-batch --manifest .\batch.json
+```
+
+这条命令会把 manifest 内的相对路径统一按 manifest 所在目录解析；全部成功返回 `0`，只要有条目失败就返回 `2`，如果 manifest 本身无法解析则返回 `1`。
 
 ### 给现有素材补转写和字幕
 

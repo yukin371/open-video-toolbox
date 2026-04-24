@@ -1,0 +1,29 @@
+{
+  "command": "attach-plan-material",
+  "preview": false,
+  "payload": {
+    "checkFiles": true,
+    "requireValid": false,
+    "target": {
+      "targetType": "transcript",
+      "targetKey": "transcript",
+      "selector": {
+        "singleton": "transcript",
+        "audioTrackId": null,
+        "artifactSlot": null
+      },
+      "previousPath": null,
+      "nextPath": "signals\\transcript.json",
+      "pathStyleApplied": "relative",
+      "previousSubtitleMode": null,
+      "nextSubtitleMode": null,
+      "previousAudioTrackRole": null,
+      "nextAudioTrackRole": null
+    },
+    "added": true,
+    "validation": {
+      "issues": [],
+      "isValid": true
+    }
+  }
+}

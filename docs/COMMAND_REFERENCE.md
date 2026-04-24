@@ -1,6 +1,6 @@
 # 命令速查
 
-最后更新：2026-04-22
+最后更新：2026-04-24
 
 ## 文档定位
 
@@ -22,7 +22,7 @@
 
 ## 说明
 
-- 以下签名按 2026-04-22 实际 CLI 顶层帮助输出整理。
+- 以下签名按 2026-04-24 实际 CLI 顶层帮助输出整理。
 - 命令默认优先输出结构化 JSON。
 - 传 `--json-out <path>` 时，会把 stdout 的同一份结果原样写到文件。
 - 本页只写命令尾部签名；如何选择源码运行或 release 二进制，见 `QUICK_START.md`。
@@ -130,6 +130,57 @@ validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <pat
 用途：
 
 - 校验 `edit.json`
+
+### `inspect-plan`
+
+```text
+inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]
+```
+
+用途：
+
+- 输出 `edit.json` 的素材概览、可替换目标、缺失绑定、transcript / beats / subtitles signal 状态与校验摘要
+
+### `replace-plan-material`
+
+```text
+replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--source-input | --audio-track-id <id> | --artifact-slot <slotId> | --transcript | --beats | --subtitles) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]
+```
+
+用途：
+
+- 对 plan 中已存在的 source、audio track、artifact、transcript、beats 或 subtitles 做受控替换
+
+### `attach-plan-material`
+
+```text
+attach-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--transcript | --beats | --subtitles | --audio-track-id <id> [--audio-track-role <original|voice|bgm|effects>] | --artifact-slot <slotId>) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]
+```
+
+用途：
+
+- 对当前缺失的 `transcript`、`beats`、`subtitles`、`audioTracks` 做显式挂载，或对模板已声明的 artifact slot 做 upsert
+
+### `bind-voice-track`
+
+```text
+bind-voice-track --plan <edit.json> --path <audio-file> [--track-id <id>] [--role <original|voice|bgm|effects>] [--write-to <path>] [--in-place [true|false]] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]
+```
+
+用途：
+
+- 用默认 `voice-main` / `voice` 约定，把外部 dubbing、TTS 或 voice conversion 产物接回 `edit.json`
+
+### `bind-voice-track-batch`
+
+```text
+bind-voice-track-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]
+```
+
+用途：
+
+- 从批量 manifest 读取多条 plan / 音频绑定任务，逐项复用 `bind-voice-track` 流程，并返回部分成功摘要
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
 ## 音频 / speech / supporting signal
 

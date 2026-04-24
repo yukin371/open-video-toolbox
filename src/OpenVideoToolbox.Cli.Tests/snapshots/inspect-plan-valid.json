@@ -1,0 +1,165 @@
+{
+  "command": "inspect-plan",
+  "preview": false,
+  "payload": {
+    "planPath": "<plan-path>",
+    "resolvedBaseDirectory": "<resolved-base-directory>",
+    "checkFiles": true,
+    "template": {
+      "id": "shorts-captioned",
+      "version": null,
+      "source": null
+    },
+    "summary": {
+      "clipCount": 1,
+      "audioTrackCount": 1,
+      "artifactCount": 0,
+      "hasTranscript": true,
+      "hasBeats": false,
+      "hasSubtitles": true
+    },
+    "materials": [
+      {
+        "targetType": "source",
+        "targetKey": "source.inputPath",
+        "displayName": "Source Video",
+        "id": null,
+        "role": null,
+        "slotId": null,
+        "kind": null,
+        "required": null,
+        "mode": null,
+        "path": "input.mp4",
+        "resolvedPath": "<resolved-path>",
+        "exists": true,
+        "replaceable": true
+      },
+      {
+        "targetType": "audioTrack",
+        "targetKey": "audioTrack:voice-main",
+        "displayName": null,
+        "id": "voice-main",
+        "role": "voice",
+        "slotId": null,
+        "kind": null,
+        "required": null,
+        "mode": null,
+        "path": "dub.wav",
+        "resolvedPath": "<resolved-path>",
+        "exists": true,
+        "replaceable": true
+      },
+      {
+        "targetType": "transcript",
+        "targetKey": "transcript",
+        "displayName": null,
+        "id": null,
+        "role": null,
+        "slotId": null,
+        "kind": null,
+        "required": null,
+        "mode": null,
+        "path": "transcript.json",
+        "resolvedPath": "<resolved-path>",
+        "exists": true,
+        "replaceable": true
+      },
+      {
+        "targetType": "subtitles",
+        "targetKey": "subtitles",
+        "displayName": null,
+        "id": null,
+        "role": null,
+        "slotId": null,
+        "kind": null,
+        "required": null,
+        "mode": "sidecar",
+        "path": "subs.srt",
+        "resolvedPath": "<resolved-path>",
+        "exists": true,
+        "replaceable": true
+      }
+    ],
+    "replaceTargets": [
+      {
+        "targetType": "source",
+        "targetKey": "source.inputPath",
+        "selector": {
+          "singleton": "source.inputPath",
+          "audioTrackId": null,
+          "artifactSlot": null
+        }
+      },
+      {
+        "targetType": "audioTrack",
+        "targetKey": "audioTrack:voice-main",
+        "selector": {
+          "singleton": null,
+          "audioTrackId": "voice-main",
+          "artifactSlot": null
+        }
+      },
+      {
+        "targetType": "transcript",
+        "targetKey": "transcript",
+        "selector": {
+          "singleton": "transcript",
+          "audioTrackId": null,
+          "artifactSlot": null
+        }
+      },
+      {
+        "targetType": "subtitles",
+        "targetKey": "subtitles",
+        "selector": {
+          "singleton": "subtitles",
+          "audioTrackId": null,
+          "artifactSlot": null
+        }
+      }
+    ],
+    "signals": [
+      {
+        "kind": "transcript",
+        "targetKey": "transcript",
+        "expectedByTemplate": true,
+        "attached": true,
+        "bindingStatus": "attached",
+        "fileStatus": "present",
+        "mode": null,
+        "path": "transcript.json",
+        "resolvedPath": "<resolved-path>",
+        "exists": true
+      },
+      {
+        "kind": "beats",
+        "targetKey": "beats",
+        "expectedByTemplate": true,
+        "attached": false,
+        "bindingStatus": "unbound",
+        "fileStatus": "unbound",
+        "mode": null,
+        "path": null,
+        "resolvedPath": null,
+        "exists": null
+      },
+      {
+        "kind": "subtitles",
+        "targetKey": "subtitles",
+        "expectedByTemplate": true,
+        "attached": true,
+        "bindingStatus": "attached",
+        "fileStatus": "present",
+        "mode": "sidecar",
+        "path": "subs.srt",
+        "resolvedPath": "<resolved-path>",
+        "exists": true
+      }
+    ],
+    "missingBindings": [],
+    "validation": {
+      "issues": [],
+      "isValid": true
+    }
+  }
+}

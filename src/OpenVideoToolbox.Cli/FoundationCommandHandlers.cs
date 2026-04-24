@@ -1,6 +1,8 @@
+using System.Text.Json;
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
 using OpenVideoToolbox.Core.Media;
+using OpenVideoToolbox.Core.Serialization;
 using static OpenVideoToolbox.Cli.CliCommandOutput;
 using static OpenVideoToolbox.Cli.CliOptionParsing;
 
@@ -222,6 +224,640 @@ internal static class FoundationCommandHandlers
         }
     }
 
+    public static async Task<int> RunInspectPlanAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var planDirectory = Path.GetDirectoryName(fullPlanPath)!;
+
+        try
+        {
+            var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(fullPlanPath, pluginCatalog);
+            var inspection = new EditPlanInspector().Inspect(
+                planContext.Plan,
+                planContext.BaseDirectory,
+                checkFiles == true,
+                planContext.ValidationTemplates);
+
+            var report = new
+            {
+                planPath = fullPlanPath,
+                resolvedBaseDirectory = planDirectory,
+                checkFiles = checkFiles == true,
+                template = inspection.Template,
+                summary = inspection.Summary,
+                materials = inspection.Materials,
+                replaceTargets = inspection.ReplaceTargets,
+                signals = inspection.Signals,
+                missingBindings = inspection.MissingBindings,
+                validation = inspection.Validation
+            };
+
+            return WriteCommandEnvelope("inspect-plan", preview: false, report, jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            return FailWithCommandEnvelope(
+                "inspect-plan",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "inspectPlan",
+                    new
+                    {
+                        planPath = fullPlanPath,
+                        resolvedBaseDirectory = planDirectory,
+                        checkFiles = checkFiles == true
+                    },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
+        }
+    }
+
+    public static async Task<int> RunReplacePlanMaterialAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--path", out var replacementPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--require-valid", out var requireValid, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--in-place", out var inPlace, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryParseEditPlanPathWriteStyleOption(GetOption(options, "--path-style"), out var pathStyle, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryResolveReplacementTarget(options, out var targetSelector, out error))
+        {
+            return fail(error!);
+        }
+
+        var subtitleModeRaw = GetOption(options, "--subtitle-mode");
+        if (subtitleModeRaw is not null
+            && !string.Equals(targetSelector.Singleton, EditPlanInspectionTargetKeys.Subtitles, StringComparison.Ordinal))
+        {
+            return fail("Option '--subtitle-mode' can only be used with '--subtitles'.");
+        }
+
+        SubtitleMode? subtitleMode = null;
+        if (subtitleModeRaw is not null)
+        {
+            if (!TryParseRequiredSubtitleMode(subtitleModeRaw, out var parsedSubtitleMode, out error))
+            {
+                return fail(error!);
+            }
+
+            subtitleMode = parsedSubtitleMode;
+        }
+
+        if (GetOption(options, "--audio-track-role") is not null)
+        {
+            return fail("Option '--audio-track-role' can only be used with 'attach-plan-material --audio-track-id <id>'.");
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var outputPlanPath = ResolveOutputPlanPath(fullPlanPath, inPlace, GetOption(options, "--write-to"), out error);
+        if (outputPlanPath is null)
+        {
+            return fail(error!);
+        }
+
+        var outputBaseDirectory = Path.GetDirectoryName(outputPlanPath)!;
+        var resolvedReplacementPath = Path.GetFullPath(replacementPath!);
+
+        try
+        {
+            var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(fullPlanPath, pluginCatalog);
+            var replacement = new EditPlanMaterialReplacer().Replace(
+                planContext.Plan,
+                outputBaseDirectory,
+                new EditPlanMaterialReplacementRequest
+                {
+                    Target = targetSelector,
+                    ResolvedPath = resolvedReplacementPath,
+                    PathStyle = pathStyle,
+                    SubtitleMode = subtitleMode
+                });
+
+            var validation = new EditPlanValidator().Validate(
+                EditPlanPathResolver.ResolvePaths(replacement.UpdatedPlan, outputBaseDirectory),
+                checkFiles == true,
+                planContext.ValidationTemplates);
+
+            var report = new
+            {
+                planPath = fullPlanPath,
+                outputPlanPath,
+                checkFiles = checkFiles == true,
+                requireValid = requireValid == true,
+                target = new
+                {
+                    replacement.Target.TargetType,
+                    replacement.Target.TargetKey,
+                    replacement.Target.Selector,
+                    previousPath = replacement.PreviousPath,
+                    nextPath = replacement.NextPath,
+                    pathStyleApplied = replacement.PathStyleApplied,
+                    previousSubtitleMode = replacement.PreviousSubtitleMode,
+                    nextSubtitleMode = replacement.NextSubtitleMode
+                },
+                changed = replacement.Changed,
+                validation
+            };
+
+            if (requireValid == true && !validation.IsValid)
+            {
+                var message = "Updated plan failed validation and '--require-valid' was specified.";
+                Console.Error.WriteLine(message);
+                return WriteCommandEnvelope("replace-plan-material", preview: false, new
+                {
+                    replacePlanMaterial = report,
+                    error = new
+                    {
+                        message
+                    }
+                }, jsonOutPath, exitCode: 1);
+            }
+
+            Directory.CreateDirectory(outputBaseDirectory);
+            await File.WriteAllTextAsync(outputPlanPath, JsonSerializer.Serialize(replacement.UpdatedPlan, OpenVideoToolboxJson.Default));
+
+            return WriteCommandEnvelope("replace-plan-material", preview: false, report, jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope("replace-plan-material", preview: false, new
+            {
+                replacePlanMaterial = new
+                {
+                    planPath = fullPlanPath,
+                    outputPlanPath,
+                    checkFiles = checkFiles == true,
+                    requireValid = requireValid == true,
+                    target = targetSelector,
+                    replacementPath = resolvedReplacementPath
+                },
+                error = new
+                {
+                    message = ex.Message
+                }
+            }, jsonOutPath, exitCode: 1);
+        }
+    }
+
+    public static async Task<int> RunAttachPlanMaterialAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--path", out var attachmentPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--require-valid", out var requireValid, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--in-place", out var inPlace, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryParseEditPlanPathWriteStyleOption(GetOption(options, "--path-style"), out var pathStyle, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryResolveAttachmentTarget(options, out var targetSelector, out error))
+        {
+            return fail(error!);
+        }
+
+        var subtitleModeRaw = GetOption(options, "--subtitle-mode");
+        if (subtitleModeRaw is not null
+            && !string.Equals(targetSelector.Singleton, EditPlanInspectionTargetKeys.Subtitles, StringComparison.Ordinal))
+        {
+            return fail("Option '--subtitle-mode' can only be used with '--subtitles'.");
+        }
+
+        SubtitleMode? subtitleMode = null;
+        if (subtitleModeRaw is not null)
+        {
+            if (!TryParseRequiredSubtitleMode(subtitleModeRaw, out var parsedSubtitleMode, out error))
+            {
+                return fail(error!);
+            }
+
+            subtitleMode = parsedSubtitleMode;
+        }
+
+        if (!TryParseAudioTrackRole(GetOption(options, "--audio-track-role"), out var audioTrackRole, out error))
+        {
+            return fail(error!);
+        }
+
+        if (audioTrackRole is not null && string.IsNullOrWhiteSpace(targetSelector.AudioTrackId))
+        {
+            return fail("Option '--audio-track-role' can only be used with '--audio-track-id <id>'.");
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var outputPlanPath = ResolveOutputPlanPath(fullPlanPath, inPlace, GetOption(options, "--write-to"), out error);
+        if (outputPlanPath is null)
+        {
+            return fail(error!);
+        }
+
+        var outputBaseDirectory = Path.GetDirectoryName(outputPlanPath)!;
+        var resolvedAttachmentPath = Path.GetFullPath(attachmentPath!);
+
+        try
+        {
+            var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(fullPlanPath, pluginCatalog);
+            var attachment = new EditPlanMaterialAttacher().Attach(
+                planContext.Plan,
+                outputBaseDirectory,
+                new EditPlanMaterialAttachmentRequest
+                {
+                    Target = targetSelector,
+                    ResolvedPath = resolvedAttachmentPath,
+                    PathStyle = pathStyle,
+                    SubtitleMode = subtitleMode,
+                    AudioTrackRole = audioTrackRole
+                },
+                planContext.ValidationTemplates);
+
+            var validation = new EditPlanValidator().Validate(
+                EditPlanPathResolver.ResolvePaths(attachment.UpdatedPlan, outputBaseDirectory),
+                checkFiles == true,
+                planContext.ValidationTemplates);
+
+            var report = new
+            {
+                planPath = fullPlanPath,
+                outputPlanPath,
+                checkFiles = checkFiles == true,
+                requireValid = requireValid == true,
+                target = new
+                {
+                    attachment.Target.TargetType,
+                    attachment.Target.TargetKey,
+                    attachment.Target.Selector,
+                    previousPath = attachment.PreviousPath,
+                    nextPath = attachment.NextPath,
+                    pathStyleApplied = attachment.PathStyleApplied,
+                    previousSubtitleMode = attachment.PreviousSubtitleMode,
+                    nextSubtitleMode = attachment.NextSubtitleMode,
+                    previousAudioTrackRole = attachment.PreviousAudioTrackRole,
+                    nextAudioTrackRole = attachment.NextAudioTrackRole
+                },
+                added = attachment.Added,
+                validation
+            };
+
+            if (requireValid == true && !validation.IsValid)
+            {
+                var message = "Updated plan failed validation and '--require-valid' was specified.";
+                Console.Error.WriteLine(message);
+                return WriteCommandEnvelope("attach-plan-material", preview: false, new
+                {
+                    attachPlanMaterial = report,
+                    error = new
+                    {
+                        message
+                    }
+                }, jsonOutPath, exitCode: 1);
+            }
+
+            Directory.CreateDirectory(outputBaseDirectory);
+            await File.WriteAllTextAsync(outputPlanPath, JsonSerializer.Serialize(attachment.UpdatedPlan, OpenVideoToolboxJson.Default));
+
+            return WriteCommandEnvelope("attach-plan-material", preview: false, report, jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope("attach-plan-material", preview: false, new
+            {
+                attachPlanMaterial = new
+                {
+                    planPath = fullPlanPath,
+                    outputPlanPath,
+                    checkFiles = checkFiles == true,
+                    requireValid = requireValid == true,
+                    target = targetSelector,
+                    attachmentPath = resolvedAttachmentPath
+                },
+                error = new
+                {
+                    message = ex.Message
+                }
+            }, jsonOutPath, exitCode: 1);
+        }
+    }
+
+    public static async Task<int> RunBindVoiceTrackAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--plan", out var planPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--path", out var voicePath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--check-files", out var checkFiles, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--require-valid", out var requireValid, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetBoolOption(options, "--in-place", out var inPlace, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryParseEditPlanPathWriteStyleOption(GetOption(options, "--path-style"), out var pathStyle, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryParseAudioTrackRole(GetOption(options, "--role"), out var requestedRole, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullPlanPath = Path.GetFullPath(planPath!);
+        var outputPlanPath = ResolveOutputPlanPath(fullPlanPath, inPlace, GetOption(options, "--write-to"), out error);
+        if (outputPlanPath is null)
+        {
+            return fail(error!);
+        }
+
+        var outputBaseDirectory = Path.GetDirectoryName(outputPlanPath)!;
+        var resolvedVoicePath = Path.GetFullPath(voicePath!);
+        var trackId = GetOption(options, "--track-id") ?? "voice-main";
+
+        try
+        {
+            var result = await ExecuteBindVoiceTrackAsync(
+                new BindVoiceTrackOperationRequest
+                {
+                    FullPlanPath = fullPlanPath,
+                    OutputPlanPath = outputPlanPath,
+                    ResolvedVoicePath = resolvedVoicePath,
+                    TrackId = trackId,
+                    RequestedRole = requestedRole,
+                    PathStyle = pathStyle,
+                    CheckFiles = checkFiles == true,
+                    RequireValid = requireValid == true
+                },
+                pluginCatalog);
+
+            if (result.ErrorMessage is not null)
+            {
+                Console.Error.WriteLine(result.ErrorMessage);
+                return WriteCommandEnvelope("bind-voice-track", preview: false, new
+                {
+                    bindVoiceTrack = result.Report,
+                    error = new
+                    {
+                        message = result.ErrorMessage
+                    }
+                }, jsonOutPath, exitCode: result.ExitCode);
+            }
+
+            return WriteCommandEnvelope("bind-voice-track", preview: false, result.Report!, jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope("bind-voice-track", preview: false, new
+            {
+                bindVoiceTrack = new
+                {
+                    planPath = fullPlanPath,
+                    outputPlanPath,
+                    checkFiles = checkFiles == true,
+                    requireValid = requireValid == true,
+                    trackId,
+                    replacementPath = resolvedVoicePath
+                },
+                error = new
+                {
+                    message = ex.Message
+                }
+            }, jsonOutPath, exitCode: 1);
+        }
+    }
+
+    public static async Task<int> RunBindVoiceTrackBatchAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--manifest", out var manifestPath, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullManifestPath = Path.GetFullPath(manifestPath!);
+        var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<BindVoiceTrackBatchManifest>(
+                await File.ReadAllTextAsync(fullManifestPath),
+                OpenVideoToolboxJson.Default)
+                ?? throw new InvalidOperationException($"Failed to parse batch manifest '{fullManifestPath}'.");
+
+            if (manifest.SchemaVersion != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported bind-voice-track-batch manifest schema version '{manifest.SchemaVersion}'.");
+            }
+
+            if (manifest.Items.Count == 0)
+            {
+                throw new InvalidOperationException("Batch manifest must contain at least one item.");
+            }
+
+            var results = new List<object>();
+            var succeededCount = 0;
+            var failedCount = 0;
+
+            for (var index = 0; index < manifest.Items.Count; index++)
+            {
+                var item = manifest.Items[index];
+                try
+                {
+                    var fullPlanPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Plan));
+                    var resolvedVoicePath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Path));
+                    var outputPlanPath = item.WriteTo is null
+                        ? fullPlanPath
+                        : Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.WriteTo));
+
+                    var result = await ExecuteBindVoiceTrackAsync(
+                        new BindVoiceTrackOperationRequest
+                        {
+                            FullPlanPath = fullPlanPath,
+                            OutputPlanPath = outputPlanPath,
+                            ResolvedVoicePath = resolvedVoicePath,
+                            TrackId = item.TrackId ?? "voice-main",
+                            RequestedRole = item.Role,
+                            PathStyle = item.PathStyle ?? EditPlanPathWriteStyle.Auto,
+                            CheckFiles = item.CheckFiles == true,
+                            RequireValid = item.RequireValid == true
+                        },
+                        pluginCatalog);
+
+                    if (result.ErrorMessage is null)
+                    {
+                        succeededCount++;
+                        results.Add(new
+                        {
+                            index,
+                            status = "succeeded",
+                            result = result.Report
+                        });
+                    }
+                    else
+                    {
+                        failedCount++;
+                        results.Add(new
+                        {
+                            index,
+                            status = "failed",
+                            result = result.Report,
+                            error = new
+                            {
+                                message = result.ErrorMessage
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    results.Add(new
+                    {
+                        index,
+                        status = "failed",
+                        error = new
+                        {
+                            message = ex.Message
+                        }
+                    });
+                }
+            }
+
+            var payload = new
+            {
+                manifestPath = fullManifestPath,
+                manifestBaseDirectory,
+                itemCount = manifest.Items.Count,
+                succeededCount,
+                failedCount,
+                results
+            };
+
+            return WriteCommandEnvelope(
+                "bind-voice-track-batch",
+                preview: false,
+                payload,
+                jsonOutPath,
+                exitCode: failedCount == 0 ? 0 : 2);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope("bind-voice-track-batch", preview: false, new
+            {
+                manifestPath = fullManifestPath,
+                error = new
+                {
+                    message = ex.Message
+                }
+            }, jsonOutPath, exitCode: 1);
+        }
+    }
+
     public static Task<int> RunPlanAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))
@@ -341,5 +977,282 @@ internal static class FoundationCommandHandlers
                 ex.Message,
                 jsonOutPath);
         }
+    }
+
+    private static string? ResolveOutputPlanPath(
+        string fullPlanPath,
+        bool? inPlace,
+        string? writeTo,
+        out string? error)
+    {
+        error = null;
+
+        if (inPlace == false && string.IsNullOrWhiteSpace(writeTo))
+        {
+            error = "Option '--write-to' is required when '--in-place false' is specified.";
+            return null;
+        }
+
+        if (inPlace == true && !string.IsNullOrWhiteSpace(writeTo))
+        {
+            error = "Options '--write-to' and '--in-place true' cannot be used together.";
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(writeTo))
+        {
+            return Path.GetFullPath(writeTo);
+        }
+
+        return fullPlanPath;
+    }
+
+    private static bool TryResolveReplacementTarget(
+        IReadOnlyDictionary<string, string> options,
+        out EditPlanInspectionTargetSelector selector,
+        out string? error)
+    {
+        selector = new EditPlanInspectionTargetSelector();
+        error = null;
+
+        var sourceInput = options.ContainsKey("--source-input");
+        var transcript = options.ContainsKey("--transcript");
+        var beats = options.ContainsKey("--beats");
+        var subtitles = options.ContainsKey("--subtitles");
+        var audioTrackId = GetOption(options, "--audio-track-id");
+        var artifactSlot = GetOption(options, "--artifact-slot");
+
+        var selectionCount = 0;
+        selectionCount += sourceInput ? 1 : 0;
+        selectionCount += transcript ? 1 : 0;
+        selectionCount += beats ? 1 : 0;
+        selectionCount += subtitles ? 1 : 0;
+        selectionCount += string.IsNullOrWhiteSpace(audioTrackId) ? 0 : 1;
+        selectionCount += string.IsNullOrWhiteSpace(artifactSlot) ? 0 : 1;
+
+        if (selectionCount != 1)
+        {
+            error = "Exactly one replacement target is required: '--source-input', '--audio-track-id <id>', '--artifact-slot <slotId>', '--transcript', '--beats', or '--subtitles'.";
+            return false;
+        }
+
+        if (sourceInput)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.SourceInput
+            };
+            return true;
+        }
+
+        if (transcript)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Transcript
+            };
+            return true;
+        }
+
+        if (beats)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Beats
+            };
+            return true;
+        }
+
+        if (subtitles)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Subtitles
+            };
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(audioTrackId))
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                AudioTrackId = audioTrackId
+            };
+            return true;
+        }
+
+        selector = new EditPlanInspectionTargetSelector
+        {
+            ArtifactSlot = artifactSlot
+        };
+        return true;
+    }
+
+    private static bool TryResolveAttachmentTarget(
+        IReadOnlyDictionary<string, string> options,
+        out EditPlanInspectionTargetSelector selector,
+        out string? error)
+    {
+        selector = new EditPlanInspectionTargetSelector();
+        error = null;
+
+        var transcript = options.ContainsKey("--transcript");
+        var beats = options.ContainsKey("--beats");
+        var subtitles = options.ContainsKey("--subtitles");
+        var audioTrackId = GetOption(options, "--audio-track-id");
+        var artifactSlot = GetOption(options, "--artifact-slot");
+
+        var selectionCount = 0;
+        selectionCount += transcript ? 1 : 0;
+        selectionCount += beats ? 1 : 0;
+        selectionCount += subtitles ? 1 : 0;
+        selectionCount += string.IsNullOrWhiteSpace(audioTrackId) ? 0 : 1;
+        selectionCount += string.IsNullOrWhiteSpace(artifactSlot) ? 0 : 1;
+
+        if (selectionCount != 1)
+        {
+            error = "Exactly one attachment target is required: '--transcript', '--beats', '--subtitles', '--audio-track-id <id>', or '--artifact-slot <slotId>'.";
+            return false;
+        }
+
+        if (transcript)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Transcript
+            };
+            return true;
+        }
+
+        if (beats)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Beats
+            };
+            return true;
+        }
+
+        if (subtitles)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Subtitles
+            };
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(audioTrackId))
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                AudioTrackId = audioTrackId
+            };
+            return true;
+        }
+
+        selector = new EditPlanInspectionTargetSelector
+        {
+            ArtifactSlot = artifactSlot
+        };
+        return true;
+    }
+
+    private static async Task<BindVoiceTrackOperationResult> ExecuteBindVoiceTrackAsync(
+        BindVoiceTrackOperationRequest request,
+        TemplatePluginCatalog? pluginCatalog)
+    {
+        var outputBaseDirectory = Path.GetDirectoryName(request.OutputPlanPath)!;
+        var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(request.FullPlanPath, pluginCatalog);
+        var existingTrack = planContext.Plan.AudioTracks
+            .FirstOrDefault(track => string.Equals(track.Id, request.TrackId, StringComparison.OrdinalIgnoreCase));
+        var roleApplied = request.RequestedRole ?? existingTrack?.Role ?? AudioTrackRole.Voice;
+
+        var attachment = new EditPlanMaterialAttacher().Attach(
+            planContext.Plan,
+            outputBaseDirectory,
+            new EditPlanMaterialAttachmentRequest
+            {
+                Target = new EditPlanInspectionTargetSelector
+                {
+                    AudioTrackId = request.TrackId
+                },
+                ResolvedPath = request.ResolvedVoicePath,
+                PathStyle = request.PathStyle,
+                AudioTrackRole = roleApplied
+            },
+            planContext.ValidationTemplates);
+
+        var validation = new EditPlanValidator().Validate(
+            EditPlanPathResolver.ResolvePaths(attachment.UpdatedPlan, outputBaseDirectory),
+            request.CheckFiles,
+            planContext.ValidationTemplates);
+
+        var report = new
+        {
+            planPath = request.FullPlanPath,
+            outputPlanPath = request.OutputPlanPath,
+            checkFiles = request.CheckFiles,
+            requireValid = request.RequireValid,
+            voiceTrack = new
+            {
+                trackId = request.TrackId,
+                roleApplied,
+                added = attachment.Added,
+                previousPath = attachment.PreviousPath,
+                nextPath = attachment.NextPath,
+                pathStyleApplied = attachment.PathStyleApplied,
+                previousAudioTrackRole = attachment.PreviousAudioTrackRole,
+                nextAudioTrackRole = attachment.NextAudioTrackRole
+            },
+            validation
+        };
+
+        if (request.RequireValid && !validation.IsValid)
+        {
+            return new BindVoiceTrackOperationResult
+            {
+                Report = report,
+                ErrorMessage = "Updated plan failed validation and '--require-valid' was specified.",
+                ExitCode = 1
+            };
+        }
+
+        Directory.CreateDirectory(outputBaseDirectory);
+        await File.WriteAllTextAsync(request.OutputPlanPath, JsonSerializer.Serialize(attachment.UpdatedPlan, OpenVideoToolboxJson.Default));
+
+        return new BindVoiceTrackOperationResult
+        {
+            Report = report,
+            ExitCode = 0
+        };
+    }
+
+    private sealed record BindVoiceTrackOperationRequest
+    {
+        public required string FullPlanPath { get; init; }
+
+        public required string OutputPlanPath { get; init; }
+
+        public required string ResolvedVoicePath { get; init; }
+
+        public required string TrackId { get; init; }
+
+        public AudioTrackRole? RequestedRole { get; init; }
+
+        public EditPlanPathWriteStyle PathStyle { get; init; }
+
+        public bool CheckFiles { get; init; }
+
+        public bool RequireValid { get; init; }
+    }
+
+    private sealed record BindVoiceTrackOperationResult
+    {
+        public required object Report { get; init; }
+
+        public string? ErrorMessage { get; init; }
+
+        public int ExitCode { get; init; }
     }
 }

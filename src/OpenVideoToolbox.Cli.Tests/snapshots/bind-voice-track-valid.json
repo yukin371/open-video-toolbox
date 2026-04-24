@@ -1,0 +1,22 @@
+{
+  "command": "bind-voice-track",
+  "preview": false,
+  "payload": {
+    "checkFiles": true,
+    "requireValid": false,
+    "voiceTrack": {
+      "trackId": "voice-main",
+      "roleApplied": "voice",
+      "added": true,
+      "previousPath": null,
+      "nextPath": "audio\\dub.wav",
+      "pathStyleApplied": "relative",
+      "previousAudioTrackRole": null,
+      "nextAudioTrackRole": "voice"
+    },
+    "validation": {
+      "issues": [],
+      "isValid": true
+    }
+  }
+}

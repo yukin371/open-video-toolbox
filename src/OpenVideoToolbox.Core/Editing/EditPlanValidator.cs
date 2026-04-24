@@ -10,7 +10,7 @@ public sealed class EditPlanValidator
         ArgumentNullException.ThrowIfNull(plan);
 
         var issues = new List<EditPlanValidationIssue>();
-        var template = ResolveTemplate(plan, availableTemplates, issues);
+        var template = EditPlanTemplateResolution.ResolveTemplate(plan, availableTemplates, issues);
 
         ValidateSource(plan, issues, checkReferencedFiles);
         ValidateOutput(plan, issues);
@@ -25,118 +25,6 @@ public sealed class EditPlanValidator
         {
             Issues = issues
         };
-    }
-
-    private static EditPlanTemplateDefinition? ResolveTemplate(
-        EditPlan plan,
-        IReadOnlyList<EditPlanTemplateDefinition>? availableTemplates,
-        ICollection<EditPlanValidationIssue> issues)
-    {
-        if (plan.Template is null)
-        {
-            return null;
-        }
-
-        if (string.IsNullOrWhiteSpace(plan.Template.Id))
-        {
-            issues.Add(Error("template.id", "template.id.required", "Template id is required when template metadata is present."));
-            return null;
-        }
-
-        ValidateTemplateSource(plan.Template, issues);
-
-        var templates = SelectTemplatesForValidation(plan.Template, availableTemplates, issues);
-        if (templates is null)
-        {
-            return null;
-        }
-
-        try
-        {
-            return EditPlanTemplateCatalog.GetRequired(templates, plan.Template.Id);
-        }
-        catch (InvalidOperationException)
-        {
-            issues.Add(Error("template.id", "template.id.unknown", $"Unknown edit plan template '{plan.Template.Id}'."));
-            return null;
-        }
-    }
-
-    private static IReadOnlyList<EditPlanTemplateDefinition>? SelectTemplatesForValidation(
-        EditTemplateReference template,
-        IReadOnlyList<EditPlanTemplateDefinition>? availableTemplates,
-        ICollection<EditPlanValidationIssue> issues)
-    {
-        if (template.Source is null)
-        {
-            return availableTemplates ?? BuiltInEditPlanTemplateCatalog.GetAll();
-        }
-
-        if (string.Equals(template.Source.Kind, EditTemplateSourceKinds.Plugin, StringComparison.OrdinalIgnoreCase))
-        {
-            if (availableTemplates is not null)
-            {
-                return availableTemplates;
-            }
-
-            issues.Add(Error(
-                "template.source",
-                "template.source.catalog.required",
-                $"Template '{template.Id}' is marked as a plugin template and requires plugin catalog context for validation. Re-run validate-plan with '--plugin-dir'."));
-            return null;
-        }
-
-        return BuiltInEditPlanTemplateCatalog.GetAll();
-    }
-
-    private static void ValidateTemplateSource(
-        EditTemplateReference template,
-        ICollection<EditPlanValidationIssue> issues)
-    {
-        if (template.Source is null)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(template.Source.Kind))
-        {
-            issues.Add(Error(
-                "template.source.kind",
-                "template.source.kind.required",
-                "Template source kind is required when template source metadata is present."));
-            return;
-        }
-
-        if (string.Equals(template.Source.Kind, EditTemplateSourceKinds.Plugin, StringComparison.OrdinalIgnoreCase))
-        {
-            if (string.IsNullOrWhiteSpace(template.Source.PluginId))
-            {
-                issues.Add(Error(
-                    "template.source.pluginId",
-                    "template.source.pluginId.required",
-                    "Plugin template source requires a plugin id."));
-            }
-
-            return;
-        }
-
-        if (string.Equals(template.Source.Kind, EditTemplateSourceKinds.BuiltIn, StringComparison.OrdinalIgnoreCase))
-        {
-            if (!string.IsNullOrWhiteSpace(template.Source.PluginId))
-            {
-                issues.Add(Error(
-                    "template.source.pluginId",
-                    "template.source.pluginId.unexpected",
-                    "Built-in template source must not declare a plugin id."));
-            }
-
-            return;
-        }
-
-        issues.Add(Error(
-            "template.source.kind",
-            "template.source.kind.invalid",
-            $"Unsupported template source kind '{template.Source.Kind}'."));
     }
 
     private static void ValidateSource(EditPlan plan, ICollection<EditPlanValidationIssue> issues, bool checkReferencedFiles)

@@ -1,0 +1,27 @@
+{
+  "command": "replace-plan-material",
+  "preview": false,
+  "payload": {
+    "checkFiles": true,
+    "requireValid": false,
+    "target": {
+      "targetType": "audioTrack",
+      "targetKey": "audioTrack:voice-main",
+      "selector": {
+        "singleton": null,
+        "audioTrackId": "voice-main",
+        "artifactSlot": null
+      },
+      "previousPath": "dub.wav",
+      "nextPath": "assets\\updated.wav",
+      "pathStyleApplied": "relative",
+      "previousSubtitleMode": null,
+      "nextSubtitleMode": null
+    },
+    "changed": true,
+    "validation": {
+      "issues": [],
+      "isValid": true
+    }
+  }
+}
