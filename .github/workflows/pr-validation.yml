@@ -1,0 +1,68 @@
+name: pr-validation
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - reopened
+      - synchronize
+      - ready_for_review
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate PR title and body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -eo pipefail
+
+          subject_regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,80}$'
+
+          if ! printf '%s\n' "$PR_TITLE" | grep -qE "$subject_regex"; then
+            echo "::error title=Invalid PR title::PR title must match conventional commit format. Current title: $PR_TITLE"
+            exit 1
+          fi
+
+          if [ -z "$PR_BODY" ]; then
+            echo "::error title=Missing PR description::PR body must include the repository template sections."
+            exit 1
+          fi
+
+          required_headings=(
+            "## Summary"
+            "## Validation"
+            "## Contract Check"
+            "## Snapshot Check"
+            "## Docs Check"
+            "## External Tool Check"
+            "## Plugin Contribution Check"
+            "## Risks"
+          )
+
+          placeholders=(
+            "- What changed?"
+            "- Why is this change needed?"
+            "- Main risk of this PR:"
+            "- Rollback path:"
+          )
+
+          for heading in "${required_headings[@]}"; do
+            if ! printf '%s\n' "$PR_BODY" | grep -Fq -- "$heading"; then
+              echo "::error title=Missing PR section::Missing required section '$heading'."
+              exit 1
+            fi
+          done
+
+          for placeholder in "${placeholders[@]}"; do
+            if printf '%s\n' "$PR_BODY" | grep -Fq -- "$placeholder"; then
+              echo "::error title=Unfilled PR placeholder::Replace placeholder '$placeholder' with real content."
+              exit 1
+            fi
+          done
+
+          echo "PR validation passed."
