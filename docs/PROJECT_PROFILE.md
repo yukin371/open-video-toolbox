@@ -81,7 +81,7 @@
 - `attach-plan-material` 已实现，用于对当前缺失的 `transcript` / `beats` / `subtitles` / `audioTracks` 做显式挂载，并对模板已声明的 artifact slot 做 upsert；它不承担通用 patch。
 - `attach-plan-material-batch` 已实现，用于从 manifest 批量读取多条素材挂载任务，统一解析相对路径、复用单项 attach 流程，并在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`。
 - `bind-voice-track` 已实现，用于把外部配音、TTS 或 voice conversion 结果按默认 `voice-main` / `voice` 约定接回 plan；底层仍复用 `audioTracks` attach/upsert 语义，不引入第二套模型。
-- `bind-voice-track-batch` 已实现，用于从 manifest 批量读取多条配音接回任务，统一解析相对路径、复用单项 voice bind 流程，并返回部分成功摘要与稳定退出码。
+- `bind-voice-track-batch` 已实现，用于从 manifest 批量读取多条配音接回任务，统一解析相对路径、复用单项 voice bind 流程，并在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`。
 - `validate-plan` 已实现，用于在真正执行前校验外部 AI 或人工修改后的 `edit.json` 是否仍满足当前 schema v1 与基础语义约束；当 plan 来自插件模板时，可通过 `--plugin-dir` 把插件模板目录显式接回校验链。
 - `mix-audio --preview` 与 `render --preview` 已实现，用于在真实执行前输出稳定的 `executionPreview`；传 `--json-out` 时会把统一 envelope 原样写到文件。
 - `mix-audio` / `render` 的 preview 与执行 envelope 现会额外透出 `templateSource`，直接复用 plan 中已有的 `template.source` 元数据，便于后续执行阶段继续审计插件来源。

@@ -12,6 +12,8 @@ internal sealed record BindVoiceTrackBatchManifest
 
 internal sealed record BindVoiceTrackBatchItem
 {
+    public string Id { get; init; } = string.Empty;
+
     public required string Plan { get; init; }
 
     public required string Path { get; init; }

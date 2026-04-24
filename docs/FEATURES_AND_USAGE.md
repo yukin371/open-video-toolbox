@@ -192,7 +192,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | 计划内素材 | `attach-plan-material` | 对缺失 binding 做显式挂载 | stdout / `--json-out` |
 | 计划内素材 | `attach-plan-material-batch` | 从 manifest 批量接回 transcript / subtitles / beats / audio track / slot | stdout / `summary.json` |
 | 计划内素材 | `bind-voice-track` | 把外部配音 / TTS / 变音结果接回单份 plan | stdout / `--json-out` |
-| 计划内素材 | `bind-voice-track-batch` | 从 manifest 批量接回多份配音结果 | stdout / `--json-out` |
+| 计划内素材 | `bind-voice-track-batch` | 从 manifest 批量接回多份配音结果 | stdout / `summary.json` |
 | supporting signals | `beat-track` | 节拍分析 | `beats.json` |
 | supporting signals | `audio-analyze` | 响度分析 | `audio.json` |
 | supporting signals | `audio-gain` | 显式音量增益 | 输出音频文件 |
@@ -554,7 +554,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 
 - 从 manifest 批量读取多份 plan / 配音文件对
 - 逐项复用单项 voice bind 语义
-- 返回部分成功摘要
+- 会在 manifest 同目录固定写 `summary.json` 和 `results/<id>.json`
 
 示例：
 

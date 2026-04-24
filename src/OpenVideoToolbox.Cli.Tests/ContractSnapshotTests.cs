@@ -395,6 +395,7 @@ public sealed class ContractSnapshotTests
                   "schemaVersion": 1,
                   "items": [
                     {
+                      "id": "job-a",
                       "plan": "edit.json",
                       "path": "audio/dub.wav",
                       "checkFiles": true,
@@ -414,6 +415,10 @@ public sealed class ContractSnapshotTests
             var payload = envelope["payload"]!.AsObject();
             payload.Remove("manifestPath");
             payload.Remove("manifestBaseDirectory");
+            payload.Remove("summaryPath");
+            payload["results"]![0]!.AsObject().Remove("planPath");
+            payload["results"]![0]!.AsObject().Remove("outputPlanPath");
+            payload["results"]![0]!.AsObject().Remove("resultPath");
             payload["results"]![0]!["result"]!.AsObject().Remove("planPath");
             payload["results"]![0]!["result"]!.AsObject().Remove("outputPlanPath");
 

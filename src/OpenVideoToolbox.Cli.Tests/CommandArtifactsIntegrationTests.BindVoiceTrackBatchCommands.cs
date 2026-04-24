@@ -50,12 +50,14 @@ public sealed partial class CommandArtifactsIntegrationTests
               "schemaVersion": 1,
               "items": [
                 {
+                  "id": "job-a",
                   "plan": "a/edit.json",
                   "path": "audio/a.wav",
                   "checkFiles": true,
                   "pathStyle": "relative"
                 },
                 {
+                  "id": "job-b",
                   "plan": "b/edit.json",
                   "path": "audio/b.wav",
                   "trackId": "voice-alt",
@@ -77,10 +79,15 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal(2, payload["itemCount"]!.GetValue<int>());
             Assert.Equal(2, payload["succeededCount"]!.GetValue<int>());
             Assert.Equal(0, payload["failedCount"]!.GetValue<int>());
+            Assert.True(File.Exists(payload["summaryPath"]!.GetValue<string>()));
 
             var results = payload["results"]!.AsArray();
             Assert.Equal("succeeded", results[0]!["status"]!.GetValue<string>());
+            Assert.Equal("job-a", results[0]!["id"]!.GetValue<string>());
+            Assert.True(File.Exists(results[0]!["resultPath"]!.GetValue<string>()));
             Assert.Equal("voice-main", results[0]!["result"]!["voiceTrack"]!["trackId"]!.GetValue<string>());
+            Assert.Equal("job-b", results[1]!["id"]!.GetValue<string>());
+            Assert.True(File.Exists(results[1]!["resultPath"]!.GetValue<string>()));
             Assert.Equal("voice-alt", results[1]!["result"]!["voiceTrack"]!["trackId"]!.GetValue<string>());
 
             var planA = JsonNode.Parse(await File.ReadAllTextAsync(planAPath))!.AsObject();
@@ -126,11 +133,13 @@ public sealed partial class CommandArtifactsIntegrationTests
               "schemaVersion": 1,
               "items": [
                 {
+                  "id": "job-a",
                   "plan": "edit.json",
                   "path": "audio/dub.wav",
                   "checkFiles": true
                 },
                 {
+                  "id": "job-missing",
                   "plan": "missing/edit.json",
                   "path": "audio/dub.wav"
                 }
@@ -149,6 +158,8 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal(1, payload["succeededCount"]!.GetValue<int>());
             Assert.Equal(1, payload["failedCount"]!.GetValue<int>());
             Assert.Equal("failed", payload["results"]![1]!["status"]!.GetValue<string>());
+            Assert.True(File.Exists(payload["summaryPath"]!.GetValue<string>()));
+            Assert.True(File.Exists(payload["results"]![1]!["resultPath"]!.GetValue<string>()));
             Assert.NotNull(payload["results"]![1]!["error"]);
         }
         finally
