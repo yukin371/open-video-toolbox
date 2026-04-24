@@ -63,6 +63,7 @@
 - `validate-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]`
 - `mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
 - `render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
+- `render-batch --manifest <batch.json> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--json-out <path>]`
 - `probe <input> [--ffprobe <path>]`
 - `plan <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffmpeg <path>] [--overwrite]`
 - `run <input> [--preset <id>] [--output-dir <dir>] [--output-name <name>] [--ffprobe <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]`
@@ -91,7 +92,8 @@
 - `separate-audio` 现也已切到统一 command envelope；当分离阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `subtitle` 已支持 `--json-out`，用于把 sidecar 生成结果的同一份结构化 envelope 直接写到文件。
 - `scaffold-template` 已实现，用于一次性落出模板指南、示例文件与初始 `edit.json` 工作目录；传 `--validate` 时还会同步返回校验结果。
-- `scaffold-template-batch` 已实现，用于从 manifest 批量生成模板工作目录；相对路径按 manifest 所在目录解析，默认工作目录为 `tasks/<id>`，并会在同目录固定写出 `summary.json` 与部分成功摘要。
+- `scaffold-template-batch` 已实现，用于从 manifest 批量生成模板工作目录；相对路径按 manifest 所在目录解析，默认工作目录为 `tasks/<id>`，并会在同目录固定写出 `summary.json`、`results/<id>.json` 与部分成功摘要。
+- `render-batch` 已实现，用于从 manifest 批量读取多份 `edit.json` 并复用单项 `render` 语义；当前支持全局 `--preview` / `--ffmpeg` / `--timeout-seconds` 与 item 级 `output` / `overwrite`，并会在 manifest 同目录写出 `summary.json` 与 `results/<id>.json`。
 - `templates <id>` / `--write-examples` 已把 transcript、beats、silence、stems 等 supporting signal guidance 纳入稳定输出，外部 AI 不必再自己猜前置命令和接入方式。
 - 对带 `stems` supporting signal 的模板，`artifacts.json` / preview plan 里的 `bgm` 示例现在会直接预填 `stems/htdemucs/input/no_vocals.wav`，减少外部 AI 自己猜 `Demucs` 目录结构。
 - 对支持字幕的模板，`templates <id>` / `commands.*` 现在会给出稳定的 subtitle artifact preparation 与 attach 命令，并把 `inspect-plan --check-files`、`validate-plan --check-files` 纳入工作流，帮助外部 AI 串起 `transcribe -> subtitle -> attach -> inspect / validate -> render`。
@@ -109,7 +111,7 @@
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
 - 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
-- 当前测试基线：`OpenVideoToolbox.Core.Tests` 141，`OpenVideoToolbox.Cli.Tests` 149，总计 290。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 141，`OpenVideoToolbox.Cli.Tests` 152，总计 293。
 - 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`

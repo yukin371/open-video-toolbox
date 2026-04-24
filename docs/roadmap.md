@@ -108,7 +108,7 @@
       - `E2-F1` 基线盘点与边界固定：已完成
       - `E2-F2` 计划内素材与配音工作流收口：已进入完成前状态
       - `E2-F3` 字幕与 supporting signal 工作流收口：当前活跃阶段，已进入完成前状态
-      - `E2-F4` 批量工作流与工作目录编排：当前活跃阶段，首个命令已开始落地
+      - `E2-F4` 批量工作流与工作目录编排：当前活跃阶段，批量建目录与批量消费目录都已开始落地
       - `E2-G1` Desktop 启动重判：阶段门，不提前启动
       - `E2-F2` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f2-phase-check.md`
       - `E2-F3` 的专项计划已补到 `docs/plans/2026-04-24-e2-f3-subtitle-and-signal-workflow-plan.md`
@@ -119,7 +119,8 @@
       - `E2-F3-W4` 当前结论已固定：不在本阶段新增 batch transcript / batch subtitle / batch signal 入口，统一留到 `E2-F4` 评估
       - `E2-F4` 的专项计划已补到 `docs/plans/2026-04-24-e2-f4-batch-and-workdir-plan.md`
       - `E2-F4` 当前设计结论：先固定 batch manifest 与工作目录约定，再以 `scaffold-template-batch` 作为首个实现入口
-      - `E2-F4-W4` 已推进首个实现：`scaffold-template-batch` 已落地最小 manifest contract、默认 `tasks/<id>` 工作目录、顶层 `summary.json` 与部分成功退出码
+      - `E2-F4-W4` 已推进首个实现：`scaffold-template-batch` 已落地最小 manifest contract、默认 `tasks/<id>` 工作目录、顶层 `summary.json`、`results/<id>.json` 与部分成功退出码
+      - `E2-F4` 已继续推进第二个高频消费入口：`render-batch` 现可从 manifest 批量消费多份 `edit.json`，支持统一 preview / execute 汇总，并复用单项 `render` 语义；任务级结果也已固定写入 `results/<id>.json`
     - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
       - `inspect-plan` 已落地
       - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
@@ -161,7 +162,7 @@
 
 - `dotnet test OpenVideoToolbox.sln`
 - `OpenVideoToolbox.Core.Tests`: 141/141
-- `OpenVideoToolbox.Cli.Tests`: 149/149
+- `OpenVideoToolbox.Cli.Tests`: 152/152
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`

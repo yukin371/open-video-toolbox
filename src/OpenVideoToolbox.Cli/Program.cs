@@ -34,6 +34,7 @@ static async Task<int> MainAsync(string[] args)
         "cut" => await MediaCommandHandlers.RunCutAsync(remaining, Fail),
         "mix-audio" => await RenderCommandHandlers.RunMixAudioAsync(remaining, Fail),
         "render" => await RenderCommandHandlers.RunRenderAsync(remaining, Fail),
+        "render-batch" => await RenderCommandHandlers.RunRenderBatchAsync(remaining, Fail),
         "subtitle" => await AudioCommandHandlers.RunSubtitleAsync(remaining, Fail),
         "inspect-plan" => await FoundationCommandHandlers.RunInspectPlanAsync(remaining, Fail),
         "replace-plan-material" => await FoundationCommandHandlers.RunReplacePlanMaterialAsync(remaining, Fail),
@@ -95,6 +96,7 @@ static void PrintUsage()
     Console.WriteLine("  scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  mix-audio --plan <edit.json> --output <path> [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  render --plan <path> [--output <path>] [--preview [true|false]] [--json-out <path>] [--ffmpeg <path>] [--timeout-seconds <n>] [--overwrite]");
+    Console.WriteLine("  render-batch --manifest <batch.json> [--preview [true|false]] [--ffmpeg <path>] [--timeout-seconds <n>] [--json-out <path>]");
     Console.WriteLine("  subtitle <input> --transcript <transcript.json> --format <srt|ass> --output <path> [--max-line-length <n>] [--json-out <path>]");
     Console.WriteLine("  inspect-plan --plan <edit.json> [--check-files [true|false]] [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  replace-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|false]] --path <new-file> (--source-input | --audio-track-id <id> | --artifact-slot <slotId> | --transcript | --beats | --subtitles) [--subtitle-mode <sidecar|burnIn>] [--path-style <auto|relative|absolute>] [--check-files [true|false]] [--plugin-dir <path>] [--require-valid [true|false]] [--json-out <path>]");

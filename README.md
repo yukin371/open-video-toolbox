@@ -28,6 +28,7 @@
 | 模板筛选 | `templates` | 模板列表、过滤结果、单模板指南 | 已可用 |
 | 草稿生成 | `init-plan` / `scaffold-template` | 可编辑的 `edit.json` 与工作目录 | 已可用 |
 | 批量草稿生成 | `scaffold-template-batch` | 按 manifest 批量落出 `tasks/<id>` 工作目录，并汇总 `summary.json` | 已可用 |
+| 批量渲染预览 / 执行 | `render-batch` | 按 manifest 批量消费现有 plan，并汇总渲染 preview 或执行结果 | 已可用 |
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
 | 素材替换 | `replace-plan-material` | 受控替换 plan 内素材并返回后置校验结果 | 已可用 |
 | 素材挂载 | `attach-plan-material` | 为缺失的字幕、转写、节拍、音轨或声明 slot 做显式挂载 | 已可用 |
@@ -112,7 +113,7 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- scaffold-template-batch --manifest .\batch.json
 ```
 
-这条命令会把相对路径统一按 `batch.json` 所在目录解析；未显式写 `workdir` 的条目会默认落到 `tasks/<id>`，并在同目录写出 `summary.json` 方便脚本或后续桌面层复用。
+这条命令会把相对路径统一按 `batch.json` 所在目录解析；未显式写 `workdir` 的条目会默认落到 `tasks/<id>`，并在同目录写出 `summary.json` 与 `results/<id>.json`，方便脚本或后续桌面层复用。
 
 ### 5. 渲染输出
 
@@ -173,6 +174,41 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 - manifest 内相对路径统一按 manifest 所在目录解析
 - 默认工作目录为 `tasks/<id>`
 - 根目录会固定写出 `summary.json`
+- 每个条目还会额外写出 `results/<id>.json`
+- 全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 解析或装载失败返回 `1`
+
+### 批量预览或执行一组现有 plan
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "plan": "tasks/job-a/edit.json"
+    },
+    {
+      "id": "job-b",
+      "plan": "tasks/job-b/edit.json",
+      "output": "exports/job-b.mp4",
+      "overwrite": true
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- render-batch --manifest .\render-batch.json --preview
+```
+
+适合在 `scaffold-template-batch` 或手工整理出多份 `edit.json` 后，先统一看执行预览，再决定是否真正开始批量导出。
+
+这条命令当前的约定是：
+
+- manifest 内相对路径统一按 manifest 所在目录解析
+- 可用 `--preview` 先拿统一 execution preview，不触发真实进程执行
+- item 可选覆写 `output`
+- 根目录会写出新的 `summary.json`，并为每个条目写出 `results/<id>.json`
 - 全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 解析或装载失败返回 `1`
 
 ### 先看清计划里有哪些素材可以换
