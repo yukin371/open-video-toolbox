@@ -1,0 +1,41 @@
+{
+  "command": "attach-plan-material-batch",
+  "preview": false,
+  "payload": {
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "id": "job-a",
+        "status": "succeeded",
+        "result": {
+          "checkFiles": true,
+          "requireValid": false,
+          "target": {
+            "targetType": "transcript",
+            "targetKey": "transcript",
+            "selector": {
+              "singleton": "transcript",
+              "audioTrackId": null,
+              "artifactSlot": null
+            },
+            "previousPath": null,
+            "nextPath": "signals\\transcript.json",
+            "pathStyleApplied": "relative",
+            "previousSubtitleMode": null,
+            "nextSubtitleMode": null,
+            "previousAudioTrackRole": null,
+            "nextAudioTrackRole": null
+          },
+          "added": true,
+          "validation": {
+            "issues": [],
+            "isValid": true
+          }
+        }
+      }
+    ]
+  }
+}

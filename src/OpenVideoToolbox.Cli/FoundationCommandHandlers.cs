@@ -532,66 +532,35 @@ internal static class FoundationCommandHandlers
 
         try
         {
-            var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(fullPlanPath, pluginCatalog);
-            var attachment = new EditPlanMaterialAttacher().Attach(
-                planContext.Plan,
-                outputBaseDirectory,
-                new EditPlanMaterialAttachmentRequest
+            var result = await ExecuteAttachPlanMaterialAsync(
+                new AttachPlanMaterialOperationRequest
                 {
-                    Target = targetSelector,
-                    ResolvedPath = resolvedAttachmentPath,
+                    FullPlanPath = fullPlanPath,
+                    OutputPlanPath = outputPlanPath,
+                    ResolvedAttachmentPath = resolvedAttachmentPath,
+                    TargetSelector = targetSelector,
                     PathStyle = pathStyle,
+                    CheckFiles = checkFiles == true,
+                    RequireValid = requireValid == true,
                     SubtitleMode = subtitleMode,
                     AudioTrackRole = audioTrackRole
                 },
-                planContext.ValidationTemplates);
+                pluginCatalog);
 
-            var validation = new EditPlanValidator().Validate(
-                EditPlanPathResolver.ResolvePaths(attachment.UpdatedPlan, outputBaseDirectory),
-                checkFiles == true,
-                planContext.ValidationTemplates);
-
-            var report = new
+            if (result.ErrorMessage is not null)
             {
-                planPath = fullPlanPath,
-                outputPlanPath,
-                checkFiles = checkFiles == true,
-                requireValid = requireValid == true,
-                target = new
-                {
-                    attachment.Target.TargetType,
-                    attachment.Target.TargetKey,
-                    attachment.Target.Selector,
-                    previousPath = attachment.PreviousPath,
-                    nextPath = attachment.NextPath,
-                    pathStyleApplied = attachment.PathStyleApplied,
-                    previousSubtitleMode = attachment.PreviousSubtitleMode,
-                    nextSubtitleMode = attachment.NextSubtitleMode,
-                    previousAudioTrackRole = attachment.PreviousAudioTrackRole,
-                    nextAudioTrackRole = attachment.NextAudioTrackRole
-                },
-                added = attachment.Added,
-                validation
-            };
-
-            if (requireValid == true && !validation.IsValid)
-            {
-                var message = "Updated plan failed validation and '--require-valid' was specified.";
-                Console.Error.WriteLine(message);
+                Console.Error.WriteLine(result.ErrorMessage);
                 return WriteCommandEnvelope("attach-plan-material", preview: false, new
                 {
-                    attachPlanMaterial = report,
+                    attachPlanMaterial = result.Report,
                     error = new
                     {
-                        message
+                        message = result.ErrorMessage
                     }
-                }, jsonOutPath, exitCode: 1);
+                }, jsonOutPath, exitCode: result.ExitCode);
             }
 
-            Directory.CreateDirectory(outputBaseDirectory);
-            await File.WriteAllTextAsync(outputPlanPath, JsonSerializer.Serialize(attachment.UpdatedPlan, OpenVideoToolboxJson.Default));
-
-            return WriteCommandEnvelope("attach-plan-material", preview: false, report, jsonOutPath);
+            return WriteCommandEnvelope("attach-plan-material", preview: false, result.Report!, jsonOutPath);
         }
         catch (Exception ex)
         {
@@ -607,6 +576,206 @@ internal static class FoundationCommandHandlers
                     target = targetSelector,
                     attachmentPath = resolvedAttachmentPath
                 },
+                error = new
+                {
+                    message = ex.Message
+                }
+            }, jsonOutPath, exitCode: 1);
+        }
+    }
+
+    public static async Task<int> RunAttachPlanMaterialBatchAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--manifest", out var manifestPath, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var pluginCatalog = TemplatePluginCatalogLoader.Load(GetOption(options, "--plugin-dir"));
+        var fullManifestPath = Path.GetFullPath(manifestPath!);
+        var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
+        var summaryPath = Path.Combine(manifestBaseDirectory, "summary.json");
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<AttachPlanMaterialBatchManifest>(
+                await File.ReadAllTextAsync(fullManifestPath),
+                OpenVideoToolboxJson.Default)
+                ?? throw new InvalidOperationException($"Failed to parse batch manifest '{fullManifestPath}'.");
+
+            if (manifest.SchemaVersion != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported attach-plan-material-batch manifest schema version '{manifest.SchemaVersion}'.");
+            }
+
+            if (manifest.Items.Count == 0)
+            {
+                throw new InvalidOperationException("Batch manifest must contain at least one item.");
+            }
+
+            var results = new List<object>();
+            var succeededCount = 0;
+            var failedCount = 0;
+
+            for (var index = 0; index < manifest.Items.Count; index++)
+            {
+                var item = manifest.Items[index];
+
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(item.Id))
+                    {
+                        throw new InvalidOperationException($"Batch item at index {index} is missing required field 'id'.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item.Plan))
+                    {
+                        throw new InvalidOperationException($"Batch item '{item.Id}' is missing required field 'plan'.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item.Path))
+                    {
+                        throw new InvalidOperationException($"Batch item '{item.Id}' is missing required field 'path'.");
+                    }
+
+                    if (!TryResolveAttachmentTarget(item, out var targetSelector, out error))
+                    {
+                        throw new InvalidOperationException($"Batch item '{item.Id}': {error}");
+                    }
+
+                    if (item.SubtitleMode is not null
+                        && !string.Equals(targetSelector.Singleton, EditPlanInspectionTargetKeys.Subtitles, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            $"Batch item '{item.Id}': field 'subtitleMode' can only be used with target 'subtitles'.");
+                    }
+
+                    if (item.AudioTrackRole is not null && string.IsNullOrWhiteSpace(targetSelector.AudioTrackId))
+                    {
+                        throw new InvalidOperationException(
+                            $"Batch item '{item.Id}': field 'audioTrackRole' can only be used with target 'audioTrackId'.");
+                    }
+
+                    var fullPlanPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Plan));
+                    var resolvedAttachmentPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Path));
+                    var outputPlanPath = string.IsNullOrWhiteSpace(item.WriteTo)
+                        ? fullPlanPath
+                        : Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.WriteTo));
+                    var result = await ExecuteAttachPlanMaterialAsync(
+                        new AttachPlanMaterialOperationRequest
+                        {
+                            FullPlanPath = fullPlanPath,
+                            OutputPlanPath = outputPlanPath,
+                            ResolvedAttachmentPath = resolvedAttachmentPath,
+                            TargetSelector = targetSelector,
+                            PathStyle = item.PathStyle ?? EditPlanPathWriteStyle.Auto,
+                            CheckFiles = item.CheckFiles == true,
+                            RequireValid = item.RequireValid == true,
+                            SubtitleMode = item.SubtitleMode,
+                            AudioTrackRole = item.AudioTrackRole
+                        },
+                        pluginCatalog);
+                    var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, result.Report);
+
+                    if (result.ErrorMessage is null)
+                    {
+                        succeededCount++;
+                        results.Add(new
+                        {
+                            index,
+                            id = item.Id,
+                            planPath = fullPlanPath,
+                            outputPlanPath,
+                            resultPath,
+                            status = "succeeded",
+                            result = result.Report
+                        });
+                    }
+                    else
+                    {
+                        failedCount++;
+                        results.Add(new
+                        {
+                            index,
+                            id = item.Id,
+                            planPath = fullPlanPath,
+                            outputPlanPath,
+                            resultPath,
+                            status = "failed",
+                            result = result.Report,
+                            error = new
+                            {
+                                message = result.ErrorMessage
+                            }
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    string? resultPath = null;
+                    if (!string.IsNullOrWhiteSpace(item.Id))
+                    {
+                        resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, new
+                        {
+                            index,
+                            id = item.Id,
+                            status = "failed",
+                            error = new
+                            {
+                                message = ex.Message
+                            }
+                        });
+                    }
+
+                    results.Add(new
+                    {
+                        index,
+                        id = item.Id,
+                        resultPath,
+                        status = "failed",
+                        error = new
+                        {
+                            message = ex.Message
+                        }
+                    });
+                }
+            }
+
+            var payload = new
+            {
+                manifestPath = fullManifestPath,
+                manifestBaseDirectory,
+                summaryPath,
+                itemCount = manifest.Items.Count,
+                succeededCount,
+                failedCount,
+                results
+            };
+
+            await File.WriteAllTextAsync(summaryPath, JsonSerializer.Serialize(payload, OpenVideoToolboxJson.Default));
+
+            return WriteCommandEnvelope(
+                "attach-plan-material-batch",
+                preview: false,
+                payload,
+                jsonOutPath,
+                exitCode: failedCount == 0 ? 0 : 2);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope("attach-plan-material-batch", preview: false, new
+            {
+                manifestPath = fullManifestPath,
+                summaryPath,
                 error = new
                 {
                     message = ex.Message
@@ -1158,6 +1327,137 @@ internal static class FoundationCommandHandlers
         return true;
     }
 
+    private static bool TryResolveAttachmentTarget(
+        AttachPlanMaterialBatchItem item,
+        out EditPlanInspectionTargetSelector selector,
+        out string? error)
+    {
+        selector = new EditPlanInspectionTargetSelector();
+        error = null;
+
+        var selectionCount = 0;
+        selectionCount += item.Transcript ? 1 : 0;
+        selectionCount += item.Beats ? 1 : 0;
+        selectionCount += item.Subtitles ? 1 : 0;
+        selectionCount += string.IsNullOrWhiteSpace(item.AudioTrackId) ? 0 : 1;
+        selectionCount += string.IsNullOrWhiteSpace(item.ArtifactSlot) ? 0 : 1;
+
+        if (selectionCount != 1)
+        {
+            error = "Exactly one attachment target is required: 'transcript', 'beats', 'subtitles', 'audioTrackId', or 'artifactSlot'.";
+            return false;
+        }
+
+        if (item.Transcript)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Transcript
+            };
+            return true;
+        }
+
+        if (item.Beats)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Beats
+            };
+            return true;
+        }
+
+        if (item.Subtitles)
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                Singleton = EditPlanInspectionTargetKeys.Subtitles
+            };
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.AudioTrackId))
+        {
+            selector = new EditPlanInspectionTargetSelector
+            {
+                AudioTrackId = item.AudioTrackId
+            };
+            return true;
+        }
+
+        selector = new EditPlanInspectionTargetSelector
+        {
+            ArtifactSlot = item.ArtifactSlot
+        };
+        return true;
+    }
+
+    private static async Task<AttachPlanMaterialOperationResult> ExecuteAttachPlanMaterialAsync(
+        AttachPlanMaterialOperationRequest request,
+        TemplatePluginCatalog? pluginCatalog)
+    {
+        var outputBaseDirectory = Path.GetDirectoryName(request.OutputPlanPath)!;
+        var planContext = await TemplatePlanValidationSupport.LoadPlanContextAsync(request.FullPlanPath, pluginCatalog);
+        var attachment = new EditPlanMaterialAttacher().Attach(
+            planContext.Plan,
+            outputBaseDirectory,
+            new EditPlanMaterialAttachmentRequest
+            {
+                Target = request.TargetSelector,
+                ResolvedPath = request.ResolvedAttachmentPath,
+                PathStyle = request.PathStyle,
+                SubtitleMode = request.SubtitleMode,
+                AudioTrackRole = request.AudioTrackRole
+            },
+            planContext.ValidationTemplates);
+
+        var validation = new EditPlanValidator().Validate(
+            EditPlanPathResolver.ResolvePaths(attachment.UpdatedPlan, outputBaseDirectory),
+            request.CheckFiles,
+            planContext.ValidationTemplates);
+
+        var report = new
+        {
+            planPath = request.FullPlanPath,
+            outputPlanPath = request.OutputPlanPath,
+            checkFiles = request.CheckFiles,
+            requireValid = request.RequireValid,
+            target = new
+            {
+                attachment.Target.TargetType,
+                attachment.Target.TargetKey,
+                attachment.Target.Selector,
+                previousPath = attachment.PreviousPath,
+                nextPath = attachment.NextPath,
+                pathStyleApplied = attachment.PathStyleApplied,
+                previousSubtitleMode = attachment.PreviousSubtitleMode,
+                nextSubtitleMode = attachment.NextSubtitleMode,
+                previousAudioTrackRole = attachment.PreviousAudioTrackRole,
+                nextAudioTrackRole = attachment.NextAudioTrackRole
+            },
+            added = attachment.Added,
+            validation
+        };
+
+        if (request.RequireValid && !validation.IsValid)
+        {
+            return new AttachPlanMaterialOperationResult
+            {
+                Report = report,
+                ErrorMessage = "Updated plan failed validation and '--require-valid' was specified.",
+                ExitCode = 1
+            };
+        }
+
+        Directory.CreateDirectory(outputBaseDirectory);
+        await File.WriteAllTextAsync(request.OutputPlanPath, JsonSerializer.Serialize(attachment.UpdatedPlan, OpenVideoToolboxJson.Default));
+
+        return new AttachPlanMaterialOperationResult
+        {
+            Report = report,
+            ExitCode = 0
+        };
+    }
+
     private static async Task<BindVoiceTrackOperationResult> ExecuteBindVoiceTrackAsync(
         BindVoiceTrackOperationRequest request,
         TemplatePluginCatalog? pluginCatalog)
@@ -1226,6 +1526,36 @@ internal static class FoundationCommandHandlers
             Report = report,
             ExitCode = 0
         };
+    }
+
+    private sealed record AttachPlanMaterialOperationRequest
+    {
+        public required string FullPlanPath { get; init; }
+
+        public required string OutputPlanPath { get; init; }
+
+        public required string ResolvedAttachmentPath { get; init; }
+
+        public required EditPlanInspectionTargetSelector TargetSelector { get; init; }
+
+        public EditPlanPathWriteStyle PathStyle { get; init; }
+
+        public bool CheckFiles { get; init; }
+
+        public bool RequireValid { get; init; }
+
+        public SubtitleMode? SubtitleMode { get; init; }
+
+        public AudioTrackRole? AudioTrackRole { get; init; }
+    }
+
+    private sealed record AttachPlanMaterialOperationResult
+    {
+        public required object Report { get; init; }
+
+        public string? ErrorMessage { get; init; }
+
+        public int ExitCode { get; init; }
     }
 
     private sealed record BindVoiceTrackOperationRequest

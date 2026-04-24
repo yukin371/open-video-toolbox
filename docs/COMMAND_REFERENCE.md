@@ -175,6 +175,19 @@ attach-plan-material --plan <edit.json> [--write-to <path>] [--in-place [true|fa
 
 - 对当前缺失的 `transcript`、`beats`、`subtitles`、`audioTracks` 做显式挂载，或对模板已声明的 artifact slot 做 upsert
 
+### `attach-plan-material-batch`
+
+```text
+attach-plan-material-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]
+```
+
+用途：
+
+- 从批量 manifest 读取多条素材挂载任务，逐项复用 `attach-plan-material` 流程
+- 支持批量接回 `transcript`、`beats`、`subtitles`、`audioTrackId`、`artifactSlot`
+- 在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
+
 ### `bind-voice-track`
 
 ```text

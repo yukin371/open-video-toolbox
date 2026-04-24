@@ -366,6 +366,64 @@ public sealed class ContractSnapshotTests
     }
 
     [Fact]
+    public async Task AttachPlanMaterialBatch_ContractStructure()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-attach-batch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(tempDir, "tasks", "job-a", "signals"));
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "tasks", "job-a", "input.mp4"), "video");
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "tasks", "job-a", "signals", "transcript.json"), "{}");
+            var planPath = Path.Combine(tempDir, "tasks", "job-a", "edit.json");
+            await File.WriteAllTextAsync(
+                planPath,
+                """
+                {
+                  "schemaVersion": 1,
+                  "source": { "inputPath": "input.mp4" },
+                  "output": { "path": "output.mp4", "container": "mp4" }
+                }
+                """);
+            var manifestPath = Path.Combine(tempDir, "batch.json");
+            await File.WriteAllTextAsync(manifestPath, """
+                {
+                  "schemaVersion": 1,
+                  "items": [
+                    {
+                      "id": "job-a",
+                      "plan": "tasks/job-a/edit.json",
+                      "path": "tasks/job-a/signals/transcript.json",
+                      "transcript": true,
+                      "checkFiles": true,
+                      "pathStyle": "relative"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await CliTestProcessHelper.RunCliAsync("attach-plan-material-batch", "--manifest", manifestPath);
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("attach-plan-material-batch", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            NormalizeAttachPlanMaterialBatchPayload(payload);
+
+            var expectedPayload = LoadSnapshot("attach-plan-material-batch-valid.json")!["payload"]!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
+                $"Contract structure mismatch for 'attach-plan-material-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ScaffoldTemplateBatch_ContractStructure()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-scaffold-batch-{Guid.NewGuid():N}");
@@ -504,6 +562,27 @@ public sealed class ContractSnapshotTests
             if (result["result"] is JsonObject scaffoldResult)
             {
                 NormalizeScaffoldTemplatePayload(scaffoldResult);
+            }
+        }
+    }
+
+    private static void NormalizeAttachPlanMaterialBatchPayload(JsonObject payload)
+    {
+        payload.Remove("manifestPath");
+        payload.Remove("manifestBaseDirectory");
+        payload.Remove("summaryPath");
+
+        foreach (var resultNode in payload["results"]!.AsArray())
+        {
+            var result = resultNode!.AsObject();
+            result.Remove("planPath");
+            result.Remove("outputPlanPath");
+            result.Remove("resultPath");
+
+            if (result["result"] is JsonObject attachResult)
+            {
+                attachResult.Remove("planPath");
+                attachResult.Remove("outputPlanPath");
             }
         }
     }
