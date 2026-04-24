@@ -32,7 +32,7 @@
 当前 CLI 已完成 `H1 -> H2+T1 -> T2 -> P1 -> E1`，并已形成一组可直接使用的高频命令面：
 
 - 基础媒体：`probe`、`plan`、`run`
-- 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`validate-plan`
+- 模板与工作流：`templates`、`doctor`、`init-plan`、`scaffold-template`、`scaffold-template-batch`、`validate-plan`
 - 计划内素材工作流：`inspect-plan`、`replace-plan-material`、`attach-plan-material`、`bind-voice-track`、`bind-voice-track-batch`
 - 音频 / speech / signals：`beat-track`、`audio-analyze`、`audio-gain`、`audio-normalize`、`transcribe`、`detect-silence`、`separate-audio`
 - 编辑基元：`cut`、`concat`、`extract-audio`、`subtitle`
@@ -184,6 +184,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 | 模板工作流 | `doctor` | 外部依赖预检 | `doctor.json` |
 | 模板工作流 | `init-plan` | 生成初始 `edit.json` | `edit.json` |
 | 模板工作流 | `scaffold-template` | 一次落出模板工作目录 | 工作目录文件集 |
+| 模板工作流 | `scaffold-template-batch` | 从 manifest 批量落出任务工作目录，并固定写 `summary.json` | stdout / `summary.json` |
 | 模板工作流 | `validate-plan` | 校验 `edit.json` | stdout / `--json-out` |
 | 计划内素材 | `inspect-plan` | 查看当前 plan 的素材、缺失绑定、可替换目标与 signal 状态 | stdout / `--json-out` |
 | 计划内素材 | `replace-plan-material` | 对已有绑定做受控替换 | stdout / `--json-out` |
@@ -317,6 +318,7 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - 列出内置模板
 - 按模板 id 查看单模板指南
 - 输出 artifact skeleton、template params、supporting signals、preview plan、命令脚本
+- 对有字幕 / signal 依赖的模板，示例命令会继续给出 attach、inspect、validate 这条闭环，而不是只停在生成 signal 文件
 
 常见用法：
 
@@ -364,11 +366,58 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - `commands.sh`
 - 初始 `edit.json`
 
+如果模板包含字幕或 supporting signal 工作流，这些命令文件现在会把 `transcribe` / `subtitle` 之后的 `attach-plan-material`、`inspect-plan --check-files`、`validate-plan --check-files` 一并写出来，便于直接照着闭环跑完。
+
 示例：
 
 ```powershell
 <ovt> scaffold-template input.mp4 --template shorts-captioned --dir .workspace --validate
 ```
+
+### `scaffold-template-batch`
+
+用途：
+
+- 从 manifest 批量准备模板工作目录
+- 适合先生成一批待后续加工的任务目录，再分阶段做字幕、素材替换、配音接回或渲染
+- 会在 manifest 同目录固定写出 `summary.json`
+
+最小 manifest：
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "job-a",
+      "input": "inputs/a.mp4",
+      "template": "shorts-captioned"
+    },
+    {
+      "id": "job-b",
+      "input": "inputs/b.mp4",
+      "template": "beat-montage",
+      "workdir": "custom/job-b",
+      "validate": true,
+      "checkFiles": true
+    }
+  ]
+}
+```
+
+示例：
+
+```powershell
+<ovt> scaffold-template-batch --manifest batch.json --json-out scaffold-template-batch.json
+```
+
+当前约定：
+
+- manifest 内相对路径统一按 `batch.json` 所在目录解析
+- `id` 是稳定任务标识，也是默认工作目录命名基准
+- 未写 `workdir` 时默认落到 `tasks/<id>`
+- stdout / `--json-out` 返回 command envelope；`summary.json` 写 payload，便于脚本和 future Desktop 直接读取
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
 
 ### `validate-plan`
 
@@ -399,6 +448,15 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 - 查看当前 plan 的素材概览
 - 明确哪些目标可以安全替换
 - 明确哪些 transcript / subtitles / beats / audio tracks 当前缺失、未绑定或路径失效
+- 用 `signals[].status` 直接判断下一步更像是继续 attach、修路径，还是当前已满足
+
+`signals[].status` 当前有这几种稳定值：
+
+- `attachedPresent`：已接回，且文件存在
+- `attachedMissing`：已接回，但引用文件缺失
+- `attachedNotChecked`：已接回，但这次未做文件检查
+- `expectedUnbound`：模板期望该 signal，但当前 plan 尚未绑定
+- `optionalUnbound`：当前未绑定，且模板没有明确要求
 
 示例：
 
@@ -601,6 +659,15 @@ $env:OVT_DEMUCS_PATH = "C:\Users\<you>\AppData\Local\Programs\Python\Python311\S
 ```powershell
 <ovt> subtitle input.mp4 --transcript transcript.json --format srt --output subtitles.srt --json-out subtitle.json
 ```
+
+如果你的目标不是只单独导出字幕文件，而是把识别结果完整接回现有 plan，建议直接按这条链走：
+
+1. `transcribe`
+2. `subtitle`
+3. `attach-plan-material`
+4. `inspect-plan --check-files`
+5. `validate-plan --check-files`
+6. `render`
 
 ## 导出与预览
 

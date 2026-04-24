@@ -1,0 +1,121 @@
+{
+  "command": "scaffold-template-batch",
+  "preview": false,
+  "payload": {
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "id": "job-a",
+        "templateId": "shorts-captioned",
+        "status": "succeeded",
+        "result": {
+          "source": {
+            "kind": "builtIn"
+          },
+          "template": {
+            "id": "shorts-captioned",
+            "displayName": "Shorts Captioned",
+            "description": "Short-form cut with subtitle slot prepared for caption-driven publishing.",
+            "category": "short-form",
+            "version": "1.0.0",
+            "outputContainer": "mp4",
+            "defaultSubtitleMode": "sidecar",
+            "parameterDefaults": {
+              "hookStyle": "hard-cut",
+              "captionStyle": "burn-later"
+            },
+            "recommendedSeedModes": [
+              "manual",
+              "transcript",
+              "beats"
+            ],
+            "recommendedTranscriptSeedStrategies": [
+              "grouped",
+              "maxGap"
+            ],
+            "artifactSlots": [
+              {
+                "id": "subtitles",
+                "kind": "subtitle",
+                "description": "Optional subtitle file to attach or burn in later.",
+                "required": false
+              }
+            ],
+            "supportingSignals": [
+              {
+                "kind": "transcript",
+                "reason": "Use transcript segments to line up caption-first hooks with spoken lines."
+              },
+              {
+                "kind": "beats",
+                "reason": "Use beat markers when the short needs rhythm-first pacing but should still keep caption outputs ready."
+              },
+              {
+                "kind": "silence",
+                "reason": "Use silence markers to catch long pauses before locking subtitle timing and clip boundaries."
+              }
+            ]
+          },
+          "scaffold": {
+            "writtenFiles": [
+              "artifacts.json",
+              "template-params.json",
+              "preview-manual.edit.json",
+              "preview-transcript.edit.json",
+              "preview-beats.edit.json",
+              "template.json",
+              "guide.json",
+              "commands.json",
+              "commands.ps1",
+              "commands.cmd",
+              "commands.sh",
+              "edit.json"
+            ]
+          },
+          "probed": false,
+          "validated": false,
+          "validation": null,
+          "editPlan": {
+            "schemaVersion": 1,
+            "source": {},
+            "template": {
+              "id": "shorts-captioned",
+              "version": "1.0.0",
+              "source": {
+                "kind": "builtIn",
+                "pluginId": null,
+                "pluginVersion": null
+              },
+              "parameters": {
+                "hookStyle": "hard-cut",
+                "captionStyle": "burn-later"
+              }
+            },
+            "clips": [],
+            "audioTracks": [],
+            "artifacts": [],
+            "transcript": null,
+            "beats": null,
+            "subtitles": null,
+            "output": {
+              "container": "mp4"
+            },
+            "x-template": {
+              "slots": [
+                {
+                  "id": "subtitles",
+                  "kind": "subtitle",
+                  "description": "Optional subtitle file to attach or burn in later.",
+                  "required": false
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}

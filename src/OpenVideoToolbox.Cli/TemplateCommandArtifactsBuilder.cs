@@ -22,13 +22,15 @@ internal static class TemplateCommandArtifactsBuilder
             WorkflowCommands = requiresPluginDir
                 ?
                 [
-                    "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>",
+                    "ovt inspect-plan --plan edit.json --check-files --plugin-dir <plugin-dir>",
+                    "ovt validate-plan --plan edit.json --check-files --plugin-dir <plugin-dir>",
                     "ovt render --plan edit.json --preview",
                     "ovt mix-audio --plan edit.json --output mixed.wav --preview"
                 ]
                 :
                 [
-                    "ovt validate-plan --plan edit.json",
+                    "ovt inspect-plan --plan edit.json --check-files",
+                    "ovt validate-plan --plan edit.json --check-files",
                     "ovt render --plan edit.json --preview",
                     "ovt mix-audio --plan edit.json --output mixed.wav --preview"
                 ]

@@ -88,7 +88,10 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal("<plugin-dir>", commands["variables"]!["pluginDir"]!.GetValue<string>());
             Assert.Contains(
                 commands["workflowCommands"]!.AsArray(),
-                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>");
+                node => node!.GetValue<string>() == "ovt inspect-plan --plan edit.json --check-files --plugin-dir <plugin-dir>");
+            Assert.Contains(
+                commands["workflowCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --check-files --plugin-dir <plugin-dir>");
         }
         finally
         {

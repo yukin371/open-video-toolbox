@@ -69,14 +69,14 @@
         "reason": "Use transcript segments to line up caption-first hooks with spoken lines.",
         "outputPath": "transcript.json",
         "command": "ovt transcribe \u003Cinput\u003E --model \u003Cwhisper-model-path\u003E --output transcript.json",
-        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
+        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "beats",
         "reason": "Use beat markers when the short needs rhythm-first pacing but should still keep caption outputs ready.",
         "outputPath": "beats.json",
         "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
-        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --beats --path beats.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "silence",
@@ -101,12 +101,12 @@
       {
         "kind": "transcript",
         "command": "ovt transcribe \u003Cinput\u003E --model \u003Cwhisper-model-path\u003E --output transcript.json",
-        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
+        "consumption": "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "beats",
         "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
-        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --beats --path beats.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "silence",
@@ -120,7 +120,9 @@
       "ovt detect-silence \u003Cinput\u003E --output silence.json"
     ],
     "artifactCommands": [
-      "ovt subtitle \u003Cinput\u003E --transcript transcript.json --format srt --output subtitles.srt"
+      "ovt subtitle \u003Cinput\u003E --transcript transcript.json --format srt --output subtitles.srt",
+      "ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files",
+      "ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files"
     ],
     "seedCommands": [
       {

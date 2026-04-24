@@ -24,3 +24,12 @@ internal sealed record TemplatePlanBuildResult
 
     public IReadOnlyDictionary<string, string> ParameterOverrides { get; init; } = new Dictionary<string, string>();
 }
+
+internal sealed record ScaffoldTemplateOperationResult
+{
+    public required object Payload { get; init; }
+
+    public int ExitCode { get; init; }
+
+    public string? ErrorMessage { get; init; }
+}

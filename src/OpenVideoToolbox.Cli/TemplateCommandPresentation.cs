@@ -227,13 +227,15 @@ internal static class TemplateCommandPresentation
 
     public static IReadOnlyList<string> BuildTemplateArtifactCommands(
         EditPlanTemplateDefinition template,
-        IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals)
+        IReadOnlyList<EditPlanSupportingSignalExample> supportingSignals,
+        bool requiresPluginDir)
     {
         var hasSubtitleOutput = template.DefaultSubtitleMode is not null
             || template.ArtifactSlots.Any(slot =>
                 string.Equals(slot.Kind, "subtitle", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(slot.Id, "subtitles", StringComparison.OrdinalIgnoreCase));
         var hasTranscriptSignal = supportingSignals.Any(signal => signal.Kind == EditPlanSupportingSignalKind.Transcript);
+        var pluginArg = requiresPluginDir ? " --plugin-dir <plugin-dir>" : string.Empty;
 
         if (!hasSubtitleOutput || !hasTranscriptSignal)
         {
@@ -242,7 +244,9 @@ internal static class TemplateCommandPresentation
 
         return
         [
-            "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"
+            "ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt",
+            $"ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files{pluginArg}",
+            $"ovt attach-plan-material --plan edit.json --subtitles --path subtitles.srt --check-files{pluginArg}"
         ];
     }
 

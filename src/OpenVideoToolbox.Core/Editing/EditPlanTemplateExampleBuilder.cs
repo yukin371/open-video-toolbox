@@ -332,7 +332,7 @@ public static class EditPlanTemplateExampleBuilder
                 Reason = signal.Reason,
                 OutputPath = "transcript.json",
                 Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
-                Consumption = "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout."
+                Consumption = "Pass --transcript transcript.json to init-plan and enable --seed-from-transcript when dialogue should drive the first clip layout. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render."
             },
             EditPlanSupportingSignalKind.Beats => new EditPlanSupportingSignalExample
             {
@@ -340,7 +340,7 @@ public static class EditPlanTemplateExampleBuilder
                 Reason = signal.Reason,
                 OutputPath = "beats.json",
                 Command = "ovt beat-track <input> --output beats.json",
-                Consumption = "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+                Consumption = "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --beats --path beats.json --check-files before inspect-plan / validate-plan / render."
             },
             EditPlanSupportingSignalKind.Silence => new EditPlanSupportingSignalExample
             {

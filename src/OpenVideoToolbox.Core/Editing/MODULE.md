@@ -58,6 +58,7 @@
 - 模板列表摘要字段必须稳定，便于外部 AI 和未来 UI 做低成本模板发现
 - 模板 supporting signal guidance 必须由模板定义显式声明，不能在 CLI 层按类别或命令名临时猜测
 - supporting signal command 里的外部依赖占位符必须具体且稳定；例如 transcript signal 应显式写成 `<whisper-model-path>`，不能退回泛化的 `<path>`
+- transcript / beats 的 supporting signal consumption 必须同时覆盖“init-plan 前接入”和“已有 edit.json 后 attach”这两条稳定路径，不能只写其中一条
 - 模板 artifact 示例路径必须从模板 slot 与 supporting signal 组合稳定派生；例如带 `stems` signal 的 `bgm` slot 应直接给出 `Demucs` accompaniment stem 路径，而不是退回泛化占位
 - 模板参数覆盖必须先落到稳定的 `template.parameters`，不能直接分裂成零散 CLI 特判
 - 模板清单与 plan skeleton 规则必须留在本模块，不得散落到 CLI
@@ -76,6 +77,7 @@
 - `edit.json` schema 变化
 - 字段语义变化
 - inspection / material summary 输出语义变化
+- `inspect-plan` 的 `signals[]` 总状态字段或取值变化
 - material replacement / path-style 写回语义变化
 - material attachment / artifact slot upsert 语义变化
 - `render` / `mix-audio` 等命令消费方式变化

@@ -106,20 +106,27 @@
     - 功能交付默认按阶段推进，不再继续按“发现一个点就补一个命令”的方式滚动前进
     - 当前功能交付线的阶段总表已落到 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md`
       - `E2-F1` 基线盘点与边界固定：已完成
-      - `E2-F2` 计划内素材与配音工作流收口：当前活跃阶段
-      - `E2-F3` 字幕与 supporting signal 工作流收口：下一阶段
-      - `E2-F4` 批量工作流与工作目录编排：其后阶段
+      - `E2-F2` 计划内素材与配音工作流收口：已进入完成前状态
+      - `E2-F3` 字幕与 supporting signal 工作流收口：当前活跃阶段，已进入完成前状态
+      - `E2-F4` 批量工作流与工作目录编排：当前活跃阶段，首个命令已开始落地
       - `E2-G1` Desktop 启动重判：阶段门，不提前启动
       - `E2-F2` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f2-phase-check.md`
       - `E2-F3` 的专项计划已补到 `docs/plans/2026-04-24-e2-f3-subtitle-and-signal-workflow-plan.md`
-      - `E2-F3-W1` 已开始首个落点：`inspect-plan` 现已补 `signals[]` 摘要，用于表达 transcript / beats / subtitles 的 expected、attached 与 file status
+      - `E2-F3` 的阶段检查已补到 `docs/plans/2026-04-24-e2-f3-phase-check.md`
+      - `E2-F3-W1` 已继续推进：`inspect-plan` 的 `signals[]` 现已补整体 `status`，可直接区分 `attachedPresent`、`attachedMissing`、`attachedNotChecked`、`expectedUnbound`、`optionalUnbound`
+      - `E2-F3-W2` 已继续推进：README / Features / command guide 已把 `transcribe -> subtitle -> attach -> inspect / validate -> render` 写成统一闭环
+      - `E2-F3-W3` 已推进首轮对齐：模板 `commands.json` / `commands.*` 与 guide 现会把 transcript / beats 的 attach，以及 `inspect-plan --check-files`、`validate-plan --check-files` 纳入稳定示例
+      - `E2-F3-W4` 当前结论已固定：不在本阶段新增 batch transcript / batch subtitle / batch signal 入口，统一留到 `E2-F4` 评估
+      - `E2-F4` 的专项计划已补到 `docs/plans/2026-04-24-e2-f4-batch-and-workdir-plan.md`
+      - `E2-F4` 当前设计结论：先固定 batch manifest 与工作目录约定，再以 `scaffold-template-batch` 作为首个实现入口
+      - `E2-F4-W4` 已推进首个实现：`scaffold-template-batch` 已落地最小 manifest contract、默认 `tasks/<id>` 工作目录、顶层 `summary.json` 与部分成功退出码
     - 下一份专项设计已补到 `docs/plans/2026-04-24-edit-plan-inspect-and-material-replacement.md`
       - `inspect-plan` 已落地
       - `replace-plan-material` 第一版已落地，当前只支持单目标 replace，不支持 attach / upsert
       - `attach-plan-material` 已落地，当前支持 `transcript` / `beats` / `subtitles` / `audioTracks` attach，以及模板声明 artifact slot upsert
       - `bind-voice-track` 已落地，作为外部配音 / TTS / voice conversion 的更直接接回入口
       - `bind-voice-track-batch` 已落地，当前支持 manifest 驱动的批量配音接回、相对路径解析、部分成功摘要与稳定退出码
-      - 当前判断：`E2-F2` 已进入完成前状态；下一步转入 `E2-F3` 的字幕 / signal 工作流收口
+      - 当前判断：`E2-F2` 已进入完成前状态；`E2-F3` 也已进入完成前状态；当前下一步进入 `E2-F4` 的 batch / 工作目录统一设计
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 
@@ -153,8 +160,8 @@
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-- `OpenVideoToolbox.Core.Tests`: 140/140
-- `OpenVideoToolbox.Cli.Tests`: 146/146
+- `OpenVideoToolbox.Core.Tests`: 141/141
+- `OpenVideoToolbox.Cli.Tests`: 149/149
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`

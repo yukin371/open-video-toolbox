@@ -24,7 +24,7 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 {
                     Kind = "transcript",
                     Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
-                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
+                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render."
                 }
             ],
             ["ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"]);
@@ -36,7 +36,8 @@ public sealed class TemplateCommandArtifactsBuilderTests
         Assert.Single(bundle.SignalInstructions);
         Assert.Single(bundle.SignalCommands);
         Assert.Single(bundle.ArtifactCommands);
-        Assert.Contains("ovt validate-plan --plan edit.json", bundle.WorkflowCommands);
+        Assert.Contains("ovt inspect-plan --plan edit.json --check-files", bundle.WorkflowCommands);
+        Assert.Contains("ovt validate-plan --plan edit.json --check-files", bundle.WorkflowCommands);
         Assert.Contains("ovt render --plan edit.json --preview", bundle.WorkflowCommands);
         Assert.Contains("ovt mix-audio --plan edit.json --output mixed.wav --preview", bundle.WorkflowCommands);
     }
@@ -70,7 +71,7 @@ public sealed class TemplateCommandArtifactsBuilderTests
                 {
                     Kind = "transcript",
                     Command = "ovt transcribe <input> --model <whisper-model-path> --output transcript.json",
-                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut."
+                    Consumption = "Pass --transcript transcript.json to init-plan when dialogue should drive the first cut. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render."
                 }
             ],
             ["ovt subtitle <input> --transcript transcript.json --format srt --output subtitles.srt"]);
@@ -79,7 +80,7 @@ public sealed class TemplateCommandArtifactsBuilderTests
 
         Assert.Contains("$InputPath = \"<input>\"", script);
         Assert.Contains("$WhisperModelPath = \"<whisper-model-path>\"", script);
-        Assert.Contains("# Pass --transcript transcript.json to init-plan when dialogue should drive the first cut.", script);
+        Assert.Contains("# Pass --transcript transcript.json to init-plan when dialogue should drive the first cut. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --transcript --path transcript.json --check-files before inspect-plan / validate-plan / render.", script);
         Assert.Contains("ovt transcribe $InputPath --model $WhisperModelPath --output transcript.json", script);
         Assert.Contains("# transcript seed example", script);
         Assert.Contains("ovt init-plan $InputPath --template shorts-captioned --output edit.json --render-output final.mp4 --transcript transcript.json --seed-from-transcript", script);
@@ -180,17 +181,21 @@ public sealed class TemplateCommandArtifactsBuilderTests
             requiresPluginDir: true);
 
         Assert.Equal("<plugin-dir>", bundle.Variables["pluginDir"]);
-        Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>", bundle.WorkflowCommands);
+        Assert.Contains("ovt inspect-plan --plan edit.json --check-files --plugin-dir <plugin-dir>", bundle.WorkflowCommands);
+        Assert.Contains("ovt validate-plan --plan edit.json --check-files --plugin-dir <plugin-dir>", bundle.WorkflowCommands);
 
         var powerShellScript = TemplateCommandArtifactsBuilder.BuildPowerShellCommandScript(bundle);
         var batchScript = TemplateCommandArtifactsBuilder.BuildBatchCommandScript(bundle);
         var shellScript = TemplateCommandArtifactsBuilder.BuildShellCommandScript(bundle);
 
         Assert.Contains("$PluginDir = \"<plugin-dir>\"", powerShellScript);
-        Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir $PluginDir", powerShellScript);
+        Assert.Contains("ovt inspect-plan --plan edit.json --check-files --plugin-dir $PluginDir", powerShellScript);
+        Assert.Contains("ovt validate-plan --plan edit.json --check-files --plugin-dir $PluginDir", powerShellScript);
         Assert.Contains("set PLUGIN_DIR=<plugin-dir>", batchScript);
-        Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir \"%PLUGIN_DIR%\"", batchScript);
+        Assert.Contains("ovt inspect-plan --plan edit.json --check-files --plugin-dir \"%PLUGIN_DIR%\"", batchScript);
+        Assert.Contains("ovt validate-plan --plan edit.json --check-files --plugin-dir \"%PLUGIN_DIR%\"", batchScript);
         Assert.Contains("PLUGIN_DIR=\"<plugin-dir>\"", shellScript);
-        Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir \"$PLUGIN_DIR\"", shellScript);
+        Assert.Contains("ovt inspect-plan --plan edit.json --check-files --plugin-dir \"$PLUGIN_DIR\"", shellScript);
+        Assert.Contains("ovt validate-plan --plan edit.json --check-files --plugin-dir \"$PLUGIN_DIR\"", shellScript);
     }
 }

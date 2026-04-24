@@ -93,11 +93,15 @@ public sealed partial class CommandArtifactsIntegrationTests
                 node => node!.GetValue<string>().Contains("--plugin-dir <plugin-dir>", StringComparison.Ordinal));
             Assert.Contains(
                 commands["workflowCommands"]!.AsArray(),
-                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --plugin-dir <plugin-dir>");
+                node => node!.GetValue<string>() == "ovt inspect-plan --plan edit.json --check-files --plugin-dir <plugin-dir>");
+            Assert.Contains(
+                commands["workflowCommands"]!.AsArray(),
+                node => node!.GetValue<string>() == "ovt validate-plan --plan edit.json --check-files --plugin-dir <plugin-dir>");
 
             var powerShellScript = await File.ReadAllTextAsync(Path.Combine(outputDirectory, "commands.ps1"));
             Assert.Contains("$PluginDir = \"<plugin-dir>\"", powerShellScript, StringComparison.Ordinal);
-            Assert.Contains("ovt validate-plan --plan edit.json --plugin-dir $PluginDir", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt inspect-plan --plan edit.json --check-files --plugin-dir $PluginDir", powerShellScript, StringComparison.Ordinal);
+            Assert.Contains("ovt validate-plan --plan edit.json --check-files --plugin-dir $PluginDir", powerShellScript, StringComparison.Ordinal);
         }
         finally
         {

@@ -60,7 +60,7 @@
         "reason": "Use beat markers as the primary cut scaffold for rhythm-first montage timing.",
         "outputPath": "beats.json",
         "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
-        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --beats --path beats.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "stems",
@@ -85,7 +85,7 @@
       {
         "kind": "beats",
         "command": "ovt beat-track \u003Cinput\u003E --output beats.json",
-        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing."
+        "consumption": "Pass --beats beats.json to init-plan and enable --seed-from-beats when rhythm should shape the initial clip pacing. If edit.json already exists, attach it with ovt attach-plan-material --plan edit.json --beats --path beats.json --check-files before inspect-plan / validate-plan / render."
       },
       {
         "kind": "stems",
