@@ -341,4 +341,100 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task InitNarratedPlanBatch_ForwardsBatchLevelFfprobeOption()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-batch-ffprobe-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(outputDirectory, "episodes", "episode-01", "slides"));
+        Directory.CreateDirectory(Path.Combine(outputDirectory, "episodes", "episode-01", "audio"));
+
+        var ffprobePath = WriteExecutableScript(
+            outputDirectory,
+            "fake-ffprobe",
+            """
+            @echo off
+            echo {"format":{"duration":"4.0"},"streams":[]}
+            exit /b 0
+            """,
+            """
+            #!/usr/bin/env bash
+            printf '{"format":{"duration":"4.0"},"streams":[]}\n'
+            """);
+
+        var narratedManifestPath = Path.Combine(outputDirectory, "episodes", "episode-01", "narrated.json");
+        var batchManifestPath = Path.Combine(outputDirectory, "batch.json");
+        var planPath = Path.Combine(outputDirectory, "tasks", "episode-01", "edit.json");
+
+        await File.WriteAllTextAsync(Path.Combine(outputDirectory, "episodes", "episode-01", "slides", "intro.png"), "image");
+        await File.WriteAllTextAsync(Path.Combine(outputDirectory, "episodes", "episode-01", "audio", "voice.wav"), "voice");
+
+        var narratedManifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Id = "episode-01",
+                Output = "exports/final.mp4"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "slides/intro.png"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "audio/voice.wav"
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(narratedManifestPath, JsonSerializer.Serialize(narratedManifest, OpenVideoToolboxJson.Default));
+        await File.WriteAllTextAsync(
+            batchManifestPath,
+            """
+            {
+              "schemaVersion": 1,
+              "items": [
+                {
+                  "id": "episode-01",
+                  "manifest": "episodes/episode-01/narrated.json"
+                }
+              ]
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan-batch",
+                "--manifest", batchManifestPath,
+                "--ffprobe", ffprobePath,
+                "--timeout-seconds", "5");
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(planPath));
+
+            var payload = JsonNode.Parse(result.StdOut)!["payload"]!.AsObject();
+            Assert.Equal(1, payload["results"]![0]!["result"]!["probedSectionCount"]!.GetValue<int>());
+            Assert.Equal("00:00:04", payload["results"]![0]!["result"]!["stats"]!["totalDuration"]!.GetValue<string>());
+
+            var plan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            Assert.Equal("00:00:04", plan["timeline"]!["duration"]!.GetValue<string>());
+            Assert.Equal("00:00:04", plan["timeline"]!["tracks"]![0]!["clips"]![0]!["duration"]!.GetValue<string>());
+            Assert.Equal("00:00:04", plan["timeline"]!["tracks"]![1]!["clips"]![0]!["duration"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }

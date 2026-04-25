@@ -157,6 +157,8 @@
     - `docs/plans/v2/2026-04-25-v2-p6-current-stop-point.md`
     - `docs/plans/v2/2026-04-25-v2-p6-c15-batch-narrated-spec.md`
     - `docs/plans/v2/2026-04-25-v2-p6-c15-batch-narrated-plan.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c15-batch-narrated-implementation.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c15-batch-narrated-phase-check.md`
   - 当前阶段状态：`accepted`
   - 当前下一步：
     - `${var}` foundation 已完成，当前已支持 manifest 顶层 `variables` 与 CLI `--vars <vars.json>` overlay
