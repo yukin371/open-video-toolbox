@@ -258,4 +258,87 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task InitNarratedPlanBatch_JsonOut_MatchesStdout()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-batch-jsonout-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(outputDirectory, "episodes", "episode-01", "slides"));
+        Directory.CreateDirectory(Path.Combine(outputDirectory, "episodes", "episode-01", "audio"));
+
+        var narratedManifestPath = Path.Combine(outputDirectory, "episodes", "episode-01", "narrated.json");
+        var batchManifestPath = Path.Combine(outputDirectory, "batch.json");
+        var jsonOutPath = Path.Combine(outputDirectory, "batch-result.json");
+
+        await File.WriteAllTextAsync(Path.Combine(outputDirectory, "episodes", "episode-01", "slides", "intro.png"), "image");
+        await File.WriteAllTextAsync(Path.Combine(outputDirectory, "episodes", "episode-01", "audio", "voice.wav"), "voice");
+
+        var narratedManifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Id = "episode-01",
+                Output = "exports/final.mp4"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "slides/intro.png",
+                        DurationMs = 3000
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "audio/voice.wav",
+                        DurationMs = 3000
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(narratedManifestPath, JsonSerializer.Serialize(narratedManifest, OpenVideoToolboxJson.Default));
+        await File.WriteAllTextAsync(
+            batchManifestPath,
+            """
+            {
+              "schemaVersion": 1,
+              "items": [
+                {
+                  "id": "episode-01",
+                  "manifest": "episodes/episode-01/narrated.json"
+                }
+              ]
+            }
+            """);
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan-batch",
+                "--manifest", batchManifestPath,
+                "--json-out", jsonOutPath);
+
+            Assert.Equal(0, result.ExitCode);
+            Assert.True(File.Exists(jsonOutPath));
+
+            var stdout = JsonNode.Parse(result.StdOut)!.AsObject();
+            var file = JsonNode.Parse(await File.ReadAllTextAsync(jsonOutPath))!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(stdout, file));
+            Assert.Equal("init-narrated-plan-batch", stdout["command"]!.GetValue<string>());
+            Assert.False(stdout["preview"]!.GetValue<bool>());
+            Assert.NotNull(stdout["payload"]);
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }

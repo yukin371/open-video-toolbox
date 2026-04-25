@@ -22,6 +22,9 @@ The current snapshot set intentionally focuses on stable read-oriented or guide-
 - `templates shorts-captioned`
 - `templates beat-montage`
 - `validate-plan` machine-independent payload shape
+- normalized batch payloads for `scaffold-template-batch`
+- normalized batch payloads for `render-batch --preview`
+- normalized batch payloads for `init-narrated-plan-batch`
 
 `validate-plan` is compared after removing path-like environment-specific fields instead of relying on a raw full-text snapshot.
 

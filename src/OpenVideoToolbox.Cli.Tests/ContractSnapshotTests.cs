@@ -546,6 +546,78 @@ public sealed class ContractSnapshotTests
     }
 
     [Fact]
+    public async Task InitNarratedPlanBatch_ContractStructure()
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-init-narrated-batch-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(Path.Combine(tempDir, "episodes", "episode-01", "slides"));
+        Directory.CreateDirectory(Path.Combine(tempDir, "episodes", "episode-01", "audio"));
+
+        try
+        {
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "episodes", "episode-01", "slides", "intro.png"), "image");
+            await File.WriteAllTextAsync(Path.Combine(tempDir, "episodes", "episode-01", "audio", "voice.wav"), "voice");
+
+            var narratedManifestPath = Path.Combine(tempDir, "episodes", "episode-01", "narrated.json");
+            await File.WriteAllTextAsync(narratedManifestPath, """
+                {
+                  "schemaVersion": 1,
+                  "video": {
+                    "id": "episode-01",
+                    "output": "exports/final.mp4"
+                  },
+                  "sections": [
+                    {
+                      "id": "intro",
+                      "title": "Intro",
+                      "visual": {
+                        "kind": "image",
+                        "path": "slides/intro.png",
+                        "durationMs": 3000
+                      },
+                      "voice": {
+                        "path": "audio/voice.wav",
+                        "durationMs": 3000
+                      }
+                    }
+                  ]
+                }
+                """);
+
+            var manifestPath = Path.Combine(tempDir, "batch.json");
+            await File.WriteAllTextAsync(manifestPath, """
+                {
+                  "schemaVersion": 1,
+                  "items": [
+                    {
+                      "id": "episode-01",
+                      "manifest": "episodes/episode-01/narrated.json"
+                    }
+                  ]
+                }
+                """);
+
+            var result = await CliTestProcessHelper.RunCliAsync("init-narrated-plan-batch", "--manifest", manifestPath);
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("init-narrated-plan-batch", envelope["command"]!.GetValue<string>());
+            Assert.False(envelope["preview"]!.GetValue<bool>());
+
+            var payload = envelope["payload"]!.AsObject();
+            NormalizeInitNarratedPlanBatchPayload(payload);
+
+            var expectedPayload = LoadSnapshot("init-narrated-plan-batch-valid.json")!["payload"]!.AsObject();
+
+            Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
+                $"Contract structure mismatch for 'init-narrated-plan-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
+        }
+        finally
+        {
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task RenderBatchPreview_ContractStructure()
     {
         var tempDir = Path.Combine(Path.GetTempPath(), $"ovt-snapshot-render-batch-{Guid.NewGuid():N}");
@@ -640,6 +712,26 @@ public sealed class ContractSnapshotTests
             if (result["result"] is JsonObject scaffoldResult)
             {
                 NormalizeScaffoldTemplatePayload(scaffoldResult);
+            }
+        }
+    }
+
+    private static void NormalizeInitNarratedPlanBatchPayload(JsonObject payload)
+    {
+        payload.Remove("manifestPath");
+        payload.Remove("manifestBaseDirectory");
+        payload.Remove("summaryPath");
+
+        foreach (var resultNode in payload["results"]!.AsArray())
+        {
+            var result = resultNode!.AsObject();
+            result.Remove("manifestPath");
+            result.Remove("planPath");
+            result.Remove("resultPath");
+
+            if (result["result"] is JsonObject narratedResult)
+            {
+                NormalizeInitNarratedPlanPayload(narratedResult);
             }
         }
     }
@@ -739,6 +831,43 @@ public sealed class ContractSnapshotTests
             {
                 NormalizeRenderPayload(renderResult);
             }
+        }
+    }
+
+    private static void NormalizeInitNarratedPlanPayload(JsonObject payload)
+    {
+        payload.Remove("manifestPath");
+        payload.Remove("planPath");
+        payload.Remove("renderOutputPath");
+
+        var editPlan = payload["editPlan"]!.AsObject();
+        editPlan["source"]!.AsObject().Remove("inputPath");
+        var template = editPlan["template"]!.AsObject();
+        var templateSource = template["source"]!.AsObject();
+        if (templateSource["pluginId"] is null)
+        {
+            templateSource.Remove("pluginId");
+        }
+
+        if (templateSource["pluginVersion"] is null)
+        {
+            templateSource.Remove("pluginVersion");
+        }
+
+        editPlan["output"]!.AsObject().Remove("path");
+
+        var tracks = editPlan["timeline"]!["tracks"]!.AsArray();
+        foreach (var trackNode in tracks)
+        {
+            foreach (var clipNode in trackNode!["clips"]!.AsArray())
+            {
+                clipNode!.AsObject().Remove("src");
+            }
+        }
+
+        foreach (var audioTrackNode in editPlan["audioTracks"]!.AsArray())
+        {
+            audioTrackNode!.AsObject().Remove("path");
         }
     }
 

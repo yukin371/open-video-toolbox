@@ -1,0 +1,109 @@
+{
+  "command": "init-narrated-plan-batch",
+  "preview": false,
+  "payload": {
+    "itemCount": 1,
+    "succeededCount": 1,
+    "failedCount": 0,
+    "results": [
+      {
+        "index": 0,
+        "id": "episode-01",
+        "status": "succeeded",
+        "result": {
+          "template": {
+            "id": "narrated-slides-starter",
+            "source": {
+              "kind": "builtIn"
+            }
+          },
+          "probedSectionCount": 0,
+          "stats": {
+            "sectionCount": 1,
+            "totalDuration": "00:00:03",
+            "hasSubtitles": false,
+            "hasBgm": false
+          },
+          "editPlan": {
+            "schemaVersion": 2,
+            "source": {},
+            "template": {
+              "id": "narrated-slides-starter",
+              "version": null,
+              "source": {
+                "kind": "builtIn"
+              },
+              "parameters": {}
+            },
+            "clips": [],
+            "audioTracks": [],
+            "artifacts": [],
+            "transcript": null,
+            "beats": null,
+            "subtitles": null,
+            "timeline": {
+              "duration": "00:00:03",
+              "resolution": {
+                "w": 1920,
+                "h": 1080
+              },
+              "frameRate": 30,
+              "tracks": [
+                {
+                  "id": "main",
+                  "kind": "video",
+                  "clips": [
+                    {
+                      "id": "intro-video",
+                      "placeholder": null,
+                      "in": null,
+                      "out": null,
+                      "start": "00:00:00",
+                      "duration": "00:00:03",
+                      "effects": [],
+                      "transitions": null,
+                      "slot": null
+                    }
+                  ],
+                  "effects": [
+                    {
+                      "type": "scale",
+                      "width": 1920,
+                      "height": 1080,
+                      "flags": "lanczos"
+                    }
+                  ],
+                  "muted": false,
+                  "slot": null
+                },
+                {
+                  "id": "voice",
+                  "kind": "audio",
+                  "clips": [
+                    {
+                      "id": "intro-voice",
+                      "placeholder": null,
+                      "in": null,
+                      "out": null,
+                      "start": "00:00:00",
+                      "duration": "00:00:03",
+                      "effects": [],
+                      "transitions": null,
+                      "slot": null
+                    }
+                  ],
+                  "effects": [],
+                  "muted": false,
+                  "slot": null
+                }
+              ]
+            },
+            "output": {
+              "container": "mp4"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
