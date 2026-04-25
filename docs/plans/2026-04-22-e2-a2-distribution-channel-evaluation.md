@@ -131,11 +131,11 @@
 - 第 0.9 步“把 `winget-pkgs` 目录结构导出收敛成仓库内确定性脚本”也已落地：`packaging/winget/Export-WinGetSubmissionBundle.ps1` 会直接导出 `manifests/<letter>/<publisher>/<application>/<version>/` 结构与提交说明。
 - 仓库内 MIT 许可证来源与 readiness 检查现已补齐。
 - `v0.1.0` 真实 tag、GitHub Release，以及对应的 Windows `portable` 资产现已发布。
+- 已于 **2026-04-25** 用仓库导出的 `v0.1.0` manifest 在本机实际跑通一次 `winget validate`。
 - 当前剩余动作已收敛到：
-  1. 用当前 release 渲染正式 manifest
-  2. 在目标提交环境复核 `winget validate`
-  3. 视需要执行 `winget install --manifest`
-  4. 向 `microsoft/winget-pkgs` 提交 PR
+  1. 在目标提交环境复核 `winget validate`
+  2. 视需要执行 `winget install --manifest`
+  3. 向 `microsoft/winget-pkgs` 提交 PR
 
 ## 重新评估条件
 
