@@ -138,6 +138,22 @@ init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <
 - 当前支持首个 narrated `sections[].visual.slot.required = false` 场景：当 section 缺 `visual.path` 时会保留 voice，并在 `main` 轨投影 black color placeholder；`required = true` 仍不支持
 - 当前不纳入 `templates` catalog，也不复用 `init-plan <input>` 的单素材模板入口
 
+### `init-narrated-plan-batch`
+
+```text
+init-narrated-plan-batch --manifest <batch.json> [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]
+```
+
+用途：
+
+- 从 batch manifest 批量生成多份 narrated-slides `edit.json`
+- 每个条目复用单项 `init-narrated-plan` 的 build 路径，不新增第二套 narrated 语义
+- batch manifest 内的 `manifest` / `output` / `renderOutput` / `vars` 相对路径统一按 batch manifest 所在目录解析
+- narrated manifest 自身内部素材路径仍按 narrated manifest 自身所在目录解析
+- 未显式提供 `output` 的条目默认写到 `tasks/<id>/edit.json`
+- 在 manifest 同目录固定写出 `summary.json` 与 `results/<id>.json`
+- 退出码约定：全部成功返回 `0`，部分或全部条目失败返回 `2`，manifest 解析或装载失败返回 `1`
+
 ### `scaffold-template`
 
 ```text
