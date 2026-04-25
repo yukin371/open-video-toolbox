@@ -168,6 +168,8 @@
     - 当前 stop point 已明确：默认先不进入 section 删除、batch 或图表后端
     - 唯一已显式重开的后续卡片是 `V2-P6-C15 数据驱动 batch narrated`
     - `C15` 的边界固定为：新增 `init-narrated-plan-batch`，复用单项 narrated build 路径与 batch `summary.json` / `results/<id>.json` 约定，不扩展 narrated 业务语义
+    - `C15` 当前实现、phase-check、contract snapshot 与手动验收清单已补齐，当前状态可视为 `ready_for_acceptance`
+    - 若无新的明确 narrated 卡片，`V2-P6` 在 `C15` 之后应再次回到 stop-point，而不是继续横向扩 narrated scope
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
