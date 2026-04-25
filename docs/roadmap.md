@@ -254,6 +254,7 @@
     - 仓库内已新增 runtime 阈值配置与显式判定脚本
     - `runtime-baseline` workflow 现会在超阈值时显式失败
     - workflow 现会同时上传 markdown summary artifact，便于 maintainer 下载和离线对照
+    - runtime baseline 样本已于 **2026-04-25** 扩到 `scaffold-template-batch` 与 `render-batch --preview`，开始同时覆盖 batch/workdir 的生产端与消费端
   - 当前增加一条明确的产品/实现纪律：
     - 先整理当前基础功能列表，再继续丰富 CLI 高价值能力，而不是随机扩命令面
     - Desktop 暂不正式启动，但已补充边界文档，后续只能消费模板发现结果、`edit.json`、`validate-plan`、preview、依赖状态与执行日志，不得成为新的业务 owner
