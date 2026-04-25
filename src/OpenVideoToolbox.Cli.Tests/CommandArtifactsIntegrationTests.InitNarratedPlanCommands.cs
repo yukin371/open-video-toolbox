@@ -431,7 +431,12 @@ public sealed partial class CommandArtifactsIntegrationTests
             },
             Bgm = new NarratedSlidesBgmManifest
             {
-                Path = "${audioDir}/bgm.mp3"
+                Path = "${audioDir}/bgm.mp3",
+                Slot = new NarratedSlidesSlotManifest
+                {
+                    Name = "${bgmSlotName:-bgm}",
+                    Required = false
+                }
             },
             Sections =
             [
@@ -495,6 +500,255 @@ public sealed partial class CommandArtifactsIntegrationTests
             Assert.Equal(
                 Path.GetFullPath(bgmPath),
                 bgmTrack["clips"]!.AsArray().Single()!["src"]!.GetValue<string>());
+            Assert.Equal("bgm", bgmTrack["slot"]!["name"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitNarratedPlan_SkipsOptionalBgmSlotWhenUnbound()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-bgm-slot-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var slidesDirectory = Path.Combine(outputDirectory, "slides");
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(slidesDirectory);
+        Directory.CreateDirectory(audioDirectory);
+
+        var imagePath = Path.Combine(slidesDirectory, "cover.png");
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.bgm-slot.json");
+        var planPath = Path.Combine(outputDirectory, "edit.bgm-slot.v2.json");
+
+        await File.WriteAllTextAsync(imagePath, "image");
+        await File.WriteAllTextAsync(voicePath, "voice");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Output = "exports/final.mp4"
+            },
+            Bgm = new NarratedSlidesBgmManifest
+            {
+                Path = "${bgmPath:-}",
+                Slot = new NarratedSlidesSlotManifest
+                {
+                    Name = "bgm",
+                    Required = false
+                }
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = Path.Combine("slides", "cover.png").Replace('\\', '/')
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.False(envelope["payload"]!["stats"]!["hasBgm"]!.GetValue<bool>());
+
+            var writtenPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            var tracks = writtenPlan["timeline"]!["tracks"]!.AsArray();
+
+            Assert.Equal(2, tracks.Count);
+            Assert.DoesNotContain(tracks, node => node!["id"]!.GetValue<string>() == "bgm");
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitNarratedPlan_ProjectsPlaceholderWhenOptionalVisualSlotIsUnbound()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-visual-slot-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(audioDirectory);
+
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.visual-slot.json");
+        var planPath = Path.Combine(outputDirectory, "edit.visual-slot.v2.json");
+
+        await File.WriteAllTextAsync(voicePath, "voice");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Output = "exports/final.mp4"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Slot = new NarratedSlidesSlotManifest
+                        {
+                            Name = "cover-visual",
+                            Required = false
+                        }
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var writtenPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            Assert.Equal(Path.GetFullPath(voicePath), writtenPlan["source"]!["inputPath"]!.GetValue<string>());
+
+            var tracks = writtenPlan["timeline"]!["tracks"]!.AsArray();
+            var mainTrack = tracks.Single(node => node!["id"]!.GetValue<string>() == "main")!.AsObject();
+            var mainClip = mainTrack["clips"]!.AsArray().Single()!.AsObject();
+
+            Assert.Null(mainClip["src"]);
+            Assert.Equal("00:00:02.5000000", mainClip["duration"]!.GetValue<string>());
+            Assert.Equal("color", mainClip["placeholder"]!["kind"]!.GetValue<string>());
+            Assert.Equal("black", mainClip["placeholder"]!["color"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitNarratedPlan_OptionalVisualSlotPlanCanRenderPreview()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-visual-slot-preview-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(audioDirectory);
+
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.visual-slot.preview.json");
+        var planPath = Path.Combine(outputDirectory, "edit.visual-slot.preview.v2.json");
+
+        await File.WriteAllTextAsync(voicePath, "voice");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Output = "exports/final.mp4"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Slot = new NarratedSlidesSlotManifest
+                        {
+                            Name = "cover-visual",
+                            Required = false
+                        }
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var initResult = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(0, initResult.ExitCode);
+
+            var renderResult = await RunCliAsync(
+                "render",
+                "--plan",
+                planPath,
+                "--preview");
+
+            Assert.Equal(0, renderResult.ExitCode);
+
+            var payload = JsonNode.Parse(renderResult.StdOut)!.AsObject()["payload"]!.AsObject();
+            var arguments = payload["executionPreview"]!["commandPlan"]!["arguments"]!.AsArray()
+                .Select(node => node!.GetValue<string>())
+                .ToArray();
+
+            Assert.Equal(2, payload["render"]!["schemaVersion"]!.GetValue<int>());
+            Assert.Equal(2, payload["executionPreview"]!["commandPlan"]!["schemaVersion"]!.GetValue<int>());
+            Assert.Contains("lavfi", arguments);
+            Assert.Contains("color=c=black:s=1920x1080:r=30", arguments);
+            Assert.Contains("[v_out]", arguments);
+            Assert.DoesNotContain("-an", arguments);
         }
         finally
         {

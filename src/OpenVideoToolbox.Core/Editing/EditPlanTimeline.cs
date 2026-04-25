@@ -59,6 +59,8 @@ public sealed record TimelineClip
 
     public string? Src { get; init; }
 
+    public TimelineClipPlaceholder? Placeholder { get; init; }
+
     [JsonPropertyName("in")]
     public TimeSpan? InPoint { get; init; }
 
@@ -74,6 +76,16 @@ public sealed record TimelineClip
     public ClipTransitions? Transitions { get; init; }
 
     public string? Slot { get; init; }
+
+    [JsonExtensionData]
+    public IDictionary<string, JsonElement>? Extensions { get; init; }
+}
+
+public sealed record TimelineClipPlaceholder
+{
+    public required string Kind { get; init; }
+
+    public string? Color { get; init; }
 
     [JsonExtensionData]
     public IDictionary<string, JsonElement>? Extensions { get; init; }

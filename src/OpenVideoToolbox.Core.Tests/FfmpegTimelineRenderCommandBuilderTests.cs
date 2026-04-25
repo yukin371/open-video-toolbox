@@ -76,6 +76,42 @@ public sealed class FfmpegTimelineRenderCommandBuilderTests
         Assert.Contains("drawbox=x=0:y=ih-24-10:w=iw*min(t/6\\,1):h=10:color=yellow@0.9:t=fill", filterGraph, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Build_SupportsColorPlaceholderVideoClip()
+    {
+        var builder = new FfmpegTimelineRenderCommandBuilder();
+        var request = new EditPlanRenderRequest
+        {
+            Plan = CreatePlaceholderTimelinePlan(includeAudio: false)
+        };
+
+        var commandPlan = builder.Build(request);
+        var filterGraph = commandPlan.Arguments.Single(argument => argument.Contains("trim=duration=4.000", StringComparison.Ordinal));
+
+        Assert.Contains("lavfi", commandPlan.Arguments);
+        Assert.Contains("color=c=black:s=1280x720:r=24", commandPlan.Arguments);
+        Assert.Contains("trim=duration=4.000,setpts=PTS-STARTPTS", filterGraph, StringComparison.Ordinal);
+        Assert.DoesNotContain(Path.GetFullPath("unused-input.mp4"), commandPlan.Arguments);
+    }
+
+    [Fact]
+    public void Build_SupportsColorPlaceholderVideoWithAudioTrack()
+    {
+        var builder = new FfmpegTimelineRenderCommandBuilder();
+        var request = new EditPlanRenderRequest
+        {
+            Plan = CreatePlaceholderTimelinePlan(includeAudio: true)
+        };
+
+        var commandPlan = builder.Build(request);
+
+        Assert.DoesNotContain("-an", commandPlan.Arguments);
+        Assert.Contains("[v_out]", commandPlan.Arguments);
+        Assert.Contains("[a_out]", commandPlan.Arguments);
+        Assert.Contains(Path.GetFullPath("voice.wav"), commandPlan.Arguments);
+        Assert.Contains("color=c=black:s=1280x720:r=24", commandPlan.Arguments);
+    }
+
     private static EditPlan CreateTimelinePlan()
     {
         return new EditPlan
@@ -313,6 +349,77 @@ public sealed class FfmpegTimelineRenderCommandBuilderTests
             Output = new EditOutputPlan
             {
                 Path = Path.GetFullPath("timeline-progress.mp4"),
+                Container = "mp4"
+            }
+        };
+    }
+
+    private static EditPlan CreatePlaceholderTimelinePlan(bool includeAudio)
+    {
+        var tracks = new List<TimelineTrack>
+        {
+            new()
+            {
+                Id = "main",
+                Kind = TrackKind.Video,
+                Clips =
+                [
+                    new TimelineClip
+                    {
+                        Id = "placeholder-001",
+                        Start = TimeSpan.Zero,
+                        Duration = TimeSpan.FromSeconds(4),
+                        Placeholder = new TimelineClipPlaceholder
+                        {
+                            Kind = "color",
+                            Color = "black"
+                        }
+                    }
+                ]
+            }
+        };
+
+        if (includeAudio)
+        {
+            tracks.Add(new TimelineTrack
+            {
+                Id = "voice",
+                Kind = TrackKind.Audio,
+                Clips =
+                [
+                    new TimelineClip
+                    {
+                        Id = "voice-001",
+                        Src = Path.GetFullPath("voice.wav"),
+                        Start = TimeSpan.Zero,
+                        InPoint = TimeSpan.Zero,
+                        OutPoint = TimeSpan.FromSeconds(4)
+                    }
+                ]
+            });
+        }
+
+        return new EditPlan
+        {
+            SchemaVersion = SchemaVersions.V2,
+            Source = new EditPlanSource
+            {
+                InputPath = Path.GetFullPath("unused-input.mp4")
+            },
+            Timeline = new EditPlanTimeline
+            {
+                Duration = TimeSpan.FromSeconds(4),
+                Resolution = new TimelineResolution
+                {
+                    W = 1280,
+                    H = 720
+                },
+                FrameRate = 24,
+                Tracks = tracks
+            },
+            Output = new EditOutputPlan
+            {
+                Path = Path.GetFullPath("timeline-placeholder.mp4"),
                 Container = "mp4"
             }
         };

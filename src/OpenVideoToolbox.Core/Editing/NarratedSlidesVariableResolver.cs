@@ -110,7 +110,19 @@ public static class NarratedSlidesVariableResolver
     {
         return bgm with
         {
-            Path = ResolveRequiredString(bgm.Path, variables, "bgm.path")
+            Path = ResolveString(bgm.Path, variables, "bgm.path"),
+            Slot = bgm.Slot is null ? null : ResolveSlot(bgm.Slot, variables, "bgm.slot")
+        };
+    }
+
+    private static NarratedSlidesSlotManifest ResolveSlot(
+        NarratedSlidesSlotManifest slot,
+        IReadOnlyDictionary<string, string> variables,
+        string fieldName)
+    {
+        return slot with
+        {
+            Name = ResolveRequiredString(slot.Name, variables, $"{fieldName}.name")
         };
     }
 
@@ -136,7 +148,8 @@ public static class NarratedSlidesVariableResolver
         return visual with
         {
             Kind = ResolveRequiredString(visual.Kind, variables, $"sections[{index}].visual.kind"),
-            Path = ResolveRequiredString(visual.Path, variables, $"sections[{index}].visual.path")
+            Path = ResolveString(visual.Path, variables, $"sections[{index}].visual.path"),
+            Slot = visual.Slot is null ? null : ResolveSlot(visual.Slot, variables, $"sections[{index}].visual.slot")
         };
     }
 

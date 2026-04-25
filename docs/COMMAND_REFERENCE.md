@@ -134,6 +134,8 @@ init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <
 - 从 narrated-slides manifest 生成首版讲解型 `schemaVersion = 2` `edit.json`
 - 当前支持 `sections[].visual.kind = "video" | "image"`、`voice.path`、可选顶层 `subtitles` / `bgm` / `video.progressBar`
 - 当前支持单视频 `${var}` / `${var:-default}` / `$${text}` 变量解析；manifest 顶层 `variables` 与 CLI `--vars <vars.json>` 会按“CLI 覆盖 manifest”合并
+- 当前支持首个 narrated `bgm.slot.required = false` 场景：当 `bgm.path` 为空时会省略 `bgm` 轨；`required = true` 仍不支持
+- 当前支持首个 narrated `sections[].visual.slot.required = false` 场景：当 section 缺 `visual.path` 时会保留 voice，并在 `main` 轨投影 black color placeholder；`required = true` 仍不支持
 - 当前不纳入 `templates` catalog，也不复用 `init-plan <input>` 的单素材模板入口
 
 ### `scaffold-template`

@@ -31,7 +31,7 @@
 
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
 - 当前状态（2026-04-25）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`；`V2-P5` 已通过人工阶段验收，`V2-P6 narrated-slides` 的首轮 `C1 ~ C5` 已获人工接受，并已继续推进单视频 `${var}` 基线。
-- 下一步：`E2` 仍是正式交付主线；并行孵化线当前继续留在 `V2-P6 narrated-slides`，但范围只扩到单视频 `${var}` foundation，不进入 slot 条件裁剪、数据驱动 batch 或图表后端；`D1` 最早在 `2026-05-22` 后再次重判。
+- 下一步：`E2` 仍是正式交付主线；并行孵化线中的 `V2-P6 narrated-slides` 当前已补齐完整验收包与 stop-point 建议，`${var}` foundation、`bgm.slot.required = false`、`timeline placeholder video` 与 `sections[].visual.slot.required = false` 都已落地；当前更合理的动作是不再继续扩 narrated-slides scope，而是保留当前成果、回到 `E2` 主线，后续如需重开 narrated 线，应以新的明确卡片进入，而不是直接跳到 section 删除、batch 或图表后端；`D1` 最早在 `2026-05-22` 后再次重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 整体开发流程
@@ -146,11 +146,21 @@
     - `docs/plans/v2/2026-04-25-v2-p6-c2-narrated-slides-plan.md`
     - `docs/plans/v2/2026-04-25-v2-p6-phase-check.md`
     - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c7-narrated-slides-slot-plan.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c9-narrated-slides-visual-slot-feasibility.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c10-timeline-gap-placeholder-plan.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c11-placeholder-video-implementation.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c12-narrated-slides-visual-slot-spec.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c13-narrated-slides-visual-slot-plan.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-c14-narrated-slides-visual-slot-implementation.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-current-stop-point.md`
   - 当前阶段状态：`accepted`
   - 当前下一步：
-    - 继续只做单视频 `${var}` foundation，不并入 slot 条件裁剪、数据驱动 batch 或图表后端
-    - 当前已支持 manifest 顶层 `variables` 与 CLI `--vars <vars.json>` overlay
-    - 当前 `${var}` 范围只覆盖 narrated manifest 字符串字段，不代表 batch / slot 语义已启动
+    - `${var}` foundation 已完成，当前已支持 manifest 顶层 `variables` 与 CLI `--vars <vars.json>` overlay
+    - `slot` 条件裁剪的首个最小实现已完成：当前支持 `bgm.slot.required = false` 且未绑定时省略 `bgm` 轨
+    - `timeline placeholder video` 最小实现已完成：`schemaVersion = 2` timeline clip 现支持显式 `placeholder.kind = color`，validator 已锁住合法组合，render builder 已可直接消费无磁盘中间产物的 color placeholder
+    - visual slot 首轮最小实现已落地：当前支持 `sections[].visual.slot.required = false`，缺视觉时保留 voice 并在 `main` 轨投影 black color placeholder；`required = true` 仍不支持
+    - 当前 stop point 已明确：先不进入 section 删除、batch 或图表后端
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
@@ -354,8 +364,8 @@
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-- `OpenVideoToolbox.Core.Tests`: 170/170
-- `OpenVideoToolbox.Cli.Tests`: 185/185
+- `OpenVideoToolbox.Core.Tests`: 172/172
+- `OpenVideoToolbox.Cli.Tests`: 186/186
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`
