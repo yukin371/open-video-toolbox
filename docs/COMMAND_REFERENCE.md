@@ -1,6 +1,6 @@
 # 命令速查
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 ## 文档定位
 
@@ -122,6 +122,18 @@ init-plan <input> --template <id> --output <edit.json> [--render-output <path>] 
 用途：
 
 - 从模板生成初始 `edit.json`
+
+### `init-narrated-plan`
+
+```text
+init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <id>] [--render-output <path>] [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]
+```
+
+用途：
+
+- 从 narrated-slides manifest 生成首版讲解型 `schemaVersion = 2` `edit.json`
+- 当前首版只支持 `sections[].visual.kind = "video"`、`voice.path`、可选顶层 `subtitles` 与 `bgm`
+- 当前不纳入 `templates` catalog，也不复用 `init-plan <input>` 的单素材模板入口
 
 ### `scaffold-template`
 

@@ -30,8 +30,8 @@
 ## 当前版本目标
 
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
-- 当前状态（2026-04-24）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`。
-- 下一步：继续推进 `E2`，但按分阶段计划执行；功能交付线以 `docs/plans/2026-04-24-e2-feature-delivery-staged-plan.md` 为准，生态 / 分发线以 `docs/plans/2026-04-22-e2-ecosystem-sustainability-plan.md` 为准；`D1` 最早在 `2026-05-22` 后再次重判。
+- 当前状态（2026-04-25）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`；`V2-P5` 已通过人工阶段验收，`V2-P6` 已选定 narrated-slides 主题并完成首轮 `C1 ~ C5`。
+- 下一步：`E2` 仍是正式交付主线；并行孵化线当前停在 `V2-P6 narrated-slides` 的阶段验收节点，需先由人工对 `C6` 做 `accepted / stay / rollback / pause` 判断，再决定是否继续该主题；`D1` 最早在 `2026-05-22` 后再次重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 整体开发流程
@@ -43,7 +43,7 @@
 - `E2-F*`
   - 当前正式功能交付线
 - `V2-P*`
-  - `docs/plans/v2/` 对应的后继能力线；当前只处于边界冻结、候选 backlog 与阶段化拆分状态
+  - `docs/plans/v2/` 对应的后继能力线；当前已完成到 `V2-P5`，并在 `V2-P6` 启动了 narrated-slides 单主题孵化
 
 ### 当前默认推进顺序
 
@@ -63,8 +63,8 @@
   - 仍然是当前唯一正式交付契约
   - 仍然是当前正式支持运行路径
 - `v2`
-  - 当前不是活跃实现线
-  - 只能按 `docs/plans/v2/2026-04-24-v1-v2-boundary-and-phased-delivery-plan.md` 中定义的 `V2-P*` 阶段推进
+  - 当前已有正式孵化实现线，但仍必须按 `docs/plans/v2/2026-04-24-v1-v2-boundary-and-phased-delivery-plan.md` 中定义的 `V2-P*` 阶段推进
+  - 当前活跃子项为：`V2-P6 narrated-slides`
 
 ### v1 的两个结束节点
 
@@ -135,10 +135,25 @@
     - 不再继续向 `V2-P5` 混入新能力
     - 已补 `v1 / v2 parity + migration` 文档
     - 如需继续推进，应单独启动下一阶段，而不是回到 `V2-P5`
+- `V2-P6` 已启动 narrated-slides 单主题，并完成首轮 `规格 -> 计划 -> 执行 -> 测试 -> 修复`：
+  - 当前阶段：`V2-P6`
+  - 当前主题：`讲解型 / narrated-slides 视频装配`
+  - 当前最小边界：
+    - 保持独立 `init-narrated-plan` 命令，不把 section manifest 混入 `templates` / `init-plan <input>`
+    - `Core.Editing` 持有 manifest -> `schemaVersion = 2` plan 投影，`Cli` 只做路径解析、探测 glue 与 envelope
+    - 第一版只支持 `sections[].visual.kind = "video"`、`voice.path`、可选顶层 `subtitles` / `bgm`
+  - 当前验收材料：
+    - `docs/plans/v2/2026-04-25-v2-p6-c2-narrated-slides-plan.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-phase-check.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
+  - 当前阶段状态：`ready_for_acceptance`
+  - 当前下一步：
+    - 由人工决定 `accepted / stay / rollback / pause`
+    - 若接受，再决定是否继续做图片页、`${var}`、slot 条件裁剪或数据驱动 batch，而不是自动并入本轮
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
-  - `V2-P5` 虽已通过人工阶段验收，且 parity / 迁移说明已补齐，但当前 v2 只覆盖首条正式工作流，尚未形成对高频 v1 工作流的广泛替代，因此 `V1 Runtime Sunset` 仍未触发
+  - `V2-P5` 虽已通过人工阶段验收，且 parity / 迁移说明已补齐，但当前 v2 只覆盖少量正式工作流，尚未形成对高频 v1 工作流的广泛替代，因此 `V1 Runtime Sunset` 仍未触发
 - 当前实现状态：
   - `SchemaVersions.V2`、`EditPlan.Timeline` 与 timeline 类型已落地
   - `EditPlanValidator` 已补 `schema v2` timeline 结构校验
@@ -172,8 +187,14 @@
   - `V2-P5` 已完成人工阶段验收，不应回到 `V2-P4` 或继续在 `V2-P5` 内混入插件 effect / 更复杂执行器
   - 当前 parity / migration 口径已补到：
     - `docs/plans/v2/2026-04-25-v1-v2-parity-and-migration.md`
+  - `init-narrated-plan` 已完成首轮实现：
+    - `Core.Editing` 已新增 narrated manifest 模型与 `NarratedSlidesPlanBuilder`
+    - `Cli` 已新增独立 `init-narrated-plan` 命令与 failure envelope
+    - 第一版不会把 narrated-slides 伪装成现有 built-in template catalog 项
+    - 第一版可在 manifest 未给 duration 时通过 `ffprobe` 补探测 section 媒体时长
   - 当前手动验收入口：
     - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
+    - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
 
 ### 开发时的总入口文档
 

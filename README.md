@@ -27,6 +27,7 @@
 | 快速计划 / 执行 | `plan` / `run` | 命令预览或直接执行 | 已可用 |
 | 模板筛选 | `templates` | 模板列表、过滤结果、单模板指南 | 已可用 |
 | 草稿生成 | `init-plan` / `scaffold-template` | 可编辑的 `edit.json` 与工作目录 | 已可用 |
+| 讲解型草稿生成 | `init-narrated-plan` | 从 section manifest 生成 narrated / slide-driven v2 `edit.json` | 已可用（首版） |
 | 批量草稿生成 | `scaffold-template-batch` | 按 manifest 批量落出 `tasks/<id>` 工作目录，并汇总 `summary.json` | 已可用 |
 | 批量渲染预览 / 执行 | `render-batch` | 按 manifest 批量消费现有 plan，并汇总渲染 preview 或执行结果 | 已可用 |
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
