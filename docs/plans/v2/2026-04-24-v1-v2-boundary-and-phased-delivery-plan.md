@@ -400,6 +400,7 @@ V2-P6 数据驱动批量 / resolve-assets / 图表能力
 | `2026-04-24-export-interop-design.md` | `V2-P1` / `V2-P5` | 允许先做 feasibility，正式交付放后 |
 | `2026-04-24-ai-intelligent-workflows-design.md` | `V2-P1` / `V2-P6` | validate / auto-cut 可拆，resolve-assets 延后 |
 | `2026-04-24-batch-production-design.md` | `V2-P6` | 当前整包延后 |
+| `2026-04-25-narrated-slides-video-spec.md` | `V2-P6` | 作为讲解型 / PPT 风格视频能力的候选规格，当前只保留设计 |
 
 ## 当前可执行清单
 
