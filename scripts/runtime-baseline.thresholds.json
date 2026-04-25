@@ -7,6 +7,9 @@
     "probe": {
       "maxDurationMs": 5000
     },
+    "scaffoldTemplateBatch": {
+      "maxDurationMs": 8000
+    },
     "renderPreview": {
       "maxDurationMs": 5000
     }

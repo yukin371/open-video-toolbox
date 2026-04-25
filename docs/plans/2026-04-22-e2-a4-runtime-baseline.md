@@ -103,6 +103,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Verify-DependencyBaseline.ps1
 - 先关注高频、低噪音、易重复的命令：
   - `doctor`
   - `probe`
+  - `scaffold-template-batch`
   - `render --preview`
 - 命令统一用 `dotnet run --no-build`，避免把编译时间混进样本。
 
@@ -130,7 +131,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Test-RuntimeBaselineThreshold
   - 直接写出 `.artifacts/runtime-baseline-summary.md`，便于后续下载或离线比较
   - 当前也会把关键结果写进 GitHub Actions job summary
   - 当前会用仓库内 `Test-RuntimeBaselineThresholds.ps1 -FailOnExceeded` 做阈值判定，不再在 workflow 内重复维护一套失败逻辑
-  - 若 `doctor` / `probe` / `render --preview` 超出仓库阈值，workflow 会显式失败
+  - 若 `doctor` / `probe` / `scaffold-template-batch` / `render --preview` 超出仓库阈值，workflow 会显式失败
   - 上传 `runtime-baseline.json`、`runtime-threshold-check.json`、`dependency-baseline.json` 与 `runtime-baseline-summary.md` 产物
 
 如已安装 PowerShell 7，也可执行：
@@ -157,7 +158,8 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Measure-RuntimeBaseline.ps1 -
 2. 写出最小 `edit.json`
 3. 跑 `doctor`
 4. 跑 `probe`
-5. 跑 `render --preview`
+5. 跑 `scaffold-template-batch`
+6. 跑 `render --preview`
 6. 输出一份 JSON 摘要
 
 脚本内部观测的命令等价于：
@@ -165,6 +167,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\Measure-RuntimeBaseline.ps1 -
 ```powershell
 dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- doctor --json-out doctor.json
 dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- probe <sample.mp4> --ffprobe ffprobe --json-out probe.json
+dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- scaffold-template-batch --manifest <batch.json> --json-out scaffold-template-batch.json
 dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- render --plan <edit.json> --output final.mp4 --preview --json-out render-preview.json
 ```
 
@@ -172,15 +175,17 @@ dotnet run --no-build --project src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.cs
 
 | 命令 | 输入 | 观测值 |
 |------|------|--------|
-| `doctor` | 无 | 约 `1031 ms` |
-| `probe` | 2 秒样例 mp4 | 约 `928 ms` |
-| `render --preview` | 1 clip 的最小 `edit.json` | 约 `929 ms` |
+| `doctor` | 无 | 约 `1751 ms` |
+| `probe` | 2 秒样例 mp4 | 约 `943 ms` |
+| `scaffold-template-batch` | 1 条 item 的最小 batch manifest | 约 `949 ms` |
+| `render --preview` | 1 clip 的最小 `edit.json` | 约 `787 ms` |
 
 解释：
 
 - 这些数字只用于后续回归对照，不是发布承诺。
 - 同一台机器多次运行也会有波动；更适合关注是否出现数量级退化，而不是追求毫秒级完全一致。
 - 当前仓库已补第一层阈值检查，但阈值仍只用于维护告警，不代表正式 SLA。
+- 当前 batch/workdir 路径已至少被一个代表性样本覆盖，后续若再扩展，应优先继续选择已稳定的高频闭环，而不是重新回到低价值原语。
 - 如果后续同机型、同命令、同输入下持续出现数量级退化，再考虑把阈值收紧或升级成更正式的基线。
 
 ## 外部工具调用安全清单

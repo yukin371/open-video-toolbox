@@ -1,6 +1,6 @@
 # Roadmap
 
-最后更新：2026-04-23
+最后更新：2026-04-25
 
 本文件只保留当前版本目标、实施顺序与活跃工作面，不记录完整历史流水账。
 
@@ -96,6 +96,7 @@
     - 仓库内已新增 runtime 阈值配置与显式判定脚本
     - `runtime-baseline` workflow 现会在超阈值时显式失败
     - workflow 现会同时上传 markdown summary artifact，便于 maintainer 下载和离线对照
+    - runtime baseline 样本已于 **2026-04-25** 扩到 `scaffold-template-batch`，开始覆盖当前稳定 batch/workdir 高频入口，而不再只观察单命令链路
 - `D1` 仍不是当前活跃面：
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
 

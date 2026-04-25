@@ -31,6 +31,20 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Get-CommandDisplayName {
+    param(
+        [string]$CommandId
+    )
+
+    switch ($CommandId) {
+        "doctor" { return "doctor" }
+        "probe" { return "probe" }
+        "scaffoldTemplateBatch" { return "scaffold-template-batch" }
+        "renderPreview" { return "render --preview" }
+        default { return $CommandId }
+    }
+}
+
 function Get-MarkdownCellValue {
     param(
         $Value
@@ -88,9 +102,9 @@ $summaryLines.Add("## Command Durations")
 $summaryLines.Add("")
 $summaryLines.Add("| Command | Duration (ms) |")
 $summaryLines.Add("| --- | ---: |")
-$summaryLines.Add("| doctor | $(Get-MarkdownCellValue $runtimeBaseline.commands.doctor.durationMs) |")
-$summaryLines.Add("| probe | $(Get-MarkdownCellValue $runtimeBaseline.commands.probe.durationMs) |")
-$summaryLines.Add("| render --preview | $(Get-MarkdownCellValue $runtimeBaseline.commands.renderPreview.durationMs) |")
+foreach ($command in $runtimeBaseline.commands.PSObject.Properties) {
+    $summaryLines.Add("| $(Get-MarkdownCellValue (Get-CommandDisplayName -CommandId $command.Name)) | $(Get-MarkdownCellValue $command.Value.durationMs) |")
+}
 $summaryLines.Add("")
 
 if ($null -ne $thresholdCheck) {
@@ -101,7 +115,7 @@ if ($null -ne $thresholdCheck) {
 
     foreach ($command in $thresholdCheck.commands.PSObject.Properties) {
         $summaryLines.Add(
-            "| $(Get-MarkdownCellValue $command.Name) | $(Get-MarkdownCellValue $command.Value.durationMs) | $(Get-MarkdownCellValue $command.Value.maxDurationMs) | $(Get-MarkdownCellValue $command.Value.isWithinThreshold) |"
+            "| $(Get-MarkdownCellValue (Get-CommandDisplayName -CommandId $command.Name)) | $(Get-MarkdownCellValue $command.Value.durationMs) | $(Get-MarkdownCellValue $command.Value.maxDurationMs) | $(Get-MarkdownCellValue $command.Value.isWithinThreshold) |"
         )
     }
 
@@ -109,7 +123,7 @@ if ($null -ne $thresholdCheck) {
         $summaryLines.Add("")
         $summaryLines.Add("Exceeded commands:")
         foreach ($command in $thresholdCheck.exceededCommands) {
-            $summaryLines.Add("- `$(Get-MarkdownCellValue $command.id)`: $(Get-MarkdownCellValue $command.durationMs) ms > $(Get-MarkdownCellValue $command.maxDurationMs) ms")
+            $summaryLines.Add("- `$(Get-MarkdownCellValue (Get-CommandDisplayName -CommandId $command.id))`: $(Get-MarkdownCellValue $command.durationMs) ms > $(Get-MarkdownCellValue $command.maxDurationMs) ms")
         }
     }
 
