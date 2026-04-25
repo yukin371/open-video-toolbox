@@ -14,6 +14,7 @@ public sealed class BuiltInEffectCatalogTests
         Assert.Equal(effects.OrderBy(effect => effect.Type, StringComparer.OrdinalIgnoreCase).Select(effect => effect.Type), effects.Select(effect => effect.Type));
         Assert.Contains(effects, effect => effect.Type == "fade" && effect.Category == EffectCategory.Transition);
         Assert.Contains(effects, effect => effect.Type == "auto_ducking" && effect.Category == EffectCategory.Audio);
+        Assert.Contains(effects, effect => effect.Type == "progress_bar" && effect.Category == EffectCategory.Layout);
     }
 
     [Fact]

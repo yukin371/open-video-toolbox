@@ -9,6 +9,7 @@
 - `init-narrated-plan`
 - narrated manifest -> v2 `edit.json`
 - `visual.kind = "image"`
+- `video.progressBar`
 - `render --preview` 对该结果的消费
 
 本清单不验收 `${var}`、batch、图表或 `.pptx`。
@@ -238,6 +239,59 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 - `command = "init-narrated-plan"`
 - `payload.manifest.path` 指向失败 manifest
 - stderr 含 `points to a missing file`
+
+## Step 8：确认 progress bar 可投影到轨道 effect 并进入 preview
+
+```powershell
+@'
+{
+  "schemaVersion": 1,
+  "video": {
+    "id": "episode-progress",
+    "progressBar": {
+      "enabled": true,
+      "height": 10,
+      "margin": 24,
+      "color": "yellow@0.9",
+      "backgroundColor": "black@0.2"
+    }
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "visual": {
+        "kind": "image",
+        "path": "slides/cover.png"
+      },
+      "voice": {
+        "path": "audio/intro.wav",
+        "durationMs": 2500
+      }
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath (Join-Path $root "narrated.progress.json") -Encoding UTF8
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  init-narrated-plan `
+  --manifest (Join-Path $root "narrated.progress.json") `
+  --output (Join-Path $root "edit.progress.v2.json")
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  render `
+  --plan (Join-Path $root "edit.progress.v2.json") `
+  --preview
+```
+
+通过标准：
+
+- `edit.progress.v2.json` 成功写出
+- `timeline.tracks[0].effects[*].type` 包含：
+  - `scale`
+  - `progress_bar`
+- `render --preview` 返回的 `payload.executionPreview.commandPlan.arguments` 包含：
+  - `drawbox=x=0`
+  - `yellow@0.9`
 
 ## 结论
 

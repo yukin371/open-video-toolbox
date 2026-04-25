@@ -190,4 +190,64 @@ public sealed class NarratedSlidesPlanBuilderTests
 
         Assert.Contains("visual duration cannot be shorter than voice duration", ex.Message, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Build_AddsProgressBarTrackEffectWhenEnabled()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                ProgressBar = new NarratedSlidesProgressBarManifest
+                {
+                    Enabled = true,
+                    Height = 10,
+                    Margin = 24,
+                    Color = "yellow@0.9",
+                    BackgroundColor = "black@0.2"
+                }
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "cover.png"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var result = new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualPath = "cover.png",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        });
+
+        var mainTrack = Assert.Single(result.Plan.Timeline!.Tracks.Where(track => track.Id == "main"));
+        Assert.Equal(2, mainTrack.Effects.Count);
+        Assert.Equal("progress_bar", mainTrack.Effects[1].Type);
+        var extensions = Assert.IsAssignableFrom<IDictionary<string, System.Text.Json.JsonElement>>(mainTrack.Effects[1].Extensions);
+        Assert.Equal("3", extensions["durationSeconds"].GetRawText());
+        Assert.Equal("10", extensions["height"].GetRawText());
+    }
 }

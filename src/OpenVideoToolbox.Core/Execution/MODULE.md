@@ -48,6 +48,7 @@
 - v2 timeline render builder 必须与 v1 render builder 并存，直到显式完成 parity / deprecation 决策，不能隐式替换现有 v1 路径
 - render preview / runner 对 v1/v2 的 builder 分发必须留在本模块，不能把 timeline 分支判断回流到 CLI
 - 当前 v2 render baseline 只保证 timeline builder、preview/execute dispatch 和基础 template effect filter graph；复杂 executor effect 仍不得伪装成“已正式支持”
+- v2 timeline 的 still-image 输入循环、帧率接线和 built-in layout/filter effect 映射必须集中在本模块，不能回流到 CLI 或模板 builder
 - `export L1` 当前只承诺粗粒度 `EDL` cut list，不得在未完成设计收口前把 XML / fcpxml / effect 映射一起混入
 - preview 语义必须复用和执行阶段相同的 `CommandPlan`、`ProducedPaths` 与 side effect 规则，不能在 CLI 维护平行逻辑
 - `DefaultProcessRunner` 必须保留标准输出、标准错误、超时和取消上下文
@@ -72,4 +73,5 @@
 - 新增新的外部命令执行器或路径规则
 - 执行状态、日志采集或取消/超时语义变化
 - v1/v2 render 分发规则或 timeline builder 覆盖范围变化
+- still-image 输入适配或 built-in effect 到 FFmpeg filter 的映射语义变化
 - `export` 的格式范围、warning 契约或 v1/v2 导出兼容策略变化

@@ -87,20 +87,33 @@ public sealed class NarratedSlidesPlanBuilder
             totalDuration += section.VoiceDuration;
         }
 
+        var videoTrackEffects = new List<TimelineEffect>
+        {
+            CreateEffect(
+                "scale",
+                ("width", resolution.W),
+                ("height", resolution.H),
+                ("flags", "lanczos"))
+        };
+
+        if (request.Manifest.Video.ProgressBar?.Enabled == true)
+        {
+            videoTrackEffects.Add(CreateEffect(
+                "progress_bar",
+                ("durationSeconds", totalDuration.TotalSeconds),
+                ("height", request.Manifest.Video.ProgressBar.Height ?? 12),
+                ("margin", request.Manifest.Video.ProgressBar.Margin ?? 32),
+                ("color", request.Manifest.Video.ProgressBar.Color ?? "white@0.95"),
+                ("backgroundColor", request.Manifest.Video.ProgressBar.BackgroundColor ?? "black@0.28")));
+        }
+
         var tracks = new List<TimelineTrack>
         {
             new()
             {
                 Id = "main",
                 Kind = TrackKind.Video,
-                Effects =
-                [
-                    CreateEffect(
-                        "scale",
-                        ("width", resolution.W),
-                        ("height", resolution.H),
-                        ("flags", "lanczos"))
-                ],
+                Effects = videoTrackEffects,
                 Clips = mainClips
             },
             new()

@@ -258,6 +258,25 @@ public static class BuiltInEffectCatalog
                     Filters = ["crop={width}:{height}:{x}:{y}"]
                 }),
             CreateDefinition(
+                type: "progress_bar",
+                category: EffectCategory.Layout,
+                displayName: "章节进度条",
+                description: "在画面底部绘制随时间推进的进度条。",
+                parameters: Schema(
+                    ("durationSeconds", FloatParameter(required: true, min: 0.1, description: "整段时长（秒）")),
+                    ("height", IntParameter(defaultValue: 12, min: 1, description: "进度条高度")),
+                    ("margin", IntParameter(defaultValue: 32, min: 0, description: "距离底部边距")),
+                    ("color", StringParameter(defaultValue: "white@0.95", description: "前景进度条颜色")),
+                    ("backgroundColor", StringParameter(defaultValue: "black@0.28", description: "背景轨道颜色"))),
+                templates: new FfmpegFilterTemplateSet
+                {
+                    Filters =
+                    [
+                        "drawbox=x=0:y=ih-{margin}-{height}:w=iw:h={height}:color={backgroundColor}:t=fill",
+                        "drawbox=x=0:y=ih-{margin}-{height}:w=iw*min(t/{durationSeconds}\\,1):h={height}:color={color}:t=fill"
+                    ]
+                }),
+            CreateDefinition(
                 type: "text_overlay",
                 category: EffectCategory.Text,
                 displayName: "文字叠加",
