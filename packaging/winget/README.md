@@ -28,6 +28,7 @@ As of `v0.1.0`:
 - the release includes both `ovt-win-x64.zip` and `ovt-win-x64.exe`
 - `Test-WinGetSubmissionReadiness.ps1` now passes for the current version
 - the manifest set can be rendered locally from the release asset URL
+- repository-local `winget validate` succeeds for the rendered manifest set
 
 ## Expected Release Assets
 
@@ -104,6 +105,25 @@ Current `v0.1.0` example:
   -OutputDirectory .\out\v0.1.0
 ```
 
+Repository-local validation result observed on `2026-04-25`:
+
+```powershell
+winget validate .\out\v0.1.0
+```
+
+Repository-local export result observed on `2026-04-25`:
+
+```powershell
+.\Export-WinGetSubmissionBundle.ps1 -PackageVersion 0.1.0 -ReleaseTag v0.1.0
+```
+
+This produced:
+
+- `submissions/manifests/o/OpenVideoToolbox/Cli/0.1.0/`
+- `submissions/submission-notes-0.1.0.md`
+
+The exported manifest folder also passed a follow-up `winget validate`.
+
 ## Template Files
 
 - `OpenVideoToolbox.Cli.yaml.template`
@@ -140,4 +160,4 @@ Replace these values before validation or submission:
 - Keep one version per submission.
 - Fill license metadata from the repository's real license source; do not guess it in the manifest.
 - If the winget manifest schema version changes, update the template files before submission.
-- Repository-local `winget validate` currently succeeds, but still prints schema-header warnings on this machine even after adding schema comments to the templates; treat that as a local tooling quirk to re-check in the target submission environment.
+- Repository-local `winget validate` succeeded cleanly on `2026-04-25` for both the rendered manifest set and the exported `winget-pkgs`-shaped folder from `v0.1.0`; still re-check in the target submission environment before opening the upstream PR.

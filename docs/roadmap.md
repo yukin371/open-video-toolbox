@@ -238,7 +238,9 @@
     - 仓库内 `packaging/winget/Test-WinGetSubmissionReadiness.ps1` 已落地，并已对 `v0.1.0` 实际通过
     - `v0.1.0` GitHub Release 与 `ovt-win-x64.exe` / `ovt-win-x64.zip` 资产已发布
     - 仓库内 `packaging/winget/Export-WinGetSubmissionBundle.ps1` 已落地，可直接导出 `winget-pkgs` 目录结构
-    - 当前剩余工作已从“仓库 blocker”收敛到“render manifest + 目标环境复核 + 向 winget-pkgs 提交 PR”
+    - 仓库内 `Prepare-WinGetSubmission.ps1` 渲染与本机 `winget validate` 已于 **2026-04-25** 跑通
+    - 仓库内 `Export-WinGetSubmissionBundle.ps1` 也已于 **2026-04-25** 成功导出 `manifests/o/OpenVideoToolbox/Cli/0.1.0` 与 `submission-notes-0.1.0.md`，导出目录再次通过本机 `winget validate`
+    - 当前剩余工作已进一步收敛到“目标提交环境复核 `winget validate` / 视需要执行 `winget install --manifest` + 向 winget-pkgs 提交 PR”
   - `E2-A3` 首轮已收口，社区模板 / 插件贡献路径已具备最小闭环
     - 仓库内已新增社区插件 submission issue form，maintainer 可按固定字段收插件摘要、自测结果和边界确认
     - 仓库内已新增示例插件一键验证脚本，CI 可直接回归 `examples/plugin-example/` 是否仍闭环可用

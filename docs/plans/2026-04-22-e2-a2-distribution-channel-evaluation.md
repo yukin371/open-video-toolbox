@@ -21,7 +21,7 @@
 ### 当前缺口
 
 - 还没有任何包管理器所需的独立 manifest / formula / package metadata
-- 发布元数据当前已基本收口到可直接提交状态；当前剩余动作主要在 release 后的 manifest 渲染、目标环境复核与实际 PR 提交
+- 发布元数据当前已基本收口到可直接提交状态；截至 **2026-04-25**，仓库内 release 后 manifest 渲染与本机 `winget validate` 已跑通，当前剩余动作主要在目标环境复核与实际 PR 提交
 - macOS 当前仅发布 `osx-x64`，尚未覆盖 Apple Silicon
 - `OpenVideoToolbox.Cli.csproj` 还没有 `PackAsTool` / `ToolCommandName` 等 `dotnet tool` 打包配置
 
@@ -131,11 +131,15 @@
 - 第 0.9 步“把 `winget-pkgs` 目录结构导出收敛成仓库内确定性脚本”也已落地：`packaging/winget/Export-WinGetSubmissionBundle.ps1` 会直接导出 `manifests/<letter>/<publisher>/<application>/<version>/` 结构与提交说明。
 - 仓库内 MIT 许可证来源与 readiness 检查现已补齐。
 - `v0.1.0` 真实 tag、GitHub Release，以及对应的 Windows `portable` 资产现已发布。
+- 截至 **2026-04-25**，仓库内已完成：
+  1. 用当前 release 通过 `Prepare-WinGetSubmission.ps1` 渲染正式 manifest
+  2. 对渲染结果执行本机 `winget validate`
+  3. 通过 `Export-WinGetSubmissionBundle.ps1` 导出 `winget-pkgs` 目录结构与提交 notes
+  4. 对导出后的 `manifests/o/OpenVideoToolbox/Cli/0.1.0` 再次执行本机 `winget validate`
 - 当前剩余动作已收敛到：
-  1. 用当前 release 渲染正式 manifest
-  2. 在目标提交环境复核 `winget validate`
-  3. 视需要执行 `winget install --manifest`
-  4. 向 `microsoft/winget-pkgs` 提交 PR
+  1. 在目标提交环境复核 `winget validate`
+  2. 视需要执行 `winget install --manifest`
+  3. 向 `microsoft/winget-pkgs` 提交 PR
 
 ## 重新评估条件
 

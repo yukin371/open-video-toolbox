@@ -46,8 +46,9 @@
 
 - 当前已无仓库侧 P0 blocker。
 - `v0.1.0` 对应的 tag、GitHub Release、MIT 许可证来源和 Windows 资产已齐备。
+- 截至 **2026-04-25**，仓库内 `Prepare-WinGetSubmission.ps1` 渲染与本机 `winget validate` 已跑通。
+- 截至 **2026-04-25**，仓库内 `Export-WinGetSubmissionBundle.ps1` 也已跑通，并已生成可直接复制到 `winget-pkgs` fork 的目录结构与提交 notes。
 - 下一步不再是补仓库元数据，而是：
-  - 用当前 release 资产渲染正式 manifest
   - 在目标提交环境复核 `winget validate`
   - 视需要执行 `winget install --manifest`
   - 向 `microsoft/winget-pkgs` 提交 PR
