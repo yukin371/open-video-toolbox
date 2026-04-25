@@ -32,6 +32,7 @@
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
 - 当前状态（2026-04-25）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`；`V2-P5` 已通过人工阶段验收，`V2-P6 narrated-slides` 的首轮 `C1 ~ C5` 已获人工接受，并已继续推进单视频 `${var}` 基线。
 - 下一步：`E2` 仍是正式交付主线；并行孵化线中的 `V2-P6 narrated-slides` 当前已补齐完整验收包与 stop-point 建议，`${var}` foundation、`bgm.slot.required = false`、`timeline placeholder video` 与 `sections[].visual.slot.required = false` 都已落地；当前更合理的动作是不再继续扩 narrated-slides scope，而是保留当前成果、回到 `E2` 主线，后续如需重开 narrated 线，应以新的明确卡片进入，而不是直接跳到 section 删除、batch 或图表后端；`D1` 最早在 `2026-05-22` 后再次重判。
+- 下一步：`E2` 仍是正式交付主线；当前 `E2-A1 ~ A4` 的阶段检查已补齐，`E2-F2 ~ F4` 与 `E2-G1` 也已有现成阶段结论，仓库内更合理的动作是不再横向扩张 `E2`，而是保留当前成果、等待新的明确 `E2` 卡或 **2026-05-22** 后的下一次 `D1` 重判；并行孵化线中的 `V2-P6 narrated-slides` 也已补齐完整验收包与 stop-point 建议，当前不应继续在 narrated 或 `E2` 两边做无边界追加。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 整体开发流程
@@ -268,16 +269,22 @@
     - `E2-A*`：生态 / 分发 / 社区 / 长期维护
     - `E2-F*`：功能交付 / 工作流收口 / Desktop 预留
   - `E2-A1` 契约兼容性护栏已落地到 changelog / PR 模板 / snapshot README / development principles
+    - `E2-A1` 的阶段检查已补到 `docs/plans/2026-04-25-e2-a1-phase-check.md`
+      - 当前判断：`E2-A1` 已形成第一层阶段价值，进入收口 / 持有状态
   - `E2-A2` 已完成首轮分发渠道评估，当前首选方向已收敛到 `winget portable`
     - 仓库内 `packaging/winget/Test-WinGetSubmissionReadiness.ps1` 已落地，并已对 `v0.1.0` 实际通过
     - `v0.1.0` GitHub Release 与 `ovt-win-x64.exe` / `ovt-win-x64.zip` 资产已发布
     - 仓库内 `packaging/winget/Export-WinGetSubmissionBundle.ps1` 已落地，可直接导出 `winget-pkgs` 目录结构
     - 已于 **2026-04-25** 用仓库导出的 `v0.1.0` manifest 实际跑通一次本地 `winget validate`
     - 当前剩余工作已从“仓库 blocker”进一步收敛到“目标环境复核 + 视需要执行 `winget install --manifest` + 向 winget-pkgs 提交 PR”
+    - `E2-A2` 的阶段检查已补到 `docs/plans/2026-04-25-e2-a2-phase-check.md`
+      - 当前判断：`E2-A2` 已形成阶段结论，仓库内 blocker 基本清空
   - `E2-A3` 首轮已收口，社区模板 / 插件贡献路径已具备最小闭环
     - 仓库内已新增社区插件 submission issue form，maintainer 可按固定字段收插件摘要、自测结果和边界确认
     - 仓库内已新增示例插件一键验证脚本，CI 可直接回归 `examples/plugin-example/` 是否仍闭环可用
     - 示例插件模板目录现已附带可直接照抄的 `artifacts.json` / `template-params.json` skeleton，减少贡献者自己猜最小输入形状
+    - `E2-A3` 的阶段检查已补到 `docs/plans/2026-04-25-e2-a3-phase-check.md`
+      - 当前判断：`E2-A3` 已形成第一层阶段价值，进入收口 / 持有状态
   - `E2-A4` 已补固定脚本入口：
     - `scripts/Measure-RuntimeBaseline.ps1`
     - `scripts/Test-RuntimeBaselineThresholds.ps1`
@@ -290,6 +297,8 @@
     - `runtime-baseline` workflow 现会在超阈值时显式失败
     - workflow 现会同时上传 markdown summary artifact，便于 maintainer 下载和离线对照
     - runtime baseline 样本已于 **2026-04-25** 扩到 `scaffold-template-batch` 与 `render-batch --preview`，开始同时覆盖 batch/workdir 的生产端与消费端
+  - `E2-A4` 的阶段检查已补到 `docs/plans/2026-04-25-e2-a4-phase-check.md`
+    - 当前判断：`E2-A4` 已形成第一层阶段价值，进入收口 / 持有状态
   - 当前增加一条明确的产品/实现纪律：
     - 先整理当前基础功能列表，再继续丰富 CLI 高价值能力，而不是随机扩命令面
     - Desktop 暂不正式启动，但已补充边界文档，后续只能消费模板发现结果、`edit.json`、`validate-plan`、preview、依赖状态与执行日志，不得成为新的业务 owner
@@ -332,6 +341,7 @@
 - `D1` 仍不是当前活跃面：
   - `E2-G1` 首轮正式判断已完成，结果为暂不启动
   - `edit.json schema v1` 稳定窗口尚未满足，最早重新判断日期仍为 `2026-05-22`
+  - `docs/plans/2026-04-25-e2-current-stop-point.md` 已补：当前建议把 `E2` 视为 `ready_to_hold`，等待新的明确卡片或下一次 `D1` 重判窗口
 
 ## 当前决策面
 
@@ -380,6 +390,7 @@
 - `winget portable` 是否作为 `E2-A2` 的实际落地切口继续推进，以及何时提交首个 `winget-pkgs` manifest。
 - 社区模板 / 插件贡献路径在真实外部试投后，是否还暴露需要进入 `E2-A3` 第二轮的问题。
 - `E2-A4` 的首轮阈值是否需要在更多 CI 样本后继续收紧，或扩展到更多代表性命令。
+  - 当前不再作为立即实现项，而作为后续二轮观察问题保留。
 
 ## 文档保鲜方式
 

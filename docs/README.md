@@ -50,10 +50,15 @@
 - [Long-term Evolution Roadmap](plans/2026-04-21-long-term-evolution-roadmap.md) — Current stage mapping and next-stage decision point
 - [D1 Desktop MVP Start Checklist](plans/2026-04-22-d1-desktop-mvp-start-checklist.md) — Start gate checklist and current blocker assessment
 - [E2 Ecosystem Sustainability Plan](plans/2026-04-22-e2-ecosystem-sustainability-plan.md) — Execution draft for ecosystem, compatibility, distribution, and sustainability work
+- [E2 Current Stop Point](plans/2026-04-25-e2-current-stop-point.md) — Consolidated current-hold recommendation across E2 A/F lines and the first G1 decision
 - [E2-A1 Contract Compatibility Guardrails](plans/2026-04-22-e2-a1-contract-compatibility-guardrails.md) — Detailed checklist for snapshot, breaking change, and review guardrails
+- [E2-A1 Phase Check](plans/2026-04-25-e2-a1-phase-check.md) — Current closure check for contract compatibility guardrails and snapshot review flow
 - [E2-A2 Distribution Channel Evaluation](plans/2026-04-22-e2-a2-distribution-channel-evaluation.md) — Channel evaluation and first-choice recommendation for package-manager distribution
+- [E2-A2 Phase Check](plans/2026-04-25-e2-a2-phase-check.md) — Current closure check for distribution-channel evaluation and repository-local winget readiness
 - [E2-A3 Community Plugin Contribution Path](plans/2026-04-22-e2-a3-community-plugin-contribution-path.md) — Community template/plugin contribution expectations and self-test path
+- [E2-A3 Phase Check](plans/2026-04-25-e2-a3-phase-check.md) — Current closure check for community plugin contribution flow and static-plugin boundary
 - [E2-A4 Runtime Baseline](plans/2026-04-22-e2-a4-runtime-baseline.md) — Dependency validation contract, lightweight performance observations, and external-tool safety checklist
+- [E2-A4 Phase Check](plans/2026-04-25-e2-a4-phase-check.md) — Current closure check for dependency/runtime/security baseline work
 - [Narrated Slides Video Spec](plans/v2/2026-04-25-narrated-slides-video-spec.md) — Candidate spec for explainer / slide-driven video assembly on top of v2 timeline plans
 - [V2-P6-C2 Narrated Slides Plan](plans/v2/2026-04-25-v2-p6-c2-narrated-slides-plan.md) — Implementation planning draft for narrated / PPT-style video assembly and its stage placement
 - [V2-P6 Narrated Slides Phase Check](plans/v2/2026-04-25-v2-p6-phase-check.md) — First-round implementation closure, scope guardrails, and current acceptance state for narrated-slides
