@@ -106,6 +106,25 @@
 
 不要把三类一起打包。
 
+## 后续补记
+
+在这份 stop-point 文档之后，第三类路线已经被按“新明确卡片”的方式单独重开并执行：
+
+- `V2-P6-C15 数据驱动 batch narrated`
+
+这次重开仍然遵守了本文件的原始边界判断：
+
+- 只选三类中的一个继续
+- 只做 `Cli` batch wrapper
+- 不把 narrated 主题扩成 `.pptx` / 页面 / 图表系统
+- 在补齐实现、测试、phase-check 与验收清单后再次回到 stop-point
+
+因此当前更准确的口径应是：
+
+- `V2-P6` 默认仍然不继续横向扩 narrated scope
+- `C15` 已作为一次受控重开完成，当前状态为 `ready_for_acceptance`
+- 若还要继续 narrated，必须再开下一张明确新卡，而不是沿着 `C15` 继续加能力
+
 ## 当前判定
 
 ```text
