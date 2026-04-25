@@ -199,8 +199,10 @@ public sealed class ContractSnapshotTests
             var payload = envelope["payload"]!.AsObject();
             payload.Remove("planPath");
             payload.Remove("outputPlanPath");
+            NormalizeMaterialMutationPayload(payload);
 
             var expectedPayload = LoadSnapshot("replace-plan-material-valid.json")!["payload"]!.AsObject();
+            NormalizeMaterialMutationPayload(expectedPayload);
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'replace-plan-material'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -264,6 +266,7 @@ public sealed class ContractSnapshotTests
             NormalizeReplacePlanMaterialBatchPayload(payload);
 
             var expectedPayload = LoadSnapshot("replace-plan-material-batch-valid.json")!["payload"]!.AsObject();
+            NormalizeReplacePlanMaterialBatchPayload(expectedPayload);
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'replace-plan-material-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -310,8 +313,10 @@ public sealed class ContractSnapshotTests
             var payload = envelope["payload"]!.AsObject();
             payload.Remove("planPath");
             payload.Remove("outputPlanPath");
+            NormalizeMaterialMutationPayload(payload);
 
             var expectedPayload = LoadSnapshot("attach-plan-material-valid.json")!["payload"]!.AsObject();
+            NormalizeMaterialMutationPayload(expectedPayload);
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'attach-plan-material'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -358,8 +363,10 @@ public sealed class ContractSnapshotTests
             var payload = envelope["payload"]!.AsObject();
             payload.Remove("planPath");
             payload.Remove("outputPlanPath");
+            NormalizeMaterialMutationPayload(payload);
 
             var expectedPayload = LoadSnapshot("bind-voice-track-valid.json")!["payload"]!.AsObject();
+            NormalizeMaterialMutationPayload(expectedPayload);
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'bind-voice-track'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -421,8 +428,10 @@ public sealed class ContractSnapshotTests
             payload["results"]![0]!.AsObject().Remove("resultPath");
             payload["results"]![0]!["result"]!.AsObject().Remove("planPath");
             payload["results"]![0]!["result"]!.AsObject().Remove("outputPlanPath");
+            NormalizeMaterialMutationPayload(payload["results"]![0]!["result"]!.AsObject());
 
             var expectedPayload = LoadSnapshot("bind-voice-track-batch-valid.json")!["payload"]!.AsObject();
+            NormalizeMaterialMutationPayload(expectedPayload["results"]![0]!["result"]!.AsObject());
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'bind-voice-track-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -481,6 +490,7 @@ public sealed class ContractSnapshotTests
             NormalizeAttachPlanMaterialBatchPayload(payload);
 
             var expectedPayload = LoadSnapshot("attach-plan-material-batch-valid.json")!["payload"]!.AsObject();
+            NormalizeAttachPlanMaterialBatchPayload(expectedPayload);
 
             Assert.True(JsonNode.DeepEquals(expectedPayload, payload),
                 $"Contract structure mismatch for 'attach-plan-material-batch'.{Environment.NewLine}Expected:{Environment.NewLine}{expectedPayload}{Environment.NewLine}{Environment.NewLine}Actual:{Environment.NewLine}{payload}");
@@ -651,6 +661,7 @@ public sealed class ContractSnapshotTests
             {
                 attachResult.Remove("planPath");
                 attachResult.Remove("outputPlanPath");
+                NormalizeMaterialMutationPayload(attachResult);
             }
         }
     }
@@ -672,7 +683,26 @@ public sealed class ContractSnapshotTests
             {
                 replaceResult.Remove("planPath");
                 replaceResult.Remove("outputPlanPath");
+                NormalizeMaterialMutationPayload(replaceResult);
             }
+        }
+    }
+
+    private static void NormalizeMaterialMutationPayload(JsonObject payload)
+    {
+        NormalizePathValue(payload, "previousPath");
+        NormalizePathValue(payload, "nextPath");
+
+        if (payload["target"] is JsonObject target)
+        {
+            NormalizePathValue(target, "previousPath");
+            NormalizePathValue(target, "nextPath");
+        }
+
+        if (payload["voiceTrack"] is JsonObject voiceTrack)
+        {
+            NormalizePathValue(voiceTrack, "previousPath");
+            NormalizePathValue(voiceTrack, "nextPath");
         }
     }
 
@@ -742,5 +772,21 @@ public sealed class ContractSnapshotTests
         var path = Path.Combine(SnapshotsDir, fileName);
         Assert.True(File.Exists(path), $"Snapshot file not found: {path}");
         return JsonNode.Parse(File.ReadAllText(path))!;
+    }
+
+    private static void NormalizePathValue(JsonObject node, string propertyName)
+    {
+        if (node[propertyName] is not JsonValue value)
+        {
+            return;
+        }
+
+        var stringValue = value.TryGetValue<string>(out var pathValue) ? pathValue : null;
+        if (string.IsNullOrEmpty(stringValue))
+        {
+            return;
+        }
+
+        node[propertyName] = stringValue.Replace('\\', '/');
     }
 }
