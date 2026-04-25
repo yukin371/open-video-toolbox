@@ -1,4 +1,4 @@
-# V2-P6 阶段检查：narrated-slides 首轮实现
+# V2-P6 阶段检查：narrated-slides 当前实现
 
 最后更新：2026-04-25
 
@@ -6,14 +6,15 @@
 
 这份文档只回答一个问题：
 
-> `V2-P6` 当前选定的 narrated-slides 主题，是否已经完成第一轮可回归、可验收、边界清晰的实现？
+> `V2-P6` 当前选定的 narrated-slides 主题，是否已经完成当前这一轮可回归、可验收、边界清晰的实现？
 
-这里说的“第一轮实现”不是把讲解型视频能力整个做完，而是确认首版已稳定交付：
+这里说的“当前实现”不是把讲解型视频能力整个做完，而是确认当前已稳定交付：
 
 - 独立 manifest contract
 - `Core.Editing` 持有的 narrated plan 投影
 - 独立 CLI 入口 `init-narrated-plan`
 - 可直接被现有 `render --preview` 消费的 v2 `edit.json`
+- `visual.kind = "image"` 的最小静态图输入支持
 
 ## 当前纳入范围
 
@@ -22,6 +23,8 @@
 - narrated manifest 模型
 - `NarratedSlidesPlanBuilder`
 - `init-narrated-plan`
+- `visual.kind = "image"` 章节页
+- still-image 输入的最小 render 适配
 - `render --preview` 对首版 narrated v2 plan 的复用验收
 - 对应 Core / CLI 测试与文档同步
 
@@ -29,7 +32,7 @@
 
 - `templates` catalog 集成
 - `init-plan <input>` 复用
-- 图片页、标题卡、图表或 `.pptx`
+- title-card、图表或 `.pptx`
 - `${var}`、slot 条件裁剪、数据驱动 batch
 - AI provider、TTS provider、Remotion runtime
 
@@ -50,7 +53,8 @@
 - 旁白轨固定为 `voice`
 - 可选 BGM 轨固定为 `bgm`
 - section 时长以 `voice` 为准
-- 当 `visual` 时长短于 `voice` 时，构建直接失败
+- `visual.kind = "video"` 时，素材时长短于 `voice` 会直接失败
+- `visual.kind = "image"` 时，静态图章节默认按 `voice` 时长持有
 
 ### Cli
 
@@ -60,6 +64,18 @@
 - narrated manifest 相对路径解析
 - manifest 缺省时长的 `ffprobe` fallback
 - 统一 success / failure envelope
+
+### Core.Execution
+
+当前已补：
+
+- still-image 视频输入识别
+- 对静态图输入的 `-loop 1` / `-framerate` 最小 FFmpeg 接线
+
+当前已守住的边界：
+
+- 图片输入适配继续留在 `Core.Execution`
+- CLI 不拼 still-image 执行参数
 
 当前已守住的边界：
 
@@ -89,7 +105,7 @@
 
 ### 条件 4
 
-> 第一版范围必须受控，不把图片页、`${var}`、slot logic、batch 一起混入
+> 当前范围必须受控，不把 `${var}`、slot logic、batch 一起混入
 
 当前判断：**满足**
 
@@ -108,8 +124,8 @@
 当前最新结果：
 
 - `OpenVideoToolbox.Core.Tests`：166 通过
-- `OpenVideoToolbox.Cli.Tests`：181 通过
-- 总计：347 通过
+- `OpenVideoToolbox.Cli.Tests`：182 通过
+- 总计：348 通过
 
 本轮新增覆盖：
 
@@ -118,7 +134,7 @@
 
 ## 当前结论
 
-`V2-P6 narrated-slides` 当前判断为：**已完成首轮 `C1 ~ C5`，达到 `ready_for_acceptance`**
+`V2-P6 narrated-slides` 当前判断为：**已完成当前一轮 `C1 ~ C5`，达到 `ready_for_acceptance`**
 
 更准确地说：
 
@@ -126,9 +142,10 @@
 - 首版 narrated v2 plan 投影已落地
 - 独立 CLI 入口和失败 envelope 已落地
 - 首版结果已能复用现有 v2 render 路径
+- 静态图片页已可通过最小 still-image 输入适配进入同一条 render 路径
 - 仍然守住了“不把它伪装成当前模板 catalog 项”的范围控制
 
-因此当前不应继续无边界追加图片页、变量注入或 batch；应先进入人工反馈。
+因此当前不应继续无边界追加 progress bar、变量注入或 batch；应先进入人工反馈。
 
 ## 手动验收入口
 

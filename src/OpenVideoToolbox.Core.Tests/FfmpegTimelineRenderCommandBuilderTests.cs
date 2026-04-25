@@ -47,6 +47,17 @@ public sealed class FfmpegTimelineRenderCommandBuilderTests
         Assert.Contains("overlay=eof_action=pass", filterGraph, StringComparison.Ordinal);
         Assert.Contains("amix=inputs=2:duration=longest", filterGraph, StringComparison.Ordinal);
         Assert.Contains("xfade=transition=fade:duration=0.5:offset=2.5", filterGraph, StringComparison.Ordinal);
+
+        var logoInputIndex = commandPlan.Arguments
+            .Select((argument, index) => new { argument, index })
+            .Single(item => item.argument.EndsWith("logo.png", StringComparison.OrdinalIgnoreCase))
+            .index;
+        Assert.True(logoInputIndex >= 0);
+        Assert.Equal("-i", commandPlan.Arguments[logoInputIndex - 1]);
+        Assert.Equal("30", commandPlan.Arguments[logoInputIndex - 2]);
+        Assert.Equal("-framerate", commandPlan.Arguments[logoInputIndex - 3]);
+        Assert.Equal("1", commandPlan.Arguments[logoInputIndex - 4]);
+        Assert.Equal("-loop", commandPlan.Arguments[logoInputIndex - 5]);
     }
 
     private static EditPlan CreateTimelinePlan()

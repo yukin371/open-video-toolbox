@@ -32,6 +32,16 @@ public sealed record FilterBuildError
 public sealed class FfmpegTimelineRenderCommandBuilder
 {
     private static readonly Regex PlaceholderRegex = new(@"\{(?<name>[A-Za-z0-9_]+)\}", RegexOptions.Compiled);
+    private static readonly HashSet<string> StillImageExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".bmp",
+        ".tif",
+        ".tiff"
+    };
 
     private readonly EffectRegistry _effectRegistry;
 
@@ -52,9 +62,9 @@ public sealed class FfmpegTimelineRenderCommandBuilder
 
         ValidateTimeline(request.Plan, timeline);
 
-        var inputPaths = CollectInputPaths(request.Plan, timeline);
-        var inputIndices = inputPaths
-            .Select((path, index) => new KeyValuePair<string, int>(path, index))
+        var inputs = CollectInputs(request.Plan, timeline);
+        var inputIndices = inputs
+            .Select((input, index) => new KeyValuePair<string, int>(input.Path, index))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 
         var graph = BuildFilterComplex(request.Plan, timeline, inputIndices);
@@ -64,10 +74,22 @@ public sealed class FfmpegTimelineRenderCommandBuilder
             request.OverwriteExisting ? "-y" : "-n"
         };
 
-        foreach (var path in inputPaths)
+        foreach (var input in inputs)
         {
+            if (input.LoopStillImage)
+            {
+                arguments.Add("-loop");
+                arguments.Add("1");
+
+                if (input.FrameRate is { } frameRate && frameRate > 0)
+                {
+                    arguments.Add("-framerate");
+                    arguments.Add(frameRate.ToString(CultureInfo.InvariantCulture));
+                }
+            }
+
             arguments.Add("-i");
-            arguments.Add(path);
+            arguments.Add(input.Path);
         }
 
         arguments.Add("-filter_complex");
@@ -446,24 +468,35 @@ public sealed class FfmpegTimelineRenderCommandBuilder
         };
     }
 
-    private static List<string> CollectInputPaths(EditPlan plan, EditPlanTimeline timeline)
+    private static List<TimelineRenderInput> CollectInputs(EditPlan plan, EditPlanTimeline timeline)
     {
-        var inputPaths = new List<string>();
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var inputs = new List<TimelineRenderInput>();
+        var byPath = new Dictionary<string, TimelineRenderInput>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var track in timeline.Tracks)
         {
             foreach (var clip in track.Clips)
             {
                 var path = ResolveClipSourcePath(plan, clip);
-                if (seen.Add(path))
+                if (!byPath.TryGetValue(path, out var existing))
                 {
-                    inputPaths.Add(path);
+                    existing = new TimelineRenderInput
+                    {
+                        Path = path
+                    };
+                    byPath[path] = existing;
+                    inputs.Add(existing);
+                }
+
+                if (track.Kind == TrackKind.Video && IsStillImagePath(path))
+                {
+                    existing.LoopStillImage = true;
+                    existing.FrameRate ??= timeline.FrameRate;
                 }
             }
         }
 
-        return inputPaths;
+        return inputs;
     }
 
     private static void ValidateTimeline(EditPlan plan, EditPlanTimeline timeline)
@@ -607,6 +640,12 @@ public sealed class FfmpegTimelineRenderCommandBuilder
             .Replace(";", "\\;", StringComparison.Ordinal);
     }
 
+    private static bool IsStillImagePath(string path)
+    {
+        var extension = Path.GetExtension(path);
+        return !string.IsNullOrWhiteSpace(extension) && StillImageExtensions.Contains(extension);
+    }
+
     private static string BuildCommandLine(string executablePath, IReadOnlyList<string> arguments)
     {
         var builder = new StringBuilder(executablePath);
@@ -632,6 +671,15 @@ public sealed class FfmpegTimelineRenderCommandBuilder
     }
 
     private static string FormatLabel(string label) => $"[{label}]";
+
+    private sealed class TimelineRenderInput
+    {
+        public required string Path { get; init; }
+
+        public bool LoopStillImage { get; set; }
+
+        public int? FrameRate { get; set; }
+    }
 
     private sealed record TimelineRenderGraph(string FilterGraph, string? VideoLabel, string? AudioLabel);
 }
