@@ -4,13 +4,14 @@
 
 ## 说明
 
-本清单只覆盖 narrated-slides 第一版：
+本清单覆盖 narrated-slides 当前实现：
 
 - `init-narrated-plan`
 - narrated manifest -> v2 `edit.json`
+- `visual.kind = "image"`
 - `render --preview` 对该结果的消费
 
-本清单不验收图片页、`${var}`、batch、图表或 `.pptx`。
+本清单不验收 `${var}`、batch、图表或 `.pptx`。
 
 ## Step 1：准备最小样例目录
 
@@ -151,7 +152,56 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 - `payload.executionPreview.commandPlan.schemaVersion = 2`
 - `payload.executionPreview.commandPlan.arguments` 包含 `-filter_complex`
 
-## Step 6：确认缺失素材会返回结构化 failure envelope
+## Step 6：确认 image section 也可稳定生成并进入 preview
+
+```powershell
+@'
+{
+  "schemaVersion": 1,
+  "video": {
+    "id": "episode-image"
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "title": "Cover",
+      "visual": {
+        "kind": "image",
+        "path": "slides/cover.png"
+      },
+      "voice": {
+        "path": "audio/intro.wav",
+        "durationMs": 2500
+      }
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath (Join-Path $root "narrated.image.json") -Encoding UTF8
+
+Set-Content -LiteralPath (Join-Path $root "slides\\cover.png") "image"
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  init-narrated-plan `
+  --manifest (Join-Path $root "narrated.image.json") `
+  --output (Join-Path $root "edit.image.v2.json")
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  render `
+  --plan (Join-Path $root "edit.image.v2.json") `
+  --preview
+```
+
+通过标准：
+
+- `edit.image.v2.json` 成功写出
+- `timeline.tracks[0].clips[0].src` 指向 `cover.png`
+- `timeline.tracks[0].clips[0].duration = "00:00:02.5000000"`
+- `render --preview` 返回的 `payload.executionPreview.commandPlan.arguments` 包含：
+  - `-loop`
+  - `1`
+  - `-framerate`
+
+## Step 7：确认缺失素材会返回结构化 failure envelope
 
 ```powershell
 @'
@@ -191,8 +241,8 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 
 ## 结论
 
-以上步骤全部通过，才可把当前 narrated-slides 第一版视为：
+以上步骤全部通过，才可把当前 narrated-slides 当前实现视为：
 
-- 已完成首轮实现
+- 已完成当前一轮实现
 - 可进入 `V2-P6-C6` 人工反馈
 - 仍保持在受控范围内

@@ -141,7 +141,7 @@
   - 当前最小边界：
     - 保持独立 `init-narrated-plan` 命令，不把 section manifest 混入 `templates` / `init-plan <input>`
     - `Core.Editing` 持有 manifest -> `schemaVersion = 2` plan 投影，`Cli` 只做路径解析、探测 glue 与 envelope
-    - 第一版只支持 `sections[].visual.kind = "video"`、`voice.path`、可选顶层 `subtitles` / `bgm`
+    - 当前已支持 `sections[].visual.kind = "video" | "image"`、`voice.path`、可选顶层 `subtitles` / `bgm`
   - 当前验收材料：
     - `docs/plans/v2/2026-04-25-v2-p6-c2-narrated-slides-plan.md`
     - `docs/plans/v2/2026-04-25-v2-p6-phase-check.md`
@@ -149,7 +149,7 @@
   - 当前阶段状态：`ready_for_acceptance`
   - 当前下一步：
     - 由人工决定 `accepted / stay / rollback / pause`
-    - 若接受，再决定是否继续做图片页、`${var}`、slot 条件裁剪或数据驱动 batch，而不是自动并入本轮
+    - 若接受，再决定是否继续做 progress bar、`${var}`、slot 条件裁剪或数据驱动 batch，而不是自动并入本轮
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
@@ -191,7 +191,8 @@
     - `Core.Editing` 已新增 narrated manifest 模型与 `NarratedSlidesPlanBuilder`
     - `Cli` 已新增独立 `init-narrated-plan` 命令与 failure envelope
     - 第一版不会把 narrated-slides 伪装成现有 built-in template catalog 项
-    - 第一版可在 manifest 未给 duration 时通过 `ffprobe` 补探测 section 媒体时长
+    - 当前已支持 `video + image` section；当 visual 为静态图时，会由 `Core.Execution` 负责最小 still-image 输入适配
+    - 当 manifest 未给 voice duration 时，仍可通过 `ffprobe` 补探测章节媒体时长
   - 当前手动验收入口：
     - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
     - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`

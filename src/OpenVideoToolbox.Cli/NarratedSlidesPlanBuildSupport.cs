@@ -56,24 +56,29 @@ internal static class NarratedSlidesPlanBuildSupport
         for (var index = 0; index < manifest.Sections.Count; index++)
         {
             var section = manifest.Sections[index];
-            if (!string.Equals(section.Visual.Kind, "video", StringComparison.OrdinalIgnoreCase))
+            var visualKind = section.Visual.Kind?.Trim();
+            var isVideoVisual = string.Equals(visualKind, "video", StringComparison.OrdinalIgnoreCase);
+            var isImageVisual = string.Equals(visualKind, "image", StringComparison.OrdinalIgnoreCase);
+            if (!isVideoVisual && !isImageVisual)
             {
                 throw new InvalidOperationException(
-                    $"Section '{section.Id}' has unsupported visual kind '{section.Visual.Kind}'. Only 'video' is supported in the first narrated-slides version.");
+                    $"Section '{section.Id}' has unsupported visual kind '{section.Visual.Kind}'. Only 'video' and 'image' are supported in the current narrated-slides version.");
             }
 
             var visualPath = ResolveManifestPath(manifestDirectory, section.Visual.Path, $"sections[{index}].visual.path");
             var voicePath = ResolveManifestPath(manifestDirectory, section.Voice.Path, $"sections[{index}].voice.path");
 
-            var visualDuration = section.Visual.DurationMs is int configuredVisualDuration && configuredVisualDuration > 0
-                ? TimeSpan.FromMilliseconds(configuredVisualDuration)
-                : await ProbeDurationAsync(probeService, visualPath, ffprobePath, timeout, $"section '{section.Id}' visual");
-
             var voiceDuration = section.Voice.DurationMs is int configuredVoiceDuration && configuredVoiceDuration > 0
                 ? TimeSpan.FromMilliseconds(configuredVoiceDuration)
                 : await ProbeDurationAsync(probeService, voicePath, ffprobePath, timeout, $"section '{section.Id}' voice");
 
-            if (section.Visual.DurationMs is null || section.Voice.DurationMs is null)
+            var visualDuration = isImageVisual
+                ? ResolveImageVisualDuration(section, voiceDuration)
+                : section.Visual.DurationMs is int configuredVisualDuration && configuredVisualDuration > 0
+                    ? TimeSpan.FromMilliseconds(configuredVisualDuration)
+                    : await ProbeDurationAsync(probeService, visualPath, ffprobePath, timeout, $"section '{section.Id}' visual");
+
+            if ((isVideoVisual && section.Visual.DurationMs is null) || section.Voice.DurationMs is null)
             {
                 probedSectionCount++;
             }
@@ -135,6 +140,16 @@ internal static class NarratedSlidesPlanBuildSupport
         }
 
         return resolvedPath;
+    }
+
+    private static TimeSpan ResolveImageVisualDuration(NarratedSlidesSectionManifest section, TimeSpan voiceDuration)
+    {
+        if (section.Visual.DurationMs is int configuredVisualDuration && configuredVisualDuration > 0)
+        {
+            return TimeSpan.FromMilliseconds(Math.Max(configuredVisualDuration, voiceDuration.TotalMilliseconds));
+        }
+
+        return voiceDuration;
     }
 
     private static async Task<TimeSpan> ProbeDurationAsync(

@@ -201,4 +201,83 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task InitNarratedPlan_SupportsImageSections()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-image-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var slidesDirectory = Path.Combine(outputDirectory, "slides");
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(slidesDirectory);
+        Directory.CreateDirectory(audioDirectory);
+
+        var imagePath = Path.Combine(slidesDirectory, "cover.png");
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.image.json");
+        var planPath = Path.Combine(outputDirectory, "edit.image.v2.json");
+
+        await File.WriteAllTextAsync(imagePath, "image");
+        await File.WriteAllTextAsync(voicePath, "voice-intro");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                Id = "episode-image"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Title = "Cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = Path.Combine("slides", "cover.png").Replace('\\', '/')
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal("init-narrated-plan", envelope["command"]!.GetValue<string>());
+            Assert.Equal(0, envelope["payload"]!["probedSectionCount"]!.GetValue<int>());
+
+            var writtenPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            var tracks = writtenPlan["timeline"]!["tracks"]!.AsArray();
+            var mainTrack = tracks.Single(node => node!["id"]!.GetValue<string>() == "main")!.AsObject();
+            var mainClip = mainTrack["clips"]!.AsArray().Single()!.AsObject();
+
+            Assert.Equal(Path.GetFullPath(imagePath), mainClip["src"]!.GetValue<string>());
+            Assert.Equal("00:00:02.5000000", mainClip["duration"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }
