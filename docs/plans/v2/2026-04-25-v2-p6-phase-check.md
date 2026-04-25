@@ -2,6 +2,8 @@
 
 最后更新：2026-04-25
 
+> 后续补记：该首轮实现已获人工接受；当前已在同一主题下继续补“单视频 `${var}` foundation”，但仍不进入 slot / batch / 图表后端。
+
 ## 目的
 
 这份文档只回答一个问题：
@@ -136,7 +138,7 @@
 
 ## 当前结论
 
-`V2-P6 narrated-slides` 当前判断为：**已完成当前一轮 `C1 ~ C5`，达到 `ready_for_acceptance`**
+`V2-P6 narrated-slides` 当前判断为：**首轮 `C1 ~ C5` 已通过人工阶段验收**
 
 更准确地说：
 
@@ -148,7 +150,7 @@
 - 可选 progress bar 已可通过 built-in effect + 同一条 v2 render 路径消费
 - 仍然守住了“不把它伪装成当前模板 catalog 项”的范围控制
 
-因此当前不应继续无边界追加 `${var}`、slot 或 batch；应先进入人工反馈。
+因此后续继续推进时，仍必须保持增量受控：先做单视频 `${var}` foundation，不无边界混入 slot 或 batch。
 
 ## 手动验收入口
 

@@ -4,6 +4,8 @@ public sealed record NarratedSlidesManifest
 {
     public int SchemaVersion { get; init; } = SchemaVersions.V1;
 
+    public IReadOnlyDictionary<string, string> Variables { get; init; } = new Dictionary<string, string>();
+
     public required NarratedSlidesVideoManifest Video { get; init; }
 
     public NarratedSlidesTemplateManifest? Template { get; init; }

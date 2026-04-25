@@ -365,4 +365,207 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task InitNarratedPlan_SupportsVariablesAndCliOverlay()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-vars-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var slidesDirectory = Path.Combine(outputDirectory, "slides");
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        var subtitlesDirectory = Path.Combine(outputDirectory, "subtitles");
+        Directory.CreateDirectory(slidesDirectory);
+        Directory.CreateDirectory(audioDirectory);
+        Directory.CreateDirectory(subtitlesDirectory);
+
+        var imagePath = Path.Combine(slidesDirectory, "cover.png");
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var bgmPath = Path.Combine(audioDirectory, "bgm.mp3");
+        var subtitlePath = Path.Combine(subtitlesDirectory, "episode.srt");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.vars.json");
+        var varsPath = Path.Combine(outputDirectory, "vars.json");
+        var planPath = Path.Combine(outputDirectory, "edit.vars.v2.json");
+
+        await File.WriteAllTextAsync(imagePath, "image");
+        await File.WriteAllTextAsync(voicePath, "voice");
+        await File.WriteAllTextAsync(bgmPath, "bgm");
+        await File.WriteAllTextAsync(subtitlePath, "1\n00:00:00,000 --> 00:00:01,000\nHello\n");
+        await File.WriteAllTextAsync(varsPath, """
+{
+  "episodeId": "episode-02",
+  "slideName": "cover",
+  "voiceName": "intro",
+  "barColor": "yellow@0.9"
+}
+""");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Variables = new Dictionary<string, string>
+            {
+                ["episodeId"] = "episode-01",
+                ["slidesDir"] = "slides",
+                ["audioDir"] = "audio",
+                ["subtitlesDir"] = "subtitles"
+            },
+            Video = new NarratedSlidesVideoManifest
+            {
+                Id = "${episodeId}",
+                Output = "exports/${episodeId}.mp4",
+                ProgressBar = new NarratedSlidesProgressBarManifest
+                {
+                    Enabled = true,
+                    Color = "${barColor:-white@0.95}",
+                    BackgroundColor = "${barBackground:-black@0.25}"
+                }
+            },
+            Template = new NarratedSlidesTemplateManifest
+            {
+                Id = "${templateId:-narrated-slides-starter}"
+            },
+            Subtitles = new NarratedSlidesSubtitleManifest
+            {
+                Path = "${subtitlesDir}/${subtitleName:-episode}.srt",
+                Mode = SubtitleMode.Sidecar
+            },
+            Bgm = new NarratedSlidesBgmManifest
+            {
+                Path = "${audioDir}/bgm.mp3"
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "${sectionId:-cover}",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "${visualKind:-image}",
+                        Path = "${slidesDir}/${slideName}.png"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "${audioDir}/${voiceName}.wav",
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath,
+                "--vars",
+                varsPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            var payload = envelope["payload"]!.AsObject();
+            Assert.Equal(
+                Path.Combine(outputDirectory, "exports", "episode-02.mp4"),
+                payload["renderOutputPath"]!.GetValue<string>());
+
+            var writtenPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            Assert.Equal("narrated-slides-starter", writtenPlan["template"]!["id"]!.GetValue<string>());
+            Assert.Equal(
+                Path.Combine(outputDirectory, "exports", "episode-02.mp4"),
+                writtenPlan["output"]!["path"]!.GetValue<string>());
+            Assert.Equal(
+                Path.GetFullPath(subtitlePath),
+                writtenPlan["subtitles"]!["path"]!.GetValue<string>());
+
+            var tracks = writtenPlan["timeline"]!["tracks"]!.AsArray();
+            var mainTrack = tracks.Single(node => node!["id"]!.GetValue<string>() == "main")!.AsObject();
+            var bgmTrack = tracks.Single(node => node!["id"]!.GetValue<string>() == "bgm")!.AsObject();
+
+            Assert.Equal(
+                Path.GetFullPath(imagePath),
+                mainTrack["clips"]!.AsArray().Single()!["src"]!.GetValue<string>());
+            Assert.Equal("cover-video", mainTrack["clips"]!.AsArray().Single()!["id"]!.GetValue<string>());
+            Assert.Equal("yellow@0.9", mainTrack["effects"]![1]!["color"]!.GetValue<string>());
+            Assert.Equal("black@0.25", mainTrack["effects"]![1]!["backgroundColor"]!.GetValue<string>());
+            Assert.Equal(
+                Path.GetFullPath(bgmPath),
+                bgmTrack["clips"]!.AsArray().Single()!["src"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task InitNarratedPlan_RejectsUnresolvedVariables()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-unresolved-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(audioDirectory);
+
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.unresolved.json");
+        var planPath = Path.Combine(outputDirectory, "edit.unresolved.v2.json");
+
+        await File.WriteAllTextAsync(voicePath, "voice");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "${missingAsset}"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(1, result.ExitCode);
+            Assert.Contains("unresolved variable 'missingAsset'", result.StdErr, StringComparison.Ordinal);
+
+            var envelope = JsonNode.Parse(result.StdOut)!.AsObject();
+            Assert.Equal(Path.GetFullPath(manifestPath), envelope["payload"]!["manifest"]!["path"]!.GetValue<string>());
+            Assert.Equal(Path.GetFullPath(planPath), envelope["payload"]!["manifest"]!["outputPath"]!.GetValue<string>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }

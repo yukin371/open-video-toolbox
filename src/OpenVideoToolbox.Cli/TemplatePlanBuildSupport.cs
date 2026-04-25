@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using OpenVideoToolbox.Core.Beats;
 using OpenVideoToolbox.Core.Editing;
 using OpenVideoToolbox.Core.Execution;
@@ -82,7 +81,7 @@ internal static class TemplatePlanBuildSupport
         var artifactsPath = GetOption(options, "--artifacts");
         if (!string.IsNullOrWhiteSpace(artifactsPath))
         {
-            artifactBindings = await LoadStringMapAsync(
+            artifactBindings = await JsonInputLoadSupport.LoadStringMapAsync(
                 artifactsPath,
                 "artifact bindings",
                 "Expected a JSON object like {\"slotId\":\"path\"}.");
@@ -92,7 +91,7 @@ internal static class TemplatePlanBuildSupport
         var templateParamsPath = GetOption(options, "--template-params");
         if (!string.IsNullOrWhiteSpace(templateParamsPath))
         {
-            parameterOverrides = await LoadStringMapAsync(
+            parameterOverrides = await JsonInputLoadSupport.LoadStringMapAsync(
                 templateParamsPath,
                 "template parameters",
                 "Expected a JSON object like {\"hookStyle\":\"hard-cut\"}.");
@@ -163,36 +162,5 @@ internal static class TemplatePlanBuildSupport
         }
 
         return beatTrack;
-    }
-
-    private static async Task<IReadOnlyDictionary<string, string>> LoadStringMapAsync(
-        string jsonPath,
-        string logicalName,
-        string shapeHint)
-    {
-        var fullPath = Path.GetFullPath(jsonPath);
-        var content = await File.ReadAllTextAsync(fullPath);
-        var root = JsonNode.Parse(content) as JsonObject
-            ?? throw new InvalidOperationException(
-                $"Failed to parse {logicalName} '{jsonPath}'. {shapeHint}");
-
-        var bindings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var pair in root)
-        {
-            if (string.IsNullOrWhiteSpace(pair.Key))
-            {
-                throw new InvalidOperationException($"{logicalName} '{jsonPath}' contains an empty key.");
-            }
-
-            if (pair.Value is not JsonValue value || !value.TryGetValue<string>(out var path) || string.IsNullOrWhiteSpace(path))
-            {
-                throw new InvalidOperationException(
-                    $"Key '{pair.Key}' in {logicalName} '{jsonPath}' must map to a non-empty string value.");
-            }
-
-            bindings[pair.Key] = path;
-        }
-
-        return bindings;
     }
 }

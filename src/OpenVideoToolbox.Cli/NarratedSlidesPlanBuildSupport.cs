@@ -24,6 +24,14 @@ internal static class NarratedSlidesPlanBuildSupport
         var content = await File.ReadAllTextAsync(fullManifestPath);
         var manifest = JsonSerializer.Deserialize<NarratedSlidesManifest>(content, OpenVideoToolboxJson.Default)
             ?? throw new InvalidOperationException($"Failed to parse narrated-slides manifest '{fullManifestPath}'.");
+        var varsPath = GetOption(options, "--vars");
+        var overlayVariables = string.IsNullOrWhiteSpace(varsPath)
+            ? null
+            : await JsonInputLoadSupport.LoadStringMapAsync(
+                varsPath,
+                "variables",
+                "Expected a JSON object like {\"name\":\"value\"}.");
+        manifest = NarratedSlidesVariableResolver.Resolve(manifest, overlayVariables);
 
         if (manifest.SchemaVersion != 1)
         {
