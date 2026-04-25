@@ -3,8 +3,9 @@
 Observes a lightweight runtime baseline for the current CLI.
 
 .DESCRIPTION
-Generates a temporary sample video, runs doctor / probe / render --preview,
-and prints a JSON summary that can be checked into notes or compared later.
+Generates a temporary sample video, runs doctor / probe / scaffold-template-batch /
+render-batch --preview / render --preview, and prints a JSON summary that can be
+checked into notes or compared later.
 
 .EXAMPLE
 powershell -ExecutionPolicy Bypass -File .\scripts\Measure-RuntimeBaseline.ps1
@@ -105,9 +106,13 @@ $workingDirectory = New-TemporaryWorkingDirectory
 try {
     $mediaInputPath = Join-Path $workingDirectory "input.mp4"
     $planPath = Join-Path $workingDirectory "edit.json"
+    $batchManifestPath = Join-Path $workingDirectory "scaffold-batch.json"
+    $renderBatchManifestPath = Join-Path $workingDirectory "render-batch.json"
     $renderOutputPath = Join-Path $workingDirectory "final.mp4"
     $doctorJsonPath = Join-Path $workingDirectory "doctor.json"
     $probeJsonPath = Join-Path $workingDirectory "probe.json"
+    $scaffoldBatchJsonPath = Join-Path $workingDirectory "scaffold-template-batch.json"
+    $renderBatchPreviewJsonPath = Join-Path $workingDirectory "render-batch-preview.json"
     $renderPreviewJsonPath = Join-Path $workingDirectory "render-preview.json"
 
     Invoke-NativeCommandQuiet -ExecutablePath $Ffmpeg -Arguments @(
@@ -144,8 +149,40 @@ try {
 
     $plan | ConvertTo-Json -Depth 10 | Set-Content -Path $planPath -Encoding utf8
 
+    $batchManifest = [ordered]@{
+        schemaVersion = 1
+        items = @(
+            [ordered]@{
+                id = "job-a"
+                input = "input.mp4"
+                template = "shorts-captioned"
+                workdir = "tasks/job-a"
+                validate = $false
+                checkFiles = $false
+            }
+        )
+    }
+
+    $batchManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $batchManifestPath -Encoding utf8
+
     $doctorDurationMs = Invoke-CliObservedCommand -ProjectPath $Project -Arguments @("doctor", "--json-out", $doctorJsonPath) -SkipBuild:$NoBuild
     $probeDurationMs = Invoke-CliObservedCommand -ProjectPath $Project -Arguments @("probe", $mediaInputPath, "--ffprobe", $Ffprobe, "--json-out", $probeJsonPath) -SkipBuild:$NoBuild
+    $scaffoldTemplateBatchDurationMs = Invoke-CliObservedCommand -ProjectPath $Project -Arguments @("scaffold-template-batch", "--manifest", $batchManifestPath, "--json-out", $scaffoldBatchJsonPath) -SkipBuild:$NoBuild
+
+    $renderBatchManifest = [ordered]@{
+        schemaVersion = 1
+        items = @(
+            [ordered]@{
+                id = "job-a"
+                plan = "edit.json"
+                output = "exports/job-a.mp4"
+            }
+        )
+    }
+
+    $renderBatchManifest | ConvertTo-Json -Depth 10 | Set-Content -Path $renderBatchManifestPath -Encoding utf8
+
+    $renderBatchPreviewDurationMs = Invoke-CliObservedCommand -ProjectPath $Project -Arguments @("render-batch", "--manifest", $renderBatchManifestPath, "--preview", "--json-out", $renderBatchPreviewJsonPath) -SkipBuild:$NoBuild
     $renderPreviewDurationMs = Invoke-CliObservedCommand -ProjectPath $Project -Arguments @("render", "--plan", $planPath, "--output", $renderOutputPath, "--preview", "--json-out", $renderPreviewJsonPath) -SkipBuild:$NoBuild
 
     $doctorPayload = (Get-Content -Raw $doctorJsonPath | ConvertFrom-Json).payload
@@ -158,6 +195,8 @@ try {
         sample = [ordered]@{
             durationSeconds = 2
             inputPath = if ($KeepArtifacts) { $mediaInputPath } else { "temp://sample.mp4" }
+            scaffoldBatchManifestPath = if ($KeepArtifacts) { $batchManifestPath } else { "temp://scaffold-batch.json" }
+            renderBatchManifestPath = if ($KeepArtifacts) { $renderBatchManifestPath } else { "temp://render-batch.json" }
             renderPlanPath = if ($KeepArtifacts) { $planPath } else { "temp://edit.json" }
         }
         commands = [ordered]@{
@@ -168,6 +207,14 @@ try {
             probe = [ordered]@{
                 durationMs = $probeDurationMs
                 jsonOut = if ($KeepArtifacts) { $probeJsonPath } else { "temp://probe.json" }
+            }
+            scaffoldTemplateBatch = [ordered]@{
+                durationMs = $scaffoldTemplateBatchDurationMs
+                jsonOut = if ($KeepArtifacts) { $scaffoldBatchJsonPath } else { "temp://scaffold-template-batch.json" }
+            }
+            renderBatchPreview = [ordered]@{
+                durationMs = $renderBatchPreviewDurationMs
+                jsonOut = if ($KeepArtifacts) { $renderBatchPreviewJsonPath } else { "temp://render-batch-preview.json" }
             }
             renderPreview = [ordered]@{
                 durationMs = $renderPreviewDurationMs
