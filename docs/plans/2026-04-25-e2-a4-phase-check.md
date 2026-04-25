@@ -1,6 +1,6 @@
 # E2-A4 阶段检查：依赖 / 性能 / 安全最小基线
 
-最后更新：2026-04-25
+最后更新：2026-04-26
 
 ## 目的
 
@@ -69,6 +69,12 @@
 - 超阈值显式失败
 - summary markdown artifact 上传
 
+当前仓库维护入口还额外补了：
+
+- `.github/workflows/ci.yml` 支持 `workflow_dispatch`
+- `.github/workflows/pr-validation.yml` 支持 `workflow_dispatch + pr_number`
+- 当自动 `pull_request` 事件未正常挂到最新 head 时，maintainer 仍可手动补跑 `ci` 与 `pr-validation`，不需要绕开现有 review gate
+
 ### 安全基线
 
 当前已落地：
@@ -84,6 +90,66 @@
 - stdout / stderr / 错误上下文保留
 - `ProducedPaths` / side effect 声明
 - CLI / Desktop 不绕过 `Core.Execution`
+
+## 从 Clean Code 角度复核
+
+这轮补进来的 `workflow_dispatch` fallback，不应只按“能补跑 CI”来判断，还要看它是否继续符合仓库当前的 clean code / 可维护性原则。
+
+### 1. 职责是否仍然单一
+
+当前判断：**是**
+
+原因：
+
+- `ci.yml` 仍只负责 build + test
+- `pr-validation.yml` 仍只负责 PR 标题 / 正文与 review gate 校验
+- 手动触发只补了触发入口，没有把额外业务判断塞进 workflow
+- `pr-validation.yml` 手动模式下新增的 PR 元数据解析，也只负责把真实 PR title/body 接回既有校验路径，不额外拥有第二套规则
+
+### 2. 是否引入重复实现
+
+当前判断：**否**
+
+原因：
+
+- 手动补跑没有复制第二份 CI / PR 校验 workflow，而是继续复用原文件
+- 手动触发的 `pr_number` 只是把事件上下文补齐，不是重新实现一份本地 PR 规则解析器
+- 当前 fallback 仍产出同一类 GitHub Actions run、check suite 与日志入口，没有长出“临时脚本通过即可”这类旁路
+
+### 3. 命名与入口是否足够显式
+
+当前判断：**是**
+
+原因：
+
+- `workflow_dispatch` 是 GitHub Actions 原生入口，不是隐藏开关
+- `pr_number` 直接表达手动补跑时唯一必需的外部输入
+- maintainer 看到 workflow 名称与输入字段，就能理解这条 fallback 的用途，不需要额外猜测隐含语义
+
+### 4. 失败语义与可观察性是否保持一致
+
+当前判断：**是**
+
+原因：
+
+- 手动补跑后的结果仍进入 GitHub Actions run、job log 与 check suite
+- `ci` 与 `pr-validation` 不需要切换到仓库外的脚本或人工口头确认
+- 当自动 `pull_request` 事件缺失时，维护者仍能用同一套日志面定位问题，而不是丢失可追踪性
+
+### 5. 当前仍保留的技术债务
+
+当前判断：**已显式识别，但不阻塞 `E2-A4` 首轮结论**
+
+当前仍存在：
+
+- 截至 **2026-04-26**，PR #5 的最新 head 已有成功的手动 `workflow_dispatch` runs 与对应 check suites
+- 但 `gh pr view 5 --json statusCheckRollup` 仍返回空数组，说明自动 `pull_request` 检查面板链路尚未完全恢复
+- 这属于“自动事件接线异常仍待继续定位”，不属于“仓库已失去 review gate”
+
+因此这轮更合理的判断是：
+
+- 当前 fallback 已满足 clean code 语义下的职责清晰、复用优先、入口显式与可观察性要求
+- 但不能把它夸大成“自动 PR 检查链路已彻底修复”
 
 ## 与阶段目标对照
 
@@ -122,6 +188,7 @@
 - `runtime baseline` 专项文档已单独列出安全清单
 - `ARCHITECTURE_GUARDRAILS.md` 已固化长期基线
 - PR 模板已把 external tool review 变成显式检查项
+- PR 校验 workflow 已支持手动反查真实 PR 元数据，避免因为事件源缺失而退化成“无 gate 直接放行”
 
 ## 当前结论
 
@@ -161,6 +228,8 @@
 是否已建立固定验证入口：是
 是否已有仓库内阈值判定：是
 是否已有外部工具安全清单：是
+维护 fallback 是否仍保持单一路径 / 单一职责：是
+自动 PR 检查链路是否已完全恢复：否，当前仅确认手动补跑链路稳定可用
 当前是否还适合继续扩实现：否，先进入收口/持有状态
 如果现在停止，仓库是否仍处于一致状态：是
 ```
