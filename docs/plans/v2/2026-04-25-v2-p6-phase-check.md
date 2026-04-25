@@ -15,6 +15,7 @@
 - 独立 CLI 入口 `init-narrated-plan`
 - 可直接被现有 `render --preview` 消费的 v2 `edit.json`
 - `visual.kind = "image"` 的最小静态图输入支持
+- 可选 `video.progressBar` 的最小轨道效果支持
 
 ## 当前纳入范围
 
@@ -24,6 +25,7 @@
 - `NarratedSlidesPlanBuilder`
 - `init-narrated-plan`
 - `visual.kind = "image"` 章节页
+- 可选 `video.progressBar`
 - still-image 输入的最小 render 适配
 - `render --preview` 对首版 narrated v2 plan 的复用验收
 - 对应 Core / CLI 测试与文档同步
@@ -55,6 +57,7 @@
 - section 时长以 `voice` 为准
 - `visual.kind = "video"` 时，素材时长短于 `voice` 会直接失败
 - `visual.kind = "image"` 时，静态图章节默认按 `voice` 时长持有
+- `video.progressBar` 开启时，会稳定投影为 `main` 轨的 `progress_bar` effect
 
 ### Cli
 
@@ -71,15 +74,14 @@
 
 - still-image 视频输入识别
 - 对静态图输入的 `-loop 1` / `-framerate` 最小 FFmpeg 接线
+- `progress_bar` built-in effect 到 `drawbox` filter 的最小映射
 
 当前已守住的边界：
 
 - 图片输入适配继续留在 `Core.Execution`
-- CLI 不拼 still-image 执行参数
-
-当前已守住的边界：
-
+- progress bar 继续走 built-in effect catalog + timeline render，不走 CLI 特判
 - CLI 不手搓 timeline
+- CLI 不拼 still-image / progress-bar 执行参数
 - narrated-slides 没有混入现有 `templates` / `init-plan <input>` 单素材模板入口
 - `template.id` 目前只作为稳定输出字段，不代表已进入 built-in template catalog
 
@@ -123,9 +125,9 @@
 
 当前最新结果：
 
-- `OpenVideoToolbox.Core.Tests`：166 通过
-- `OpenVideoToolbox.Cli.Tests`：182 通过
-- 总计：348 通过
+- `OpenVideoToolbox.Core.Tests`：168 通过
+- `OpenVideoToolbox.Cli.Tests`：183 通过
+- 总计：351 通过
 
 本轮新增覆盖：
 
@@ -143,9 +145,10 @@
 - 独立 CLI 入口和失败 envelope 已落地
 - 首版结果已能复用现有 v2 render 路径
 - 静态图片页已可通过最小 still-image 输入适配进入同一条 render 路径
+- 可选 progress bar 已可通过 built-in effect + 同一条 v2 render 路径消费
 - 仍然守住了“不把它伪装成当前模板 catalog 项”的范围控制
 
-因此当前不应继续无边界追加 progress bar、变量注入或 batch；应先进入人工反馈。
+因此当前不应继续无边界追加 `${var}`、slot 或 batch；应先进入人工反馈。
 
 ## 手动验收入口
 

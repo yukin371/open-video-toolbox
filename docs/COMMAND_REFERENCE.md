@@ -132,7 +132,7 @@ init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <
 用途：
 
 - 从 narrated-slides manifest 生成首版讲解型 `schemaVersion = 2` `edit.json`
-- 当前支持 `sections[].visual.kind = "video" | "image"`、`voice.path`、可选顶层 `subtitles` 与 `bgm`
+- 当前支持 `sections[].visual.kind = "video" | "image"`、`voice.path`、可选顶层 `subtitles` / `bgm` / `video.progressBar`
 - 当前不纳入 `templates` catalog，也不复用 `init-plan <input>` 的单素材模板入口
 
 ### `scaffold-template`

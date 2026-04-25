@@ -60,6 +60,22 @@ public sealed class FfmpegTimelineRenderCommandBuilderTests
         Assert.Equal("-loop", commandPlan.Arguments[logoInputIndex - 5]);
     }
 
+    [Fact]
+    public void Build_RendersProgressBarTrackEffect()
+    {
+        var builder = new FfmpegTimelineRenderCommandBuilder();
+        var request = new EditPlanRenderRequest
+        {
+            Plan = CreateProgressBarTimelinePlan()
+        };
+
+        var commandPlan = builder.Build(request);
+        var filterGraph = commandPlan.Arguments.Single(argument => argument.Contains("drawbox=x=0", StringComparison.Ordinal));
+
+        Assert.Contains("drawbox=x=0:y=ih-24-10:w=iw:h=10:color=black@0.2:t=fill", filterGraph, StringComparison.Ordinal);
+        Assert.Contains("drawbox=x=0:y=ih-24-10:w=iw*min(t/6\\,1):h=10:color=yellow@0.9:t=fill", filterGraph, StringComparison.Ordinal);
+    }
+
     private static EditPlan CreateTimelinePlan()
     {
         return new EditPlan
@@ -237,6 +253,66 @@ public sealed class FfmpegTimelineRenderCommandBuilderTests
             Output = new EditOutputPlan
             {
                 Path = Path.GetFullPath("timeline-composite.mp4"),
+                Container = "mp4"
+            }
+        };
+    }
+
+    private static EditPlan CreateProgressBarTimelinePlan()
+    {
+        return new EditPlan
+        {
+            SchemaVersion = SchemaVersions.V2,
+            Source = new EditPlanSource
+            {
+                InputPath = Path.GetFullPath("input.mp4")
+            },
+            Timeline = new EditPlanTimeline
+            {
+                Duration = TimeSpan.FromSeconds(6),
+                Resolution = new TimelineResolution
+                {
+                    W = 1920,
+                    H = 1080
+                },
+                FrameRate = 30,
+                Tracks =
+                [
+                    new TimelineTrack
+                    {
+                        Id = "main",
+                        Kind = TrackKind.Video,
+                        Effects =
+                        [
+                            new TimelineEffect
+                            {
+                                Type = "progress_bar",
+                                Extensions = new Dictionary<string, System.Text.Json.JsonElement>
+                                {
+                                    ["durationSeconds"] = System.Text.Json.JsonSerializer.SerializeToElement(6.0),
+                                    ["height"] = System.Text.Json.JsonSerializer.SerializeToElement(10),
+                                    ["margin"] = System.Text.Json.JsonSerializer.SerializeToElement(24),
+                                    ["color"] = System.Text.Json.JsonSerializer.SerializeToElement("yellow@0.9"),
+                                    ["backgroundColor"] = System.Text.Json.JsonSerializer.SerializeToElement("black@0.2")
+                                }
+                            }
+                        ],
+                        Clips =
+                        [
+                            new TimelineClip
+                            {
+                                Id = "clip-001",
+                                Start = TimeSpan.Zero,
+                                InPoint = TimeSpan.Zero,
+                                OutPoint = TimeSpan.FromSeconds(6)
+                            }
+                        ]
+                    }
+                ]
+            },
+            Output = new EditOutputPlan
+            {
+                Path = Path.GetFullPath("timeline-progress.mp4"),
                 Container = "mp4"
             }
         };

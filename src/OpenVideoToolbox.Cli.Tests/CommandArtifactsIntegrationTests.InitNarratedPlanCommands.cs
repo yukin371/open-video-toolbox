@@ -280,4 +280,89 @@ public sealed partial class CommandArtifactsIntegrationTests
             }
         }
     }
+
+    [Fact]
+    public async Task InitNarratedPlan_AddsProgressBarEffectWhenConfigured()
+    {
+        var outputDirectory = Path.Combine(Path.GetTempPath(), $"ovt-init-narrated-progress-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputDirectory);
+
+        var slidesDirectory = Path.Combine(outputDirectory, "slides");
+        var audioDirectory = Path.Combine(outputDirectory, "audio");
+        Directory.CreateDirectory(slidesDirectory);
+        Directory.CreateDirectory(audioDirectory);
+
+        var imagePath = Path.Combine(slidesDirectory, "cover.png");
+        var voicePath = Path.Combine(audioDirectory, "intro.wav");
+        var manifestPath = Path.Combine(outputDirectory, "narrated.progress.json");
+        var planPath = Path.Combine(outputDirectory, "edit.progress.v2.json");
+
+        await File.WriteAllTextAsync(imagePath, "image");
+        await File.WriteAllTextAsync(voicePath, "voice-intro");
+
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest
+            {
+                ProgressBar = new NarratedSlidesProgressBarManifest
+                {
+                    Enabled = true,
+                    Height = 10,
+                    Margin = 24,
+                    Color = "yellow@0.9",
+                    BackgroundColor = "black@0.2"
+                }
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "cover",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = Path.Combine("slides", "cover.png").Replace('\\', '/')
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = Path.Combine("audio", "intro.wav").Replace('\\', '/'),
+                        DurationMs = 2500
+                    }
+                }
+            ]
+        };
+
+        await File.WriteAllTextAsync(manifestPath, JsonSerializer.Serialize(manifest, OpenVideoToolboxJson.Default));
+
+        try
+        {
+            var result = await RunCliAsync(
+                "init-narrated-plan",
+                "--manifest",
+                manifestPath,
+                "--output",
+                planPath);
+
+            Assert.Equal(0, result.ExitCode);
+
+            var writtenPlan = JsonNode.Parse(await File.ReadAllTextAsync(planPath))!.AsObject();
+            var mainTrack = writtenPlan["timeline"]!["tracks"]!
+                .AsArray()
+                .Single(node => node!["id"]!.GetValue<string>() == "main")!
+                .AsObject();
+
+            var effects = mainTrack["effects"]!.AsArray();
+            Assert.Equal("scale", effects[0]!["type"]!.GetValue<string>());
+            Assert.Equal("progress_bar", effects[1]!["type"]!.GetValue<string>());
+            Assert.Equal(2.5, effects[1]!["durationSeconds"]!.GetValue<double>());
+            Assert.Equal(10, effects[1]!["height"]!.GetValue<int>());
+        }
+        finally
+        {
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, recursive: true);
+            }
+        }
+    }
 }

@@ -28,6 +28,8 @@ public sealed record NarratedSlidesVideoManifest
     public int? FrameRate { get; init; }
 
     public string? Output { get; init; }
+
+    public NarratedSlidesProgressBarManifest? ProgressBar { get; init; }
 }
 
 public sealed record NarratedSlidesResolutionManifest
@@ -40,6 +42,19 @@ public sealed record NarratedSlidesResolutionManifest
 public sealed record NarratedSlidesTemplateManifest
 {
     public required string Id { get; init; }
+}
+
+public sealed record NarratedSlidesProgressBarManifest
+{
+    public bool Enabled { get; init; } = true;
+
+    public int? Height { get; init; }
+
+    public int? Margin { get; init; }
+
+    public string? Color { get; init; }
+
+    public string? BackgroundColor { get; init; }
 }
 
 public sealed record NarratedSlidesSubtitleManifest

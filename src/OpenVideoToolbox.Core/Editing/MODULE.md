@@ -46,6 +46,7 @@
 - `EditPlanTemplateFactory`
 - `NarratedSlidesManifest`
 - `NarratedSlidesVideoManifest`
+- `NarratedSlidesProgressBarManifest`
 - `NarratedSlidesResolutionManifest`
 - `NarratedSlidesTemplateManifest`
 - `NarratedSlidesSubtitleManifest`
@@ -106,6 +107,7 @@
 - built-in effect catalog 只承接 effect descriptor discovery 与 validator 识别，不直接拥有 render 执行逻辑
 - narrated-slides manifest 到 `schemaVersion = 2` plan 的投影规则必须留在本模块；CLI 只允许做 manifest 装载、相对路径解析和必要的媒体时长探测 glue，不能手搓 timeline
 - narrated-slides 第一版必须保持独立显式入口，不得为了复用现有 `templates` / `init-plan <input>` 流程而把单素材模板语义和 section manifest 语义混在一起
+- narrated-slides 的可选 `video.progressBar` 必须在本模块统一投影为稳定的 built-in effect 语义，不能在 CLI 或执行层各自发明第二套开关/参数名
 
 ## 常见坑
 
