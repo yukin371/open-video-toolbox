@@ -1,6 +1,6 @@
 # Project Profile
 
-最后更新：2026-04-24
+最后更新：2026-04-25
 
 ## 项目类型
 
@@ -43,6 +43,7 @@
 - `doctor [--ffmpeg <path>] [--ffprobe <path>] [--whisper-cli <path>] [--whisper-model <path>] [--demucs <path>] [--json-out <path>] [--timeout-seconds <n>]`
 - `validate-plugin --plugin-dir <path> [--json-out <path>]`
 - `init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
+- `init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <id>] [--render-output <path>] [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]`
 - `scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]`
 - `scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]`
 - `export --plan <edit.json> --format <edl> --output <path> [--frame-rate <fps>] [--title <name>] [--json-out <path>] [--overwrite]`
@@ -102,6 +103,7 @@
 - `separate-audio` 现也已切到统一 command envelope；当分离阶段失败时，会继续输出结构化 failure envelope，而不是退回 usage 文本；`--json-out` 会把同一份 envelope 直接写到文件。
 - `subtitle` 已支持 `--json-out`，用于把 sidecar 生成结果的同一份结构化 envelope 直接写到文件。
 - `scaffold-template` 已实现，用于一次性落出模板指南、示例文件与初始 `edit.json` 工作目录；传 `--validate` 时还会同步返回校验结果。
+- `init-narrated-plan` 已实现，用于从显式 narrated manifest 装配讲解型 `schemaVersion = 2` `edit.json`；当前首版 owner 仍固定在 `Core.Editing` + `Cli` glue，不纳入现有 `templates` catalog，也不引入 AI/TTS provider。
 - `scaffold-template-batch` 已实现，用于从 manifest 批量生成模板工作目录；相对路径按 manifest 所在目录解析，默认工作目录为 `tasks/<id>`，并会在同目录固定写出 `summary.json`、`results/<id>.json` 与部分成功摘要。
 - `render-batch` 已实现，用于从 manifest 批量读取多份 `edit.json` 并复用单项 `render` 语义；当前支持全局 `--preview` / `--ffmpeg` / `--timeout-seconds` 与 item 级 `output` / `overwrite`，并会在 manifest 同目录写出 `summary.json` 与 `results/<id>.json`。
 - `export` 已实现，用于把 `schemaVersion = 1` 或 `schemaVersion = 2` 的 `edit.json` 统一导出为粗粒度 `EDL` cut list；本轮只支持 `edl`，owner 固定在 `Core.Execution`，CLI 只负责参数解析、路径解析与 envelope 输出；`v1` 会先包装成单主视频轨再导出，`v2` 只导出 `main` 或首条 video track，并通过 warning 明确说明 audio / effect / transition / extra video track 的忽略语义。
@@ -122,7 +124,7 @@
 - 可选的重依赖 real smoke 现已同时接入 `src/OpenVideoToolbox.Core.Tests/RealMediaSmokeTests.cs` 与 `src/OpenVideoToolbox.Cli.Tests/CliRealMediaSmokeTests.cs`；默认环境缺依赖时会自动跳过。
 - 推荐先跑 `doctor` 确认依赖解析状态，再跑上述 real smoke；否则很容易把环境缺失误判成命令实现故障。
 - 契约冻结与模板稳定收口后，当前阶段已推进到：`H1 -> H2+T1 -> T2 -> P1 -> E1` 完成；下一候选阶段为 `D1` 或 `E2`。
-- 当前测试基线：`OpenVideoToolbox.Core.Tests` 164，`OpenVideoToolbox.Cli.Tests` 179，总计 343。
+- 当前测试基线：`OpenVideoToolbox.Core.Tests` 166，`OpenVideoToolbox.Cli.Tests` 181，总计 347。
 - 发布链现状：`src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj` 已明确程序集名 `ovt` 与版本 `0.1.0`，`.github/workflows/release.yml` 已支持 tag 触发的跨平台 single-file 发布。
 - Windows 常用环境变量：
   - `OVT_WHISPER_CLI_PATH`

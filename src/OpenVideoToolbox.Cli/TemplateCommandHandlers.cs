@@ -8,6 +8,73 @@ namespace OpenVideoToolbox.Cli;
 
 internal static class TemplateCommandHandlers
 {
+    public static async Task<int> RunInitNarratedPlanAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--manifest", out var manifestPath, out error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--output", out var planOutputPath, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var fullPlanOutputPath = Path.GetFullPath(planOutputPath!);
+
+        try
+        {
+            var build = await NarratedSlidesPlanBuildSupport.BuildAsync(manifestPath!, fullPlanOutputPath, options);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPlanOutputPath)!);
+            await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
+
+            return WriteCommandEnvelope(
+                "init-narrated-plan",
+                preview: false,
+                new
+                {
+                    manifestPath = build.ManifestPath,
+                    template = new
+                    {
+                        id = build.TemplateId,
+                        source = new
+                        {
+                            kind = EditTemplateSourceKinds.BuiltIn
+                        }
+                    },
+                    planPath = fullPlanOutputPath,
+                    renderOutputPath = build.RenderOutputPath,
+                    probedSectionCount = build.ProbedSectionCount,
+                    stats = build.Stats,
+                    editPlan = build.Plan
+                },
+                jsonOutPath);
+        }
+        catch (Exception ex)
+        {
+            return FailWithCommandEnvelope(
+                "init-narrated-plan",
+                preview: false,
+                BuildFailedCommandPayload(
+                    "manifest",
+                    new
+                    {
+                        path = Path.GetFullPath(manifestPath!),
+                        outputPath = fullPlanOutputPath
+                    },
+                    ex.Message),
+                ex.Message,
+                jsonOutPath);
+        }
+    }
+
     public static async Task<int> RunInitPlanAsync(string[] args, Func<string, int> fail)
     {
         if (!TryParseFileCommand(args, out var inputPath, out var options, out var error))

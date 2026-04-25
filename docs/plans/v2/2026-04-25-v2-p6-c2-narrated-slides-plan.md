@@ -2,6 +2,11 @@
 
 最后更新：2026-04-25
 
+> 当前状态补记：本计划稿对应的首轮 `V2-P6-C3 ~ C5` 已完成落地；当前验收入口见：
+>
+> - `docs/plans/v2/2026-04-25-v2-p6-phase-check.md`
+> - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
+
 ## 卡片信息
 
 ```text

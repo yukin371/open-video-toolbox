@@ -44,6 +44,20 @@
 - `EditPlanTemplatePlanModel`
 - `EditPlanTemplateExampleBuilder`
 - `EditPlanTemplateFactory`
+- `NarratedSlidesManifest`
+- `NarratedSlidesVideoManifest`
+- `NarratedSlidesResolutionManifest`
+- `NarratedSlidesTemplateManifest`
+- `NarratedSlidesSubtitleManifest`
+- `NarratedSlidesBgmManifest`
+- `NarratedSlidesSectionManifest`
+- `NarratedSlidesVisualManifest`
+- `NarratedSlidesVoiceManifest`
+- `NarratedSlidesResolvedSection`
+- `NarratedSlidesPlanBuildRequest`
+- `NarratedSlidesPlanBuildStats`
+- `NarratedSlidesPlanBuildResult`
+- `NarratedSlidesPlanBuilder`
 
 ## Must Not Own
 
@@ -90,6 +104,8 @@
 - `auto-cut-silence` 必须先基于 `silence.json` 与显式总时长生成确定性的 clip 区间；默认仍输出 v1 clips / v1 plan，但当模板显式声明 `planModel = v2Timeline` 时，只允许复用本模块模板工厂生成 v2 baseline plan，并在本模块内替换 timeline clip 内容，不能在 CLI 层手搓 `timeline`、`effects` 或隐式 render 前处理
 - `schema v2` 的 timeline 结构校验必须留在 `EditPlanValidator`，不能在 CLI 或后续 render builder 再复制一套平行规则
 - built-in effect catalog 只承接 effect descriptor discovery 与 validator 识别，不直接拥有 render 执行逻辑
+- narrated-slides manifest 到 `schemaVersion = 2` plan 的投影规则必须留在本模块；CLI 只允许做 manifest 装载、相对路径解析和必要的媒体时长探测 glue，不能手搓 timeline
+- narrated-slides 第一版必须保持独立显式入口，不得为了复用现有 `templates` / `init-plan <input>` 流程而把单素材模板语义和 section manifest 语义混在一起
 
 ## 常见坑
 
@@ -115,3 +131,4 @@
 - `auto-cut-silence` 的 clips 生成语义、默认阈值、v1/v2 plan 分流约定或 timeline clip 替换语义变化
 - `schema v2` timeline 字段、validator 规则或 v1/v2 双轨校验语义变化
 - built-in effect catalog 的 effect 类型、参数 schema、template mode 或 discovery 输出语义变化
+- narrated-slides manifest 字段、section 投影规则、默认轨道结构或首版支持范围变化
