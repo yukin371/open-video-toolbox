@@ -10,9 +10,12 @@
 - narrated manifest -> v2 `edit.json`
 - `visual.kind = "image"`
 - `video.progressBar`
+- narrated `${var}`
+- narrated `bgm.slot.required = false`
+- narrated `sections[].visual.slot.required = false`
 - `render --preview` 对该结果的消费
 
-本清单不验收 `${var}`、batch、图表或 `.pptx`。
+本清单不验收 section 删除、batch、图表或 `.pptx`。
 
 ## Step 1：准备最小样例目录
 
@@ -292,6 +295,60 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
 - `render --preview` 返回的 `payload.executionPreview.commandPlan.arguments` 包含：
   - `drawbox=x=0`
   - `yellow@0.9`
+
+## Step 9：确认 optional visual slot 可投影 placeholder 并进入 preview
+
+```powershell
+@'
+{
+  "schemaVersion": 1,
+  "video": {
+    "id": "episode-visual-slot",
+    "output": "exports/final.mp4"
+  },
+  "sections": [
+    {
+      "id": "cover",
+      "visual": {
+        "kind": "image",
+        "slot": {
+          "name": "cover-visual",
+          "required": false
+        }
+      },
+      "voice": {
+        "path": "audio/intro.wav",
+        "durationMs": 2500
+      }
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath (Join-Path $root "narrated.visual-slot.json") -Encoding UTF8
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  init-narrated-plan `
+  --manifest (Join-Path $root "narrated.visual-slot.json") `
+  --output (Join-Path $root "edit.visual-slot.v2.json")
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  render `
+  --plan (Join-Path $root "edit.visual-slot.v2.json") `
+  --preview
+```
+
+通过标准：
+
+- `edit.visual-slot.v2.json` 成功写出
+- `source.inputPath` 回退到 `audio/intro.wav`
+- `timeline.tracks[0].clips[0]` 不含 `src`
+- `timeline.tracks[0].clips[0].placeholder.kind = "color"`
+- `timeline.tracks[0].clips[0].placeholder.color = "black"`
+- `timeline.tracks[0].clips[0].duration = "00:00:02.5000000"`
+- `render --preview` 返回的 `payload.executionPreview.commandPlan.arguments` 包含：
+  - `lavfi`
+  - `color=c=black`
+  - `[v_out]`
+- `render --preview` 不返回 `-an`
 
 ## 结论
 

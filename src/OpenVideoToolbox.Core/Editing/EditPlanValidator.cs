@@ -376,6 +376,17 @@ public sealed class EditPlanValidator
             .Select(track => track.Id)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        if (plan.Timeline.Tracks
+            .SelectMany(track => track.Clips)
+            .Any(clip => clip.Placeholder is not null)
+            && plan.Timeline.Resolution is null)
+        {
+            issues.Add(Error(
+                "timeline.resolution",
+                "timeline.placeholder.resolution.required",
+                "Timeline resolution is required when placeholder video clips are present."));
+        }
+
         for (var trackIndex = 0; trackIndex < plan.Timeline.Tracks.Count; trackIndex++)
         {
             var track = plan.Timeline.Tracks[trackIndex];
@@ -420,9 +431,21 @@ public sealed class EditPlanValidator
                         "Timeline clip duration must be greater than zero when provided."));
                 }
 
+                ValidatePlaceholderClip(track, clip, clipPath, issues);
+
                 if (track.Kind == TrackKind.Video)
                 {
-                    if (clip.InPoint is null || clip.OutPoint is null)
+                    if (clip.Placeholder is not null)
+                    {
+                        if (clip.Duration is null)
+                        {
+                            issues.Add(Error(
+                                $"{clipPath}.duration",
+                                "timeline.clip.placeholder.duration.required",
+                                "Placeholder video clips must specify duration."));
+                        }
+                    }
+                    else if (clip.InPoint is null || clip.OutPoint is null)
                     {
                         issues.Add(Error(
                             clipPath,
@@ -441,6 +464,60 @@ public sealed class EditPlanValidator
                 ValidateTransitions(clip, clipPath, issues);
                 ValidateTimelineEffects(clip.Effects, $"{clipPath}.effects", trackIds, effectRegistry, issues);
             }
+        }
+    }
+
+    private static void ValidatePlaceholderClip(
+        TimelineTrack track,
+        TimelineClip clip,
+        string clipPath,
+        ICollection<EditPlanValidationIssue> issues)
+    {
+        var placeholder = clip.Placeholder;
+        if (placeholder is null)
+        {
+            return;
+        }
+
+        if (track.Kind != TrackKind.Video)
+        {
+            issues.Add(Error(
+                $"{clipPath}.placeholder",
+                "timeline.clip.placeholder.track.unsupported",
+                "Placeholder clips are only supported on video tracks."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(clip.Src))
+        {
+            issues.Add(Error(
+                $"{clipPath}.src",
+                "timeline.clip.placeholder.src.conflict",
+                "Placeholder clips cannot specify src."));
+        }
+
+        if (clip.InPoint is not null || clip.OutPoint is not null)
+        {
+            issues.Add(Error(
+                clipPath,
+                "timeline.clip.placeholder.range.conflict",
+                "Placeholder clips cannot specify in/out points."));
+        }
+
+        if (!string.Equals(placeholder.Kind, "color", StringComparison.OrdinalIgnoreCase))
+        {
+            issues.Add(Error(
+                $"{clipPath}.placeholder.kind",
+                "timeline.clip.placeholder.kind.unsupported",
+                $"Placeholder kind '{placeholder.Kind}' is not supported. Expected 'color'."));
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(placeholder.Color))
+        {
+            issues.Add(Error(
+                $"{clipPath}.placeholder.color",
+                "timeline.clip.placeholder.color.required",
+                "Color placeholder clips must specify a non-empty color."));
         }
     }
 

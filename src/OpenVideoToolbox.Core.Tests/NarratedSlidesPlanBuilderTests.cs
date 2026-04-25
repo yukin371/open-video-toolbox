@@ -250,4 +250,258 @@ public sealed class NarratedSlidesPlanBuilderTests
         Assert.Equal("3", extensions["durationSeconds"].GetRawText());
         Assert.Equal("10", extensions["height"].GetRawText());
     }
+
+    [Fact]
+    public void Build_SkipsOptionalBgmSlotWhenPathIsMissing()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Bgm = new NarratedSlidesBgmManifest
+            {
+                Slot = new NarratedSlidesSlotManifest
+                {
+                    Name = "bgm",
+                    Required = false
+                }
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "cover.png"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var result = new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualPath = "cover.png",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        });
+
+        Assert.Equal(2, result.Plan.Timeline!.Tracks.Count);
+        Assert.DoesNotContain(result.Plan.Timeline.Tracks, track => track.Id == "bgm");
+        Assert.False(result.Stats.HasBgm);
+    }
+
+    [Fact]
+    public void Build_RejectsRequiredBgmSlot()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Bgm = new NarratedSlidesBgmManifest
+            {
+                Slot = new NarratedSlidesSlotManifest
+                {
+                    Name = "bgm",
+                    Required = true
+                }
+            },
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Path = "cover.png"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var ex = Assert.Throws<ArgumentException>(() => new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualPath = "cover.png",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        }));
+
+        Assert.Contains("bgm.slot.required=true is not supported", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_ProjectsPlaceholderWhenOptionalVisualSlotIsUnbound()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Slot = new NarratedSlidesSlotManifest
+                        {
+                            Name = "intro-visual",
+                            Required = false
+                        }
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var result = new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        });
+
+        Assert.Equal("intro.wav", result.Plan.Source.InputPath);
+        var mainTrack = Assert.Single(result.Plan.Timeline!.Tracks.Where(track => track.Id == "main"));
+        var clip = Assert.Single(mainTrack.Clips);
+        Assert.Null(clip.Src);
+        Assert.Equal(TimeSpan.FromSeconds(3), clip.Duration);
+        Assert.NotNull(clip.Placeholder);
+        Assert.Equal("color", clip.Placeholder!.Kind);
+        Assert.Equal("black", clip.Placeholder.Color);
+    }
+
+    [Fact]
+    public void Build_RejectsMissingVisualWithoutOptionalSlot()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image"
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var ex = Assert.Throws<ArgumentException>(() => new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        }));
+
+        Assert.Contains("visual path is required when visual.slot is not configured", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Build_RejectsRequiredVisualSlot()
+    {
+        var manifest = new NarratedSlidesManifest
+        {
+            Video = new NarratedSlidesVideoManifest(),
+            Sections =
+            [
+                new NarratedSlidesSectionManifest
+                {
+                    Id = "intro",
+                    Visual = new NarratedSlidesVisualManifest
+                    {
+                        Kind = "image",
+                        Slot = new NarratedSlidesSlotManifest
+                        {
+                            Name = "intro-visual",
+                            Required = true
+                        }
+                    },
+                    Voice = new NarratedSlidesVoiceManifest
+                    {
+                        Path = "intro.wav"
+                    }
+                }
+            ]
+        };
+
+        var ex = Assert.Throws<ArgumentException>(() => new NarratedSlidesPlanBuilder().Build(new NarratedSlidesPlanBuildRequest
+        {
+            Manifest = manifest,
+            TemplateId = NarratedSlidesPlanBuilder.DefaultTemplateId,
+            RenderOutputPath = "output/final.mp4",
+            Sections =
+            [
+                new NarratedSlidesResolvedSection
+                {
+                    Id = "intro",
+                    VisualDuration = TimeSpan.FromSeconds(3),
+                    VoicePath = "intro.wav",
+                    VoiceDuration = TimeSpan.FromSeconds(3)
+                }
+            ]
+        }));
+
+        Assert.Contains("visual.slot.required=true is not supported", ex.Message, StringComparison.Ordinal);
+    }
 }

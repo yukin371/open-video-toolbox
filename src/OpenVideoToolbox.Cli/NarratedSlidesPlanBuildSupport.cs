@@ -73,20 +73,24 @@ internal static class NarratedSlidesPlanBuildSupport
                     $"Section '{section.Id}' has unsupported visual kind '{section.Visual.Kind}'. Only 'video' and 'image' are supported in the current narrated-slides version.");
             }
 
-            var visualPath = ResolveManifestPath(manifestDirectory, section.Visual.Path, $"sections[{index}].visual.path");
+            var visualPath = string.IsNullOrWhiteSpace(section.Visual.Path)
+                ? null
+                : ResolveManifestPath(manifestDirectory, section.Visual.Path, $"sections[{index}].visual.path");
             var voicePath = ResolveManifestPath(manifestDirectory, section.Voice.Path, $"sections[{index}].voice.path");
 
             var voiceDuration = section.Voice.DurationMs is int configuredVoiceDuration && configuredVoiceDuration > 0
                 ? TimeSpan.FromMilliseconds(configuredVoiceDuration)
                 : await ProbeDurationAsync(probeService, voicePath, ffprobePath, timeout, $"section '{section.Id}' voice");
 
-            var visualDuration = isImageVisual
-                ? ResolveImageVisualDuration(section, voiceDuration)
-                : section.Visual.DurationMs is int configuredVisualDuration && configuredVisualDuration > 0
-                    ? TimeSpan.FromMilliseconds(configuredVisualDuration)
-                    : await ProbeDurationAsync(probeService, visualPath, ffprobePath, timeout, $"section '{section.Id}' visual");
+            var visualDuration = visualPath is null
+                ? voiceDuration
+                : isImageVisual
+                    ? ResolveImageVisualDuration(section, voiceDuration)
+                    : section.Visual.DurationMs is int configuredVisualDuration && configuredVisualDuration > 0
+                        ? TimeSpan.FromMilliseconds(configuredVisualDuration)
+                        : await ProbeDurationAsync(probeService, visualPath, ffprobePath, timeout, $"section '{section.Id}' visual");
 
-            if ((isVideoVisual && section.Visual.DurationMs is null) || section.Voice.DurationMs is null)
+            if ((visualPath is not null && isVideoVisual && section.Visual.DurationMs is null) || section.Voice.DurationMs is null)
             {
                 probedSectionCount++;
             }

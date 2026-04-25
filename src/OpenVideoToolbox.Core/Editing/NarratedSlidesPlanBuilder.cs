@@ -44,8 +44,28 @@ public sealed class NarratedSlidesPlanBuilder
         foreach (var section in request.Sections)
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(section.Id);
-            ArgumentException.ThrowIfNullOrWhiteSpace(section.VisualPath);
             ArgumentException.ThrowIfNullOrWhiteSpace(section.VoicePath);
+
+            var manifestSection = request.Manifest.Sections.SingleOrDefault(candidate =>
+                string.Equals(candidate.Id, section.Id, StringComparison.Ordinal))
+                ?? throw new ArgumentException(
+                    $"Narrated-slides request section '{section.Id}' does not exist in the manifest.",
+                    nameof(request));
+
+            var visualSlot = manifestSection.Visual.Slot;
+            if (visualSlot is { Required: true })
+            {
+                throw new ArgumentException(
+                    $"Narrated-slides section '{section.Id}' visual.slot.required=true is not supported in the current version.",
+                    nameof(request));
+            }
+
+            if (visualSlot is not null && string.IsNullOrWhiteSpace(visualSlot.Name))
+            {
+                throw new ArgumentException(
+                    $"Narrated-slides section '{section.Id}' visual.slot.name must be a non-empty string when visual.slot is present.",
+                    nameof(request));
+            }
 
             if (section.VisualDuration <= TimeSpan.Zero)
             {
@@ -61,20 +81,40 @@ public sealed class NarratedSlidesPlanBuilder
                     nameof(request));
             }
 
-            if (section.VisualDuration < section.VoiceDuration)
+            var hasVisualAsset = !string.IsNullOrWhiteSpace(section.VisualPath);
+            if (!hasVisualAsset && visualSlot is null)
+            {
+                throw new ArgumentException(
+                    $"Section '{section.Id}' visual path is required when visual.slot is not configured.",
+                    nameof(request));
+            }
+
+            if (hasVisualAsset && section.VisualDuration < section.VoiceDuration)
             {
                 throw new ArgumentException(
                     $"Section '{section.Id}' visual duration cannot be shorter than voice duration.",
                     nameof(request));
             }
 
-            mainClips.Add(new TimelineClip
-            {
-                Id = $"{section.Id}-video",
-                Src = section.VisualPath,
-                Start = totalDuration,
-                Duration = section.VoiceDuration
-            });
+            mainClips.Add(hasVisualAsset
+                ? new TimelineClip
+                {
+                    Id = $"{section.Id}-video",
+                    Src = section.VisualPath,
+                    Start = totalDuration,
+                    Duration = section.VoiceDuration
+                }
+                : new TimelineClip
+                {
+                    Id = $"{section.Id}-video",
+                    Start = totalDuration,
+                    Duration = section.VoiceDuration,
+                    Placeholder = new TimelineClipPlaceholder
+                    {
+                        Kind = "color",
+                        Color = "black"
+                    }
+                });
 
             voiceClips.Add(new TimelineClip
             {
@@ -107,6 +147,28 @@ public sealed class NarratedSlidesPlanBuilder
                 ("backgroundColor", request.Manifest.Video.ProgressBar.BackgroundColor ?? "black@0.28")));
         }
 
+        var bgmSlot = request.Manifest.Bgm?.Slot;
+        if (bgmSlot is { Required: true })
+        {
+            throw new ArgumentException(
+                "Narrated-slides bgm.slot.required=true is not supported in the current version.",
+                nameof(request));
+        }
+
+        if (bgmSlot is not null && string.IsNullOrWhiteSpace(bgmSlot.Name))
+        {
+            throw new ArgumentException(
+                "Narrated-slides bgm.slot.name must be a non-empty string when bgm.slot is present.",
+                nameof(request));
+        }
+
+        if (request.Manifest.Bgm is not null && bgmSlot is null && string.IsNullOrWhiteSpace(request.BgmPath))
+        {
+            throw new ArgumentException(
+                "Narrated-slides bgm.path is required when bgm.slot is not configured.",
+                nameof(request));
+        }
+
         var tracks = new List<TimelineTrack>
         {
             new()
@@ -132,7 +194,7 @@ public sealed class NarratedSlidesPlanBuilder
                 Kind = TrackKind.Audio,
                 Slot = new TrackSlot
                 {
-                    Name = "bgm",
+                    Name = bgmSlot?.Name ?? "bgm",
                     DefaultAsset = request.BgmPath,
                     Required = false
                 },
@@ -161,7 +223,8 @@ public sealed class NarratedSlidesPlanBuilder
             SchemaVersion = SchemaVersions.V2,
             Source = new EditPlanSource
             {
-                InputPath = request.Sections[0].VisualPath
+                InputPath = request.Sections.FirstOrDefault(section => !string.IsNullOrWhiteSpace(section.VisualPath))?.VisualPath
+                    ?? request.Sections[0].VoicePath
             },
             Template = new EditTemplateReference
             {

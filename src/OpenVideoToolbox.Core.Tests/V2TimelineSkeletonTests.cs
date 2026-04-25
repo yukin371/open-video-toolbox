@@ -171,6 +171,151 @@ public sealed class V2TimelineSkeletonTests
     }
 
     [Fact]
+    public void EditPlan_RoundTrips_WithPlaceholderClip()
+    {
+        var plan = CreateSchemaV2Plan() with
+        {
+            Timeline = CreateSchemaV2Plan().Timeline! with
+            {
+                Tracks =
+                [
+                    new TimelineTrack
+                    {
+                        Id = "main",
+                        Kind = TrackKind.Video,
+                        Clips =
+                        [
+                            new TimelineClip
+                            {
+                                Id = "placeholder-001",
+                                Start = TimeSpan.Zero,
+                                Duration = TimeSpan.FromSeconds(2),
+                                Placeholder = new TimelineClipPlaceholder
+                                {
+                                    Kind = "color",
+                                    Color = "black"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        var json = JsonSerializer.Serialize(plan, OpenVideoToolboxJson.Shared);
+        var restored = JsonSerializer.Deserialize<EditPlan>(json, OpenVideoToolboxJson.Shared);
+
+        Assert.Contains("\"placeholder\":", json);
+        Assert.NotNull(restored);
+        Assert.Equal("color", restored!.Timeline!.Tracks[0].Clips[0].Placeholder!.Kind);
+        Assert.Equal("black", restored.Timeline.Tracks[0].Clips[0].Placeholder!.Color);
+    }
+
+    [Fact]
+    public void Validate_ReturnsValidForColorPlaceholderTimelineClip()
+    {
+        var validator = new EditPlanValidator();
+        var plan = CreateSchemaV2Plan() with
+        {
+            Timeline = new EditPlanTimeline
+            {
+                Duration = TimeSpan.FromSeconds(4),
+                Resolution = new TimelineResolution
+                {
+                    W = 1280,
+                    H = 720
+                },
+                FrameRate = 24,
+                Tracks =
+                [
+                    new TimelineTrack
+                    {
+                        Id = "main",
+                        Kind = TrackKind.Video,
+                        Clips =
+                        [
+                            new TimelineClip
+                            {
+                                Id = "placeholder-001",
+                                Start = TimeSpan.Zero,
+                                Duration = TimeSpan.FromSeconds(4),
+                                Placeholder = new TimelineClipPlaceholder
+                                {
+                                    Kind = "color",
+                                    Color = "black"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        var result = validator.Validate(plan);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Issues);
+    }
+
+    [Fact]
+    public void Validate_ReturnsErrorsForInvalidPlaceholderTimelineClip()
+    {
+        var validator = new EditPlanValidator();
+        var plan = CreateSchemaV2Plan() with
+        {
+            Timeline = new EditPlanTimeline
+            {
+                Duration = TimeSpan.FromSeconds(5),
+                FrameRate = 24,
+                Tracks =
+                [
+                    new TimelineTrack
+                    {
+                        Id = "main",
+                        Kind = TrackKind.Video,
+                        Clips =
+                        [
+                            new TimelineClip
+                            {
+                                Id = "placeholder-unknown",
+                                Start = TimeSpan.Zero,
+                                Duration = TimeSpan.FromSeconds(2),
+                                Placeholder = new TimelineClipPlaceholder
+                                {
+                                    Kind = "gradient",
+                                    Color = "black"
+                                }
+                            },
+                            new TimelineClip
+                            {
+                                Id = "placeholder-conflict",
+                                Src = "conflict.mp4",
+                                Start = TimeSpan.FromSeconds(2),
+                                InPoint = TimeSpan.Zero,
+                                OutPoint = TimeSpan.FromSeconds(1),
+                                Placeholder = new TimelineClipPlaceholder
+                                {
+                                    Kind = "color"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        };
+
+        var result = validator.Validate(plan);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.placeholder.resolution.required");
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.clip.placeholder.kind.unsupported");
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.clip.placeholder.src.conflict");
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.clip.placeholder.range.conflict");
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.clip.placeholder.color.required");
+        Assert.Contains(result.Issues, issue => issue.Code == "timeline.clip.placeholder.duration.required");
+    }
+
+    [Fact]
     public void Validate_ReturnsWarningForUnknownTimelineEffect()
     {
         var validator = new EditPlanValidator();

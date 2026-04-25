@@ -12,6 +12,7 @@
 - `EditPlanTimeline`
 - `TimelineTrack`
 - `TimelineClip`
+- `TimelineClipPlaceholder`
 - `Transition`
 - `ClipTransitions`
 - `TimelineEffect`
@@ -51,6 +52,7 @@
 - `NarratedSlidesTemplateManifest`
 - `NarratedSlidesSubtitleManifest`
 - `NarratedSlidesBgmManifest`
+- `NarratedSlidesSlotManifest`
 - `NarratedSlidesSectionManifest`
 - `NarratedSlidesVisualManifest`
 - `NarratedSlidesVoiceManifest`
@@ -78,6 +80,7 @@
 - `timeline` 只表达 v2 编辑意图与执行输入，不表达 UI 瞬时状态
 - v2 clip 的 `src` 允许缺失并 fallback 到顶层 `source.inputPath`；不能在骨架阶段把它重新收紧成每个 clip 必填
 - v2 clip 的时长语义必须允许 `duration` 与 `in/out` 两种来源，不能提前把所有 clip 都收缩成单一视频裁切模型
+- v2 clip 的 placeholder 必须是显式模型；首版只允许 video clip 使用 `placeholder.kind = color`，并由本模块持有字段语义与冲突校验，不能退化成伪 `src`、CLI 特判或磁盘中间产物协议
 - 顶层 `artifacts` 只表达模板声明 slot 与文件路径的绑定，不能混入执行参数或 UI 临时态
 - 顶层 `transcript` 只表达 transcript 引用与基础元数据，不能混入摘要结果或 AI 判断
 - 顶层 `beats` 只表达节奏引用与可选 BPM 元数据，不能混入 CLI 专用临时状态
@@ -110,6 +113,7 @@
 - narrated-slides 第一版必须保持独立显式入口，不得为了复用现有 `templates` / `init-plan <input>` 流程而把单素材模板语义和 section manifest 语义混在一起
 - narrated-slides 的可选 `video.progressBar` 必须在本模块统一投影为稳定的 built-in effect 语义，不能在 CLI 或执行层各自发明第二套开关/参数名
 - narrated-slides 的 `${var}` / `${var:-default}` / `$${text}` 解析语义必须由本模块统一持有；CLI 只允许装载变量文件和提供 overlay，不得在入口层维护第二套替换规则
+- narrated-slides 的 `slot` 条件裁剪必须由本模块统一决定；当前已支持可选 `bgm` 轨省略与 `sections[].visual.slot.required = false` 时的 placeholder 投影，CLI 不得手动删轨或手动补 placeholder
 
 ## 常见坑
 
@@ -137,3 +141,6 @@
 - built-in effect catalog 的 effect 类型、参数 schema、template mode 或 discovery 输出语义变化
 - narrated-slides manifest 字段、section 投影规则、默认轨道结构或首版支持范围变化
 - narrated-slides `variables` 字段、`${var}` 解析语义或 CLI overlay 约定变化
+- narrated-slides `bgm.slot` 字段、可选 `bgm` 轨裁剪语义或失败条件变化
+- narrated-slides `visual.slot` 字段、optional visual placeholder 投影语义或失败条件变化
+- timeline placeholder 字段、合法组合或 validator 冲突规则变化

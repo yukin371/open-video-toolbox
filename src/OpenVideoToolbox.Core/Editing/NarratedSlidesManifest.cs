@@ -68,9 +68,18 @@ public sealed record NarratedSlidesSubtitleManifest
 
 public sealed record NarratedSlidesBgmManifest
 {
-    public required string Path { get; init; }
+    public string? Path { get; init; }
+
+    public NarratedSlidesSlotManifest? Slot { get; init; }
 
     public double GainDb { get; init; } = -18;
+}
+
+public sealed record NarratedSlidesSlotManifest
+{
+    public required string Name { get; init; }
+
+    public bool Required { get; init; }
 }
 
 public sealed record NarratedSlidesSectionManifest
@@ -88,7 +97,9 @@ public sealed record NarratedSlidesVisualManifest
 {
     public required string Kind { get; init; }
 
-    public required string Path { get; init; }
+    public string? Path { get; init; }
+
+    public NarratedSlidesSlotManifest? Slot { get; init; }
 
     public int? DurationMs { get; init; }
 }
@@ -106,7 +117,7 @@ public sealed record NarratedSlidesResolvedSection
 
     public string? Title { get; init; }
 
-    public required string VisualPath { get; init; }
+    public string? VisualPath { get; init; }
 
     public required TimeSpan VisualDuration { get; init; }
 

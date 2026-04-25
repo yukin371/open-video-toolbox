@@ -64,7 +64,7 @@ public sealed class FfmpegTimelineRenderCommandBuilder
 
         var inputs = CollectInputs(request.Plan, timeline);
         var inputIndices = inputs
-            .Select((input, index) => new KeyValuePair<string, int>(input.Path, index))
+            .Select((input, index) => new KeyValuePair<string, int>(input.Key, index))
             .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase);
 
         var graph = BuildFilterComplex(request.Plan, timeline, inputIndices);
@@ -76,6 +76,12 @@ public sealed class FfmpegTimelineRenderCommandBuilder
 
         foreach (var input in inputs)
         {
+            if (input.Placeholder is { } placeholder)
+            {
+                AppendPlaceholderInputArguments(arguments, placeholder, timeline);
+                continue;
+            }
+
             if (input.LoopStillImage)
             {
                 arguments.Add("-loop");
@@ -89,7 +95,7 @@ public sealed class FfmpegTimelineRenderCommandBuilder
             }
 
             arguments.Add("-i");
-            arguments.Add(input.Path);
+            arguments.Add(input.Path!);
         }
 
         arguments.Add("-filter_complex");
@@ -222,14 +228,18 @@ public sealed class FfmpegTimelineRenderCommandBuilder
         IReadOnlyDictionary<string, int> inputIndices,
         ICollection<string> filters)
     {
-        var sourcePath = ResolveClipSourcePath(plan, clip);
-        var inputIndex = inputIndices[sourcePath];
+        var inputKey = ResolveClipInputKey(plan, clip);
+        var inputIndex = inputIndices[inputKey];
         var isVideo = track.Kind == TrackKind.Video;
         var inputLabel = isVideo ? $"{inputIndex}:v" : $"{inputIndex}:a";
         var outputLabel = BuildClipLabel(track, clip, isVideo);
         var filterParts = new List<string>();
 
-        if (clip.InPoint is { } inPoint && clip.OutPoint is { } outPoint)
+        if (clip.Placeholder is not null)
+        {
+            filterParts.Add($"trim=duration={FormatFilterSeconds(clip.Duration!.Value)}");
+        }
+        else if (clip.InPoint is { } inPoint && clip.OutPoint is { } outPoint)
         {
             filterParts.Add(isVideo
                 ? $"trim=start={FormatFilterSeconds(inPoint)}:end={FormatFilterSeconds(outPoint)}"
@@ -477,18 +487,15 @@ public sealed class FfmpegTimelineRenderCommandBuilder
         {
             foreach (var clip in track.Clips)
             {
-                var path = ResolveClipSourcePath(plan, clip);
-                if (!byPath.TryGetValue(path, out var existing))
+                var key = ResolveClipInputKey(plan, clip);
+                if (!byPath.TryGetValue(key, out var existing))
                 {
-                    existing = new TimelineRenderInput
-                    {
-                        Path = path
-                    };
-                    byPath[path] = existing;
+                    existing = CreateTimelineRenderInput(plan, clip);
+                    byPath[key] = existing;
                     inputs.Add(existing);
                 }
 
-                if (track.Kind == TrackKind.Video && IsStillImagePath(path))
+                if (track.Kind == TrackKind.Video && existing.Path is { } path && IsStillImagePath(path))
                 {
                     existing.LoopStillImage = true;
                     existing.FrameRate ??= timeline.FrameRate;
@@ -530,7 +537,14 @@ public sealed class FfmpegTimelineRenderCommandBuilder
                     throw new ArgumentException($"Track '{track.Id}' contains a clip with an empty id.", nameof(timeline));
                 }
 
-                _ = ResolveClipSourcePath(plan, clip);
+                if (clip.Placeholder is not null)
+                {
+                    ValidatePlaceholderClip(timeline, track, clip);
+                }
+                else
+                {
+                    _ = ResolveClipSourcePath(plan, clip);
+                }
 
                 if (clip.Start < TimeSpan.Zero)
                 {
@@ -540,6 +554,11 @@ public sealed class FfmpegTimelineRenderCommandBuilder
                 if (clip.InPoint.HasValue != clip.OutPoint.HasValue)
                 {
                     throw new ArgumentException($"Clip '{clip.Id}' must specify both in/out or neither.", nameof(timeline));
+                }
+
+                if (clip.Placeholder is not null && (clip.InPoint.HasValue || clip.OutPoint.HasValue))
+                {
+                    throw new ArgumentException($"Placeholder clip '{clip.Id}' cannot specify in/out.", nameof(timeline));
                 }
 
                 if (clip.InPoint is { } inPoint && clip.OutPoint is { } outPoint && outPoint <= inPoint)
@@ -574,6 +593,69 @@ public sealed class FfmpegTimelineRenderCommandBuilder
                 }
             }
         }
+    }
+
+    private static void ValidatePlaceholderClip(EditPlanTimeline timeline, TimelineTrack track, TimelineClip clip)
+    {
+        if (track.Kind != TrackKind.Video)
+        {
+            throw new ArgumentException($"Placeholder clip '{clip.Id}' is only supported on video tracks.", nameof(timeline));
+        }
+
+        if (!string.IsNullOrWhiteSpace(clip.Src))
+        {
+            throw new ArgumentException($"Placeholder clip '{clip.Id}' cannot specify src.", nameof(timeline));
+        }
+
+        if (clip.Duration is null || clip.Duration <= TimeSpan.Zero)
+        {
+            throw new ArgumentException($"Placeholder clip '{clip.Id}' must specify a positive duration.", nameof(timeline));
+        }
+
+        var placeholder = clip.Placeholder!;
+        if (!string.Equals(placeholder.Kind, "color", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Placeholder clip '{clip.Id}' uses unsupported kind '{placeholder.Kind}'.",
+                nameof(timeline));
+        }
+
+        if (string.IsNullOrWhiteSpace(placeholder.Color))
+        {
+            throw new ArgumentException($"Placeholder clip '{clip.Id}' must specify a non-empty color.", nameof(timeline));
+        }
+
+        if (timeline.Resolution is null || timeline.Resolution.W <= 0 || timeline.Resolution.H <= 0)
+        {
+            throw new ArgumentException(
+                $"Placeholder clip '{clip.Id}' requires timeline resolution to build a video source.",
+                nameof(timeline));
+        }
+    }
+
+    private static string ResolveClipInputKey(EditPlan plan, TimelineClip clip)
+    {
+        return clip.Placeholder is null
+            ? $"path:{ResolveClipSourcePath(plan, clip)}"
+            : $"placeholder:{clip.Id}";
+    }
+
+    private static TimelineRenderInput CreateTimelineRenderInput(EditPlan plan, TimelineClip clip)
+    {
+        if (clip.Placeholder is { } placeholder)
+        {
+            return new TimelineRenderInput
+            {
+                Key = ResolveClipInputKey(plan, clip),
+                Placeholder = placeholder
+            };
+        }
+
+        return new TimelineRenderInput
+        {
+            Key = ResolveClipInputKey(plan, clip),
+            Path = ResolveClipSourcePath(plan, clip)
+        };
     }
 
     private static string ResolveClipSourcePath(EditPlan plan, TimelineClip clip)
@@ -646,6 +728,31 @@ public sealed class FfmpegTimelineRenderCommandBuilder
         return !string.IsNullOrWhiteSpace(extension) && StillImageExtensions.Contains(extension);
     }
 
+    private static void AppendPlaceholderInputArguments(
+        ICollection<string> arguments,
+        TimelineClipPlaceholder placeholder,
+        EditPlanTimeline timeline)
+    {
+        if (!string.Equals(placeholder.Kind, "color", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"Unsupported placeholder kind '{placeholder.Kind}'.", nameof(placeholder));
+        }
+
+        var resolution = timeline.Resolution
+            ?? throw new ArgumentException("Timeline resolution is required for placeholder inputs.", nameof(timeline));
+
+        var colorInput = $"color=c={placeholder.Color}:s={resolution.W}x{resolution.H}";
+        if (timeline.FrameRate is { } frameRate && frameRate > 0)
+        {
+            colorInput += $":r={frameRate.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        arguments.Add("-f");
+        arguments.Add("lavfi");
+        arguments.Add("-i");
+        arguments.Add(colorInput);
+    }
+
     private static string BuildCommandLine(string executablePath, IReadOnlyList<string> arguments)
     {
         var builder = new StringBuilder(executablePath);
@@ -674,7 +781,11 @@ public sealed class FfmpegTimelineRenderCommandBuilder
 
     private sealed class TimelineRenderInput
     {
-        public required string Path { get; init; }
+        public required string Key { get; init; }
+
+        public string? Path { get; init; }
+
+        public TimelineClipPlaceholder? Placeholder { get; init; }
 
         public bool LoopStillImage { get; set; }
 
