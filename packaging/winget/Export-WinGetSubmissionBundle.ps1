@@ -24,6 +24,7 @@ if ([string]::IsNullOrWhiteSpace($LicenseUrl)) {
 }
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$invocationDirectory = (Get-Location).ProviderPath
 $packageIdSegments = $PackageIdentifier.Split('.')
 if ($packageIdSegments.Length -ne 2) {
     throw "PackageIdentifier '$PackageIdentifier' is expected to use Publisher.Application format for winget-pkgs path export."
@@ -36,7 +37,7 @@ $resolvedOutputRoot = if ([System.IO.Path]::IsPathRooted($OutputRoot)) {
     [System.IO.Path]::GetFullPath($OutputRoot)
 }
 else {
-    [System.IO.Path]::GetFullPath((Join-Path $scriptDirectory $OutputRoot))
+    [System.IO.Path]::GetFullPath((Join-Path $invocationDirectory $OutputRoot))
 }
 $manifestOutputPath = Join-Path $resolvedOutputRoot ("manifests\" + $letterDirectory + "\" + $publisherName + "\" + $applicationName + "\" + $PackageVersion)
 $tempRenderPath = Join-Path ([System.IO.Path]::GetTempPath()) ("ovt-winget-export-" + [guid]::NewGuid().ToString("N"))

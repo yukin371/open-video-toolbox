@@ -24,11 +24,12 @@ param(
 $ErrorActionPreference = "Stop"
 
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
+$invocationDirectory = (Get-Location).ProviderPath
 $resolvedOutputDirectory = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
     [System.IO.Path]::GetFullPath($OutputDirectory)
 }
 else {
-    [System.IO.Path]::GetFullPath((Join-Path $scriptDirectory $OutputDirectory))
+    [System.IO.Path]::GetFullPath((Join-Path $invocationDirectory $OutputDirectory))
 }
 
 $templateFiles = @(

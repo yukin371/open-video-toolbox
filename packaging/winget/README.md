@@ -28,6 +28,7 @@ As of `v0.1.0`:
 - the release includes both `ovt-win-x64.zip` and `ovt-win-x64.exe`
 - `Test-WinGetSubmissionReadiness.ps1` now passes for the current version
 - the manifest set can be rendered locally from the release asset URL
+- the exported `v0.1.0` manifest bundle now also passes local `winget validate`
 
 ## Expected Release Assets
 
@@ -64,6 +65,8 @@ This exports:
 
 - `submissions/manifests/o/OpenVideoToolbox/Cli/0.1.0/`
 - `submissions/submission-notes-0.1.0.md`
+
+Relative `-OutputDirectory` / `-OutputRoot` paths are resolved from the directory where you invoke the script, so running from the repository root with `.\packaging\winget\... -OutputRoot .artifacts\winget-submission` writes to repo-root `.artifacts\winget-submission`.
 
 Before rendering manifests, you can run a repository-local readiness check:
 
@@ -104,6 +107,22 @@ Current `v0.1.0` example:
   -OutputDirectory .\out\v0.1.0
 ```
 
+Current `v0.1.0` validation sample from the repository root:
+
+```powershell
+.\packaging\winget\Export-WinGetSubmissionBundle.ps1 `
+  -PackageVersion 0.1.0 `
+  -ReleaseTag v0.1.0 `
+  -OutputRoot .artifacts\winget-submission
+
+winget validate .artifacts\winget-submission\manifests\o\OpenVideoToolbox\Cli\0.1.0
+```
+
+Observed on 2026-04-25:
+
+- repository-local export succeeded
+- `winget validate` returned `Manifest validation succeeded.`
+
 ## Template Files
 
 - `OpenVideoToolbox.Cli.yaml.template`
@@ -140,4 +159,4 @@ Replace these values before validation or submission:
 - Keep one version per submission.
 - Fill license metadata from the repository's real license source; do not guess it in the manifest.
 - If the winget manifest schema version changes, update the template files before submission.
-- Repository-local `winget validate` currently succeeds, but still prints schema-header warnings on this machine even after adding schema comments to the templates; treat that as a local tooling quirk to re-check in the target submission environment.
+- Local `winget validate` passing is a useful readiness signal, but still re-run validation in the actual submission environment before opening the `winget-pkgs` PR.

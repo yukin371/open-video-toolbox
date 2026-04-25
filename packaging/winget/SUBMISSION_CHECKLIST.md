@@ -46,8 +46,8 @@
 
 - 当前已无仓库侧 P0 blocker。
 - `v0.1.0` 对应的 tag、GitHub Release、MIT 许可证来源和 Windows 资产已齐备。
+- 已在 **2026-04-25** 用仓库导出的 `v0.1.0` manifest 实际跑通一次本地 `winget validate`。
 - 下一步不再是补仓库元数据，而是：
-  - 用当前 release 资产渲染正式 manifest
   - 在目标提交环境复核 `winget validate`
   - 视需要执行 `winget install --manifest`
   - 向 `microsoft/winget-pkgs` 提交 PR
@@ -64,3 +64,4 @@
 - 不要在 manifest 中猜许可证值。
 - 不要绕过 GitHub Release 直接引用临时文件托管地址。
 - 不要在仓库内复制第二套 release pipeline 来服务 winget。
+- 从仓库根调用脚本时，`-OutputRoot` / `-OutputDirectory` 的相对路径按当前调用目录解析。
