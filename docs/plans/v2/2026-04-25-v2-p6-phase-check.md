@@ -2,7 +2,7 @@
 
 最后更新：2026-04-25
 
-> 后续补记：该首轮实现已获人工接受；当前已在同一主题下继续补“单视频 `${var}` foundation`、可选 `bgm.slot`、timeline placeholder video 与首个 optional visual slot”，但仍不进入 section 删除 / batch / 图表后端。
+> 后续补记：该首轮实现已获人工接受；当前已在同一主题下继续补“单视频 `${var}` foundation`、可选 `bgm.slot`、timeline placeholder video 与首个 optional visual slot”，但仍不直接进入 section 删除 / 图表后端。其后第三类重开路线 `V2-P6-C15 数据驱动 batch narrated` 已作为单独卡片另行收口，见 `docs/plans/v2/2026-04-25-v2-p6-c15-batch-narrated-phase-check.md`。
 
 ## 目的
 

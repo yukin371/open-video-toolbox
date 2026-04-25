@@ -22,6 +22,7 @@ static async Task<int> MainAsync(string[] args)
         "validate-plugin" => FoundationCommandHandlers.RunValidatePlugin(remaining, Fail),
         "init-plan" => await TemplateCommandHandlers.RunInitPlanAsync(remaining, Fail),
         "init-narrated-plan" => await TemplateCommandHandlers.RunInitNarratedPlanAsync(remaining, Fail),
+        "init-narrated-plan-batch" => await TemplateCommandHandlers.RunInitNarratedPlanBatchAsync(remaining, Fail),
         "scaffold-template" => await TemplateCommandHandlers.RunScaffoldTemplateAsync(remaining, Fail),
         "scaffold-template-batch" => await TemplateCommandHandlers.RunScaffoldTemplateBatchAsync(remaining, Fail),
         "extract-audio" => await MediaCommandHandlers.RunExtractAudioAsync(remaining, Fail),
@@ -101,6 +102,7 @@ static void PrintUsage()
     Console.WriteLine("  extract-audio <input> --track <n> --output <path> [--ffmpeg <path>] [--json-out <path>] [--timeout-seconds <n>] [--overwrite]");
     Console.WriteLine("  init-plan <input> --template <id> --output <edit.json> [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <id>] [--render-output <path>] [--vars <vars.json>] [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]");
+    Console.WriteLine("  init-narrated-plan-batch --manifest <batch.json> [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]");
     Console.WriteLine("  scaffold-template <input> --template <id> --dir <workdir> [--validate [true|false]] [--check-files [true|false]] [--render-output <path>] [--probe] [--ffprobe <path>] [--transcript <transcript.json>] [--seed-from-transcript] [--transcript-segment-group-size <n>] [--min-transcript-segment-duration-ms <n>] [--max-transcript-gap-ms <n>] [--beats <beats.json>] [--seed-from-beats] [--beat-group-size <n>] [--artifacts <artifacts.json>] [--template-params <template-params.json>] [--subtitle <path>] [--subtitle-mode <sidecar|burnIn|none>] [--bgm <path>] [--plugin-dir <path>] [--timeout-seconds <n>]");
     Console.WriteLine("  scaffold-template-batch --manifest <batch.json> [--plugin-dir <path>] [--json-out <path>]");
     Console.WriteLine("  export --plan <edit.json> --format <edl> --output <path> [--frame-rate <fps>] [--title <name>] [--json-out <path>] [--overwrite]");

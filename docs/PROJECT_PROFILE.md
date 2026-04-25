@@ -1,6 +1,6 @@
 # Project Profile
 
-最后更新：2026-04-25
+最后更新：2026-04-26
 
 ## 项目类型
 
@@ -194,8 +194,9 @@
 ## 当前已知缺口
 
 - CI / workflow 文件：已落地基础 GitHub Actions
-  - 当前已有 `.github/workflows/ci.yml`
-  - 覆盖范围：`push main` 与 `pull_request` 上的 `dotnet restore`、`dotnet build`、`dotnet test`，并在 CI 中补 ffmpeg 安装
+  - 当前已有 `.github/workflows/ci.yml`、`.github/workflows/pr-validation.yml`
+  - 覆盖范围：`ci.yml` 会在 `push main`、`pull_request` 与 `workflow_dispatch` 下执行 `dotnet restore`、`dotnet build`、`dotnet test`，并在 CI 中补 ffmpeg 安装
+  - `pr-validation.yml` 会在 `pull_request` 与 `workflow_dispatch` 下校验 PR 标题 / 正文约束；手动触发时通过 `pr_number` 反查真实 PR 元数据，作为自动 PR 事件偶发缺失时的维护 fallback
   - 另有 `.github/workflows/release.yml` 承接 tag 触发的 release 发布
   - 当前未纳入：依赖 `whisper.cpp` / `demucs` 的可选 smoke
 - Desktop 实际 UI 框架接入状态：`TBD`

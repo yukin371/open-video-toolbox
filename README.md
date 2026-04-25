@@ -28,6 +28,7 @@
 | 模板筛选 | `templates` | 模板列表、过滤结果、单模板指南 | 已可用 |
 | 草稿生成 | `init-plan` / `scaffold-template` | 可编辑的 `edit.json` 与工作目录 | 已可用 |
 | 讲解型草稿生成 | `init-narrated-plan` | 从 section manifest 生成 narrated / slide-driven v2 `edit.json` | 已可用（首版 + `${var}` + 可选 BGM slot + 可选 visual slot placeholder） |
+| 批量讲解型草稿生成 | `init-narrated-plan-batch` | 按 manifest 批量生成 narrated `edit.json`，并汇总 `summary.json` | 已可用 |
 | 批量草稿生成 | `scaffold-template-batch` | 按 manifest 批量落出 `tasks/<id>` 工作目录，并汇总 `summary.json` | 已可用 |
 | 批量渲染预览 / 执行 | `render-batch` | 按 manifest 批量消费现有 plan，并汇总渲染 preview 或执行结果 | 已可用 |
 | 计划巡检 | `inspect-plan` | 素材概览、可替换目标、缺失绑定与校验摘要 | 已可用 |
@@ -180,6 +181,42 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- s
 - 默认工作目录为 `tasks/<id>`
 - 根目录会固定写出 `summary.json`
 - 每个条目还会额外写出 `results/<id>.json`
+- 全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 解析或装载失败返回 `1`
+
+### 批量生成一组 narrated / slide-driven 草稿
+
+```json
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "episode-01",
+      "manifest": "episodes/episode-01/narrated.json",
+      "vars": "vars/episode-01.json"
+    },
+    {
+      "id": "episode-02",
+      "manifest": "episodes/episode-02/narrated.json",
+      "output": "custom/episode-02/edit.json",
+      "renderOutput": "exports/episode-02.mp4"
+    }
+  ]
+}
+```
+
+```powershell
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- init-narrated-plan-batch --manifest .\\narrated-batch.json
+```
+
+适合已经准备好多期 narrated manifest、希望一次性起出多份讲解型 `edit.json` 的场景。
+
+这条命令的约定是：
+
+- batch manifest 内 `manifest` / `output` / `renderOutput` / `vars` 相对路径统一按 batch manifest 所在目录解析
+- narrated manifest 内部素材路径仍按 narrated manifest 自身所在目录解析
+- 未显式提供 `output` 的条目默认写到 `tasks/<id>/edit.json`
+- 根目录固定写出 `summary.json`
+- 每个条目额外写出 `results/<id>.json`
 - 全部成功返回 `0`，只要有条目失败就返回 `2`，manifest 解析或装载失败返回 `1`
 
 ### 批量预览或执行一组现有 plan

@@ -31,30 +31,12 @@ internal static class TemplateCommandHandlers
         try
         {
             var build = await NarratedSlidesPlanBuildSupport.BuildAsync(manifestPath!, fullPlanOutputPath, options);
-
-            Directory.CreateDirectory(Path.GetDirectoryName(fullPlanOutputPath)!);
-            await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
+            var payload = await WriteInitNarratedPlanArtifactsAsync(build, fullPlanOutputPath);
 
             return WriteCommandEnvelope(
                 "init-narrated-plan",
                 preview: false,
-                new
-                {
-                    manifestPath = build.ManifestPath,
-                    template = new
-                    {
-                        id = build.TemplateId,
-                        source = new
-                        {
-                            kind = EditTemplateSourceKinds.BuiltIn
-                        }
-                    },
-                    planPath = fullPlanOutputPath,
-                    renderOutputPath = build.RenderOutputPath,
-                    probedSectionCount = build.ProbedSectionCount,
-                    stats = build.Stats,
-                    editPlan = build.Plan
-                },
+                payload,
                 jsonOutPath);
         }
         catch (Exception ex)
@@ -72,6 +54,159 @@ internal static class TemplateCommandHandlers
                     ex.Message),
                 ex.Message,
                 jsonOutPath);
+        }
+    }
+
+    public static async Task<int> RunInitNarratedPlanBatchAsync(string[] args, Func<string, int> fail)
+    {
+        if (!TryParseOptions(args, out var options, out var error))
+        {
+            return fail(error!);
+        }
+
+        if (!TryGetRequiredOption(options, "--manifest", out var manifestPath, out error))
+        {
+            return fail(error!);
+        }
+
+        var jsonOutPath = GetOption(options, "--json-out");
+        var fullManifestPath = Path.GetFullPath(manifestPath!);
+        var manifestBaseDirectory = Path.GetDirectoryName(fullManifestPath)!;
+        var summaryPath = BatchCommandArtifacts.ResolveSummaryPath(manifestBaseDirectory);
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<InitNarratedPlanBatchManifest>(
+                await File.ReadAllTextAsync(fullManifestPath),
+                OpenVideoToolboxJson.Default)
+                ?? throw new InvalidOperationException($"Failed to parse batch manifest '{fullManifestPath}'.");
+
+            if (manifest.SchemaVersion != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Unsupported init-narrated-plan-batch manifest schema version '{manifest.SchemaVersion}'.");
+            }
+
+            if (manifest.Items.Count == 0)
+            {
+                throw new InvalidOperationException("Batch manifest must contain at least one item.");
+            }
+
+            var results = new List<object>();
+            var succeededCount = 0;
+            var failedCount = 0;
+
+            for (var index = 0; index < manifest.Items.Count; index++)
+            {
+                var item = manifest.Items[index];
+                string? resolvedManifestPath = null;
+                string? resolvedPlanPath = null;
+
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(item.Id))
+                    {
+                        throw new InvalidOperationException($"Batch item at index {index} is missing required field 'id'.");
+                    }
+
+                    if (string.IsNullOrWhiteSpace(item.Manifest))
+                    {
+                        throw new InvalidOperationException($"Batch item '{item.Id}' is missing required field 'manifest'.");
+                    }
+
+                    resolvedManifestPath = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Manifest));
+                    resolvedPlanPath = ResolveInitNarratedBatchOutputPath(manifestBaseDirectory, item);
+                    var itemOptions = BuildBatchInitNarratedOptions(manifestBaseDirectory, options, item);
+                    var build = await NarratedSlidesPlanBuildSupport.BuildAsync(resolvedManifestPath, resolvedPlanPath, itemOptions);
+                    var itemPayload = await WriteInitNarratedPlanArtifactsAsync(build, resolvedPlanPath);
+                    var resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, itemPayload);
+
+                    succeededCount++;
+                    results.Add(new
+                    {
+                        index,
+                        id = item.Id,
+                        manifestPath = resolvedManifestPath,
+                        planPath = resolvedPlanPath,
+                        resultPath,
+                        status = "succeeded",
+                        result = itemPayload
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failedCount++;
+                    string? resultPath = null;
+
+                    if (!string.IsNullOrWhiteSpace(item.Id))
+                    {
+                        resultPath = await BatchCommandArtifacts.WriteResultAsync(manifestBaseDirectory, item.Id, new
+                        {
+                            index,
+                            id = item.Id,
+                            manifestPath = resolvedManifestPath,
+                            planPath = resolvedPlanPath,
+                            status = "failed",
+                            error = new
+                            {
+                                message = ex.Message
+                            }
+                        });
+                    }
+
+                    results.Add(new
+                    {
+                        index,
+                        id = item.Id,
+                        manifestPath = resolvedManifestPath,
+                        planPath = resolvedPlanPath,
+                        resultPath,
+                        status = "failed",
+                        error = new
+                        {
+                            message = ex.Message
+                        }
+                    });
+                }
+            }
+
+            var payload = new
+            {
+                manifestPath = fullManifestPath,
+                manifestBaseDirectory,
+                summaryPath,
+                itemCount = manifest.Items.Count,
+                succeededCount,
+                failedCount,
+                results
+            };
+
+            await BatchCommandArtifacts.WriteSummaryAsync(manifestBaseDirectory, payload);
+
+            return WriteCommandEnvelope(
+                "init-narrated-plan-batch",
+                preview: false,
+                payload,
+                jsonOutPath,
+                exitCode: failedCount == 0 ? 0 : 2);
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return WriteCommandEnvelope(
+                "init-narrated-plan-batch",
+                preview: false,
+                new
+                {
+                    manifestPath = fullManifestPath,
+                    summaryPath,
+                    error = new
+                    {
+                        message = ex.Message
+                    }
+                },
+                jsonOutPath,
+                exitCode: 1);
         }
     }
 
@@ -583,6 +718,15 @@ internal static class TemplateCommandHandlers
         return Path.GetFullPath(Path.Combine(manifestBaseDirectory, workdir));
     }
 
+    private static string ResolveInitNarratedBatchOutputPath(string manifestBaseDirectory, InitNarratedPlanBatchItem item)
+    {
+        var outputPath = string.IsNullOrWhiteSpace(item.Output)
+            ? Path.Combine("tasks", item.Id, "edit.json")
+            : item.Output;
+
+        return Path.GetFullPath(Path.Combine(manifestBaseDirectory, outputPath));
+    }
+
     private static IReadOnlyDictionary<string, string> BuildBatchScaffoldOptions(string? pluginDir)
     {
         var options = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -592,6 +736,78 @@ internal static class TemplateCommandHandlers
         }
 
         return options;
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildBatchInitNarratedOptions(
+        string manifestBaseDirectory,
+        IReadOnlyDictionary<string, string> options,
+        InitNarratedPlanBatchItem item)
+    {
+        var batchOptions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        CopyOptionIfPresent(options, batchOptions, "--ffprobe");
+        CopyOptionIfPresent(options, batchOptions, "--timeout-seconds");
+
+        if (!string.IsNullOrWhiteSpace(item.Template))
+        {
+            batchOptions["--template"] = item.Template;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.RenderOutput))
+        {
+            batchOptions["--render-output"] = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.RenderOutput));
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.Vars))
+        {
+            batchOptions["--vars"] = Path.GetFullPath(Path.Combine(manifestBaseDirectory, item.Vars));
+        }
+
+        return batchOptions;
+    }
+
+    private static void CopyOptionIfPresent(
+        IReadOnlyDictionary<string, string> source,
+        IDictionary<string, string> destination,
+        string optionName)
+    {
+        var value = GetOption(source, optionName);
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            destination[optionName] = value;
+        }
+    }
+
+    private static async Task<object> WriteInitNarratedPlanArtifactsAsync(
+        NarratedSlidesCommandBuildResult build,
+        string fullPlanOutputPath)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPlanOutputPath)!);
+        await File.WriteAllTextAsync(fullPlanOutputPath, JsonSerializer.Serialize(build.Plan, OpenVideoToolboxJson.Default));
+        return BuildInitNarratedPlanPayload(build, fullPlanOutputPath);
+    }
+
+    private static object BuildInitNarratedPlanPayload(
+        NarratedSlidesCommandBuildResult build,
+        string fullPlanOutputPath)
+    {
+        return new
+        {
+            manifestPath = build.ManifestPath,
+            template = new
+            {
+                id = build.TemplateId,
+                source = new
+                {
+                    kind = EditTemplateSourceKinds.BuiltIn
+                }
+            },
+            planPath = fullPlanOutputPath,
+            renderOutputPath = build.RenderOutputPath,
+            probedSectionCount = build.ProbedSectionCount,
+            stats = build.Stats,
+            editPlan = build.Plan
+        };
     }
 
     private static IReadOnlyList<TemplateSignalInstruction> BuildSignalInstructions(

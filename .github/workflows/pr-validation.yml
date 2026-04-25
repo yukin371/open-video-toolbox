@@ -8,18 +8,57 @@ on:
       - reopened
       - synchronize
       - ready_for_review
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR number to validate when manually triggering the workflow
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: read
 
 jobs:
   validate-pr:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Validate PR title and body
+      - name: Resolve PR metadata for manual dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -eo pipefail
+
+          pr_json=$(gh api "repos/$REPOSITORY/pulls/$PR_NUMBER")
+
+          pr_title=$(printf '%s' "$pr_json" | jq -r '.title')
+          pr_body=$(printf '%s' "$pr_json" | jq -r '.body // ""')
+
+          {
+            echo "PR_TITLE<<EOF"
+            printf '%s\n' "$pr_title"
+            echo "EOF"
+            echo "PR_BODY<<EOF"
+            printf '%s\n' "$pr_body"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Validate PR title and body
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_TITLE_FROM_EVENT: ${{ github.event.pull_request.title }}
+          PR_BODY_FROM_EVENT: ${{ github.event.pull_request.body }}
+        run: |
+          set -eo pipefail
+
+          if [ "$EVENT_NAME" != "workflow_dispatch" ]; then
+            PR_TITLE="$PR_TITLE_FROM_EVENT"
+            PR_BODY="$PR_BODY_FROM_EVENT"
+          fi
 
           subject_regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,80}$'
 

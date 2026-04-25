@@ -7,6 +7,7 @@
 本清单覆盖 narrated-slides 当前实现：
 
 - `init-narrated-plan`
+- `init-narrated-plan-batch`
 - narrated manifest -> v2 `edit.json`
 - `visual.kind = "image"`
 - `video.progressBar`
@@ -15,7 +16,7 @@
 - narrated `sections[].visual.slot.required = false`
 - `render --preview` 对该结果的消费
 
-本清单不验收 section 删除、batch、图表或 `.pptx`。
+本清单不验收 section 删除、图表或 `.pptx`；当前纳入的 batch 仅限 `V2-P6-C15` 定义的数据驱动 narrated batch wrapper。
 
 ## Step 1：准备最小样例目录
 
@@ -349,6 +350,87 @@ dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
   - `color=c=black`
   - `[v_out]`
 - `render --preview` 不返回 `-an`
+
+## Step 10：确认 narrated batch 可批量起稿并写出稳定结果目录
+
+```powershell
+$batchRoot = Join-Path $root "batch"
+New-Item -ItemType Directory -Path $batchRoot | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $batchRoot "episodes") | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $batchRoot "episodes\episode-01") | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $batchRoot "episodes\episode-01\slides") | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $batchRoot "episodes\episode-01\audio") | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $batchRoot "vars") | Out-Null
+
+Set-Content -LiteralPath (Join-Path $batchRoot "episodes\episode-01\slides\intro.png") "image"
+Set-Content -LiteralPath (Join-Path $batchRoot "episodes\episode-01\audio\voice.wav") "voice"
+
+@'
+{
+  "schemaVersion": 1,
+  "variables": {
+    "slideFile": "missing.png",
+    "voiceFile": "missing.wav"
+  },
+  "video": {
+    "id": "episode-01",
+    "output": "exports/final.mp4"
+  },
+  "sections": [
+    {
+      "id": "intro",
+      "visual": {
+        "kind": "image",
+        "path": "slides/${slideFile}",
+        "durationMs": 3000
+      },
+      "voice": {
+        "path": "audio/${voiceFile}",
+        "durationMs": 3000
+      }
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath (Join-Path $batchRoot "episodes\episode-01\narrated.json") -Encoding UTF8
+
+@'
+{
+  "slideFile": "intro.png",
+  "voiceFile": "voice.wav"
+}
+'@ | Set-Content -LiteralPath (Join-Path $batchRoot "vars\episode-01.json") -Encoding UTF8
+
+@'
+{
+  "schemaVersion": 1,
+  "items": [
+    {
+      "id": "episode-01",
+      "manifest": "episodes/episode-01/narrated.json",
+      "vars": "vars/episode-01.json"
+    }
+  ]
+}
+'@ | Set-Content -LiteralPath (Join-Path $batchRoot "batch.json") -Encoding UTF8
+
+dotnet run --project ./src/OpenVideoToolbox.Cli/OpenVideoToolbox.Cli.csproj -- `
+  init-narrated-plan-batch `
+  --manifest (Join-Path $batchRoot "batch.json") `
+  --json-out (Join-Path $batchRoot "batch-result.json")
+```
+
+通过标准：
+
+- 返回 `command = "init-narrated-plan-batch"`
+- `preview = false`
+- `payload.itemCount = 1`
+- `payload.succeededCount = 1`
+- `payload.failedCount = 0`
+- `payload.results[0].status = "succeeded"`
+- `tasks/episode-01/edit.json` 存在
+- `summary.json` 存在
+- `results/episode-01.json` 存在
+- `batch-result.json` 与 stdout 为同一份结构化 envelope
 
 ## 结论
 
