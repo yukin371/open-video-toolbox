@@ -55,6 +55,7 @@
 - `NarratedSlidesVisualManifest`
 - `NarratedSlidesVoiceManifest`
 - `NarratedSlidesResolvedSection`
+- `NarratedSlidesVariableResolver`
 - `NarratedSlidesPlanBuildRequest`
 - `NarratedSlidesPlanBuildStats`
 - `NarratedSlidesPlanBuildResult`
@@ -108,6 +109,7 @@
 - narrated-slides manifest 到 `schemaVersion = 2` plan 的投影规则必须留在本模块；CLI 只允许做 manifest 装载、相对路径解析和必要的媒体时长探测 glue，不能手搓 timeline
 - narrated-slides 第一版必须保持独立显式入口，不得为了复用现有 `templates` / `init-plan <input>` 流程而把单素材模板语义和 section manifest 语义混在一起
 - narrated-slides 的可选 `video.progressBar` 必须在本模块统一投影为稳定的 built-in effect 语义，不能在 CLI 或执行层各自发明第二套开关/参数名
+- narrated-slides 的 `${var}` / `${var:-default}` / `$${text}` 解析语义必须由本模块统一持有；CLI 只允许装载变量文件和提供 overlay，不得在入口层维护第二套替换规则
 
 ## 常见坑
 
@@ -134,3 +136,4 @@
 - `schema v2` timeline 字段、validator 规则或 v1/v2 双轨校验语义变化
 - built-in effect catalog 的 effect 类型、参数 schema、template mode 或 discovery 输出语义变化
 - narrated-slides manifest 字段、section 投影规则、默认轨道结构或首版支持范围变化
+- narrated-slides `variables` 字段、`${var}` 解析语义或 CLI overlay 约定变化

@@ -30,8 +30,8 @@
 ## 当前版本目标
 
 - 交付可供外部 AI 代理稳定调用的 CLI 媒体工具箱，包含跨平台 single-file 发布能力。
-- 当前状态（2026-04-25）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`；`V2-P5` 已通过人工阶段验收，`V2-P6` 已选定 narrated-slides 主题并完成首轮 `C1 ~ C5`。
-- 下一步：`E2` 仍是正式交付主线；并行孵化线当前停在 `V2-P6 narrated-slides` 的阶段验收节点，需先由人工对 `C6` 做 `accepted / stay / rollback / pause` 判断，再决定是否继续该主题；`D1` 最早在 `2026-05-22` 后再次重判。
+- 当前状态（2026-04-25）：H1→H2+T1→T2→P1→E1 已全部完成，CLI 契约已冻结，插件开发者体验已落地，发布流程已就绪；`E2-G1` 首轮已执行，当前结果为继续留在 `E2`、不启动 `D1`；`V2-P5` 已通过人工阶段验收，`V2-P6 narrated-slides` 的首轮 `C1 ~ C5` 已获人工接受，并已继续推进单视频 `${var}` 基线。
+- 下一步：`E2` 仍是正式交付主线；并行孵化线当前继续留在 `V2-P6 narrated-slides`，但范围只扩到单视频 `${var}` foundation，不进入 slot 条件裁剪、数据驱动 batch 或图表后端；`D1` 最早在 `2026-05-22` 后再次重判。
 - 长期演化路线：`docs/plans/2026-04-21-long-term-evolution-roadmap.md`
 
 ## 整体开发流程
@@ -135,7 +135,7 @@
     - 不再继续向 `V2-P5` 混入新能力
     - 已补 `v1 / v2 parity + migration` 文档
     - 如需继续推进，应单独启动下一阶段，而不是回到 `V2-P5`
-- `V2-P6` 已启动 narrated-slides 单主题，并完成首轮 `规格 -> 计划 -> 执行 -> 测试 -> 修复`：
+- `V2-P6` 已启动 narrated-slides 单主题；首轮 `规格 -> 计划 -> 执行 -> 测试 -> 修复` 已通过人工阶段验收，并已继续推进 post-acceptance 最小增量：
   - 当前阶段：`V2-P6`
   - 当前主题：`讲解型 / narrated-slides 视频装配`
   - 当前最小边界：
@@ -146,10 +146,11 @@
     - `docs/plans/v2/2026-04-25-v2-p6-c2-narrated-slides-plan.md`
     - `docs/plans/v2/2026-04-25-v2-p6-phase-check.md`
     - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
-  - 当前阶段状态：`ready_for_acceptance`
+  - 当前阶段状态：`accepted`
   - 当前下一步：
-    - 由人工决定 `accepted / stay / rollback / pause`
-    - 若接受，再决定是否继续做 `${var}`、slot 条件裁剪或数据驱动 batch，而不是自动并入本轮
+    - 继续只做单视频 `${var}` foundation，不并入 slot 条件裁剪、数据驱动 batch 或图表后端
+    - 当前已支持 manifest 顶层 `variables` 与 CLI `--vars <vars.json>` overlay
+    - 当前 `${var}` 范围只覆盖 narrated manifest 字符串字段，不代表 batch / slot 语义已启动
 - 当前不变结论：
   - 当前已进入 v2 render baseline 阶段，但仍不代表复杂 effect / plugin effect 已正式实施
   - `V1 Feature Freeze` 仍未触发
@@ -194,7 +195,7 @@
     - 当前已支持 `video + image` section；当 visual 为静态图时，会由 `Core.Execution` 负责最小 still-image 输入适配
     - 当前已支持可选 `video.progressBar`，由 `Core.Editing` 投影为 built-in `progress_bar` effect，并沿用同一条 v2 render 路径消费
     - 当 manifest 未给 voice duration 时，仍可通过 `ffprobe` 补探测章节媒体时长
-  - 当前手动验收入口：
+- 当前手动验收入口：
     - `docs/plans/v2/2026-04-24-v2-p5-acceptance-checklist.md`
     - `docs/plans/v2/2026-04-25-v2-p6-acceptance-checklist.md`
 
@@ -353,8 +354,8 @@
 ## 已验证
 
 - `dotnet test OpenVideoToolbox.sln`
-- `OpenVideoToolbox.Core.Tests`: 164/164
-- `OpenVideoToolbox.Cli.Tests`: 179/179
+- `OpenVideoToolbox.Core.Tests`: 170/170
+- `OpenVideoToolbox.Cli.Tests`: 185/185
 - 仓库内已存在以下已交付物：
   - `examples/plugin-example/`
   - `docs/plugin-development-guide.md`

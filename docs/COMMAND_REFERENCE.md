@@ -126,13 +126,14 @@ init-plan <input> --template <id> --output <edit.json> [--render-output <path>] 
 ### `init-narrated-plan`
 
 ```text
-init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <id>] [--render-output <path>] [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]
+init-narrated-plan --manifest <narrated.json> --output <edit.json> [--template <id>] [--render-output <path>] [--vars <vars.json>] [--ffprobe <path>] [--timeout-seconds <n>] [--json-out <path>]
 ```
 
 用途：
 
 - 从 narrated-slides manifest 生成首版讲解型 `schemaVersion = 2` `edit.json`
 - 当前支持 `sections[].visual.kind = "video" | "image"`、`voice.path`、可选顶层 `subtitles` / `bgm` / `video.progressBar`
+- 当前支持单视频 `${var}` / `${var:-default}` / `$${text}` 变量解析；manifest 顶层 `variables` 与 CLI `--vars <vars.json>` 会按“CLI 覆盖 manifest”合并
 - 当前不纳入 `templates` catalog，也不复用 `init-plan <input>` 的单素材模板入口
 
 ### `scaffold-template`
